@@ -1,0 +1,159 @@
+[
+    {
+        "id": "0be46d0323d2267c",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "94ab8cf74cb79118",
+        "type": "EMOTIV",
+        "z": "0be46d0323d2267c",
+        "name": "EMOTIV",
+        "x": 100,
+        "y": 280,
+        "wires": [
+            [
+                "484fc0d80afc347c"
+            ]
+        ]
+    },
+    {
+        "id": "484fc0d80afc347c",
+        "type": "Profile-Name",
+        "z": "0be46d0323d2267c",
+        "name": "Profile Name",
+        "profileName": "Bogh",
+        "x": 270,
+        "y": 280,
+        "wires": [
+            [
+                "339be6c89f7d7f72",
+                "9e9dda9827472f69"
+            ]
+        ]
+    },
+    {
+        "id": "339be6c89f7d7f72",
+        "type": "Mental-Command",
+        "z": "0be46d0323d2267c",
+        "name": "Mental Commands",
+        "actionName": "lift",
+        "mcSen": 10,
+        "x": 500,
+        "y": 240,
+        "wires": [
+            [
+                "5a8a4640737b9990"
+            ]
+        ]
+    },
+    {
+        "id": "9e9dda9827472f69",
+        "type": "Mental-Command",
+        "z": "0be46d0323d2267c",
+        "name": "Mental Commands",
+        "actionName": "drop",
+        "mcSen": 10,
+        "x": 510,
+        "y": 320,
+        "wires": [
+            [
+                "0ac7098805d1d5cc"
+            ]
+        ]
+    },
+    {
+        "id": "65d238c999a995e8",
+        "type": "tcp out",
+        "z": "0be46d0323d2267c",
+        "name": "",
+        "host": "172.26.50.145",
+        "port": "20000",
+        "beserver": "client",
+        "base64": false,
+        "end": false,
+        "tls": "",
+        "x": 970,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "5a8a4640737b9990",
+        "type": "function",
+        "z": "0be46d0323d2267c",
+        "name": "Format lift",
+        "func": "var messagePayload = msg.payload;\n\nvar formattedMessage = [\"Lift\", messagePayload];\n\nmsg.payload = formattedMessage;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 720,
+        "y": 240,
+        "wires": [
+            [
+                "65d238c999a995e8",
+                "eda35008c87f1383"
+            ]
+        ]
+    },
+    {
+        "id": "eda35008c87f1383",
+        "type": "debug",
+        "z": "0be46d0323d2267c",
+        "name": "Lift payload",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 940,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "b6351b70f87126dd",
+        "type": "debug",
+        "z": "0be46d0323d2267c",
+        "name": "Drop payload",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 940,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "0ac7098805d1d5cc",
+        "type": "function",
+        "z": "0be46d0323d2267c",
+        "name": "Format drop",
+        "func": "var messagePayload = msg.payload;\n\nvar formattedMessage = [\"Drop\", messagePayload];\n\nmsg.payload = formattedMessage;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 730,
+        "y": 320,
+        "wires": [
+            [
+                "b6351b70f87126dd",
+                "65d238c999a995e8"
+            ]
+        ]
+    }
+]
