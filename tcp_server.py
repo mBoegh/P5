@@ -1,4 +1,6 @@
 import socket
+import serial
+import time
 
 class serverTCP:
     """
@@ -35,14 +37,14 @@ class serverTCP:
 
             # If the DEBUG flag is raised, we print data to terminal
             if self.DEBUG:
-                print("Waiting for client")
+                print(f"DEBUG @ class 'serverTCP' function 'await_connection'; SYSTEM MESSAGE: Waiting for client")
             
             # Wait for a client to connect
             conn, addr = socket.accept()
 
             # If the DEBUG flag is raised, we print data to terminal
             if self.DEBUG:
-                print("Client connected")
+                print(f"DEBUG @ class 'serverTCP' function 'await_connection'; SYSTEM MESSAGE: Client connected")
 
             # If a connection is established, then we move to revcieve data loop
             if conn:
@@ -68,21 +70,71 @@ class serverTCP:
             if data_string == "":
                 break
 
-            # Process the data
+            # If the DEBUG flag is raised, we print data to terminal
             if self.DEBUG:
-                print(data_string)
+                print(f"DEBUG @ class 'serverTCP' function 'recieve_data_loop'; Variable 'data_string': {data_string}")
 
+
+class serial2arduino:
+    """
+    Class for establishing serial communication between Python script and an Arduino. 
+    Takes parameters serial_port (the COM port connection with USB), baud_rate (defaults 9600), timeout (time before connection attempt is abandonded in seconds) and Debug (bool print statements).
+    """
+
+    def __init__(self, serial_port, baud_rate=9600, timeout=1, Debug=True):
+
+         # init variables
+        self.SERIAL_PORT = serial_port
+        self.BAUD_RATE = baud_rate
+        self.TIMEOUT = timeout
+        self.DEBUG = Debug
+
+
+    def establish_connection(self):
+        # Open a serial connection
+        arduino = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.TIMEOUT)
+
+        # Wait for the Arduino to initialize
+        time.sleep(2)
+
+    def send_data(self, data):
+
+        # If the DEBUG flag is raised, we print data to terminal
+        if self.DEBUG:
+            print(f"DEBUG @ class 'serial2arduino' function 'Send_data'; Variable 'data': {data}")
+    
+        # Encode data as encoded_data
+        encoded_data = data.encode()
+
+        # If the DEBUG flag is raised, we print data to terminal
+        if self.DEBUG:
+            print(f"DEBUG @ class 'serial2arduino' function 'Send_data'; Variable 'encoded_data': {encoded_data}")
+
+        # Send encoded_data Arduino
+        self.write(encoded_data)
 
 def main():
 
-    ## Define server host ip
-    HOST = "172.26.50.145"
-
-    ## Define server port
-    PORT = 20000
-
     ## Variable for enabling/disabling print statements
     DEBUG = True
+
+    ## Define tcp server host ip
+    HOST = "172.26.50.145"
+
+    ## Define tcp server port
+    PORT = 20000
+
+    ## Define serial port to communicate with arduino across
+    SERIAL_PORT = "COM3"
+
+    ## Define arduino baud rate
+    BAUD_RATE = 9600
+
+    ## Define amount of seconds before arduino connection attempt is abandonded
+    TIMEOUT = 1
+
+    # Instance the serial2arduino class
+    arduino = serial2arduino(SERIAL_PORT, BAUD_RATE, TIMEOUT, DEBUG)
 
     # Instance the serverTCP class
     server = serverTCP(HOST, PORT, DEBUG)
