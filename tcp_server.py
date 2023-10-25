@@ -19,13 +19,13 @@ class serverTCP:
         self.DEBUG = Debug
 
         # Create a socket object
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
         # Bind the socket to a specific address and port
-        s.bind((self.HOST, self.PORT))
+        socket.bind((self.HOST, self.PORT))
 
         # Functioncall await_connection with the socket as argument 
-        self.await_connection(s)
+        self.await_connection(socket)
         
     def await_connection(self, socket):
         """
