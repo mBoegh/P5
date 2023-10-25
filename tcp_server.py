@@ -38,6 +38,8 @@ class serverTCP:
             # If the DEBUG flag is raised, we print data to terminal
             if self.DEBUG:
                 print(f"DEBUG @ class 'serverTCP' function 'await_connection'; SYSTEM MESSAGE: Waiting for client")
+            else:
+                print("Waiting for client")
             
             # Wait for a client to connect
             conn, addr = socket.accept()
@@ -45,6 +47,8 @@ class serverTCP:
             # If the DEBUG flag is raised, we print data to terminal
             if self.DEBUG:
                 print(f"DEBUG @ class 'serverTCP' function 'await_connection'; SYSTEM MESSAGE: Client connected")
+            else:
+                print("Client connected")
 
             # If a connection is established, then we move to revcieve data loop
             if conn:
