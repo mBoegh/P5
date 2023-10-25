@@ -5,9 +5,13 @@ import time
 class serverTCP:
     """
     Creates a TCP server, which awaits connection from any source and then continously recieves data on the socket.
+    Takes parameters:
+       Host - Server host machine IP
+       Port - Server host port to communicate on
+       Debug - bool print statements (defaults False)
     """
 
-    def __init__(self, Host, Port, Debug=True):
+    def __init__(self, Host, Port, Debug=False):
         
         # init variables
         self.HOST = Host
@@ -86,10 +90,10 @@ class serial2arduino:
        serial_port - the COM port connection with USB)
        baud_rate - defaults 9600
        timeout - time before connection attempt is abandonded in seconds)
-       Debug - bool print statements)
+       Debug - bool print statements (defaults False)
     """
 
-    def __init__(self, serial_port, baud_rate=9600, timeout=1, Debug=True):
+    def __init__(self, serial_port, baud_rate=9600, timeout=1, Debug=False):
 
          # init variables
         self.SERIAL_PORT = serial_port
@@ -99,6 +103,10 @@ class serial2arduino:
 
 
     def establish_connection(self):
+        """
+        Function for handling establishing connection between Python pyserial and Arduino.
+        """
+
         # Open a serial connection
         arduino = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.TIMEOUT)
 
@@ -106,6 +114,9 @@ class serial2arduino:
         time.sleep(2)
 
     def send_data(self, data):
+        """
+        Function for handling sending of data across serial connection established in function 'establish_connection'.
+        """
 
         # If the DEBUG flag is raised, we print data to terminal
         if self.DEBUG:
