@@ -78,7 +78,11 @@ class serverTCP:
 class serial2arduino:
     """
     Class for establishing serial communication between Python script and an Arduino. 
-    Takes parameters serial_port (the COM port connection with USB), baud_rate (defaults 9600), timeout (time before connection attempt is abandonded in seconds) and Debug (bool print statements).
+    Takes parameters:
+       serial_port - the COM port connection with USB)
+       baud_rate - defaults 9600
+       timeout - time before connection attempt is abandonded in seconds)
+       Debug - bool print statements)
     """
 
     def __init__(self, serial_port, baud_rate=9600, timeout=1, Debug=True):
