@@ -91,9 +91,15 @@ TO DO:
  - Publish @ class 'serverTCP' function 'recieve_data_loop'; Variable 'data_string' to topic 'EEG_datastream'
 """
 
-HOST = None
-PORT = None
-DEBUG = None
+def main():
+    print("Hello world!")
 
-# Instance the serverTCP class
-server = serverTCP(HOST, PORT, DEBUG)
+    HOST = None
+    PORT = None
+    DEBUG = None
+
+    # Instance the serverTCP class
+    server = serverTCP(HOST, PORT, DEBUG)
+
+if __name__ == "__main__":
+    main()

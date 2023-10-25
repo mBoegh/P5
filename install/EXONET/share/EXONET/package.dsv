@@ -1,0 +1,6 @@
+source;share/EXONET/hook/pythonpath.ps1
+source;share/EXONET/hook/pythonpath.dsv
+source;share/EXONET/hook/pythonpath.sh
+source;share/EXONET/hook/ament_prefix_path.ps1
+source;share/EXONET/hook/ament_prefix_path.dsv
+source;share/EXONET/hook/ament_prefix_path.sh

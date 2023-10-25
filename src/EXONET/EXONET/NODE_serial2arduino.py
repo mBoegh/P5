@@ -62,10 +62,16 @@ TO DO:
  - Send recieved EEG data as is to Arduino across serial connection using class 'serial2arduino'
 """
 
-SERIAL_PORT = None
-BAUD_RATE = None
-TIMEOUT = None
-DEBUG = None
+def main():
+    print("Hello world!")
+    
+    SERIAL_PORT = None
+    BAUD_RATE = None
+    TIMEOUT = None
+    DEBUG = None
 
-# Instance the serial2arduino class
-arduino = serial2arduino(SERIAL_PORT, BAUD_RATE, TIMEOUT, DEBUG)
+    # Instance the serial2arduino class
+    arduino = serial2arduino(SERIAL_PORT, BAUD_RATE, TIMEOUT, DEBUG)
+
+if __name__ == "__main__":
+    main()
