@@ -19,13 +19,13 @@ class serverTCP:
         self.DEBUG = Debug
 
         # Create a socket object
-        socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        socket_serverTCP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
         # Bind the socket to a specific address and port
-        socket.bind((self.HOST, self.PORT))
+        socket_serverTCP.bind((self.HOST, self.PORT))
 
         # Functioncall await_connection with the socket as argument 
-        self.await_connection(socket)
+        self.await_connection(socket_serverTCP)
         
     def await_connection(self, socket):
         """
@@ -45,7 +45,7 @@ class serverTCP:
             else:
                 print("Waiting for client")
             
-            # Wait for a client to connect
+            # Wait for a client to connect (accepting any incoming connection)
             conn, addr = socket.accept()
 
             # If the DEBUG flag is raised, we print data to terminal
