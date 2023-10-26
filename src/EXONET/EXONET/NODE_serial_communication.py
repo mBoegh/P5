@@ -1,3 +1,10 @@
+"""
+TO DO:
+ - Get settings from 'NODE_settings.py' on topic 'settings/NODE_serial_communication'
+ - Recieve motor signals data from topic 'Motor_signals'
+ - Send recieved motor signals data as is to Arduino across serial connection using class 'serial2arduino'
+"""
+
 import serial
 import time
 
@@ -55,12 +62,6 @@ class serial2arduino:
 ######  MAIN  ######
 ####################
 
-"""
-TO DO:
- - Get settings from 'NODE_settings.py' on topic 'settings/NODE_serial2arduino'
- - Recieve motor signals data from topic 'Motor_signals'
- - Send recieved motor signals data as is to Arduino across serial connection using class 'serial2arduino'
-"""
 
 def main():
     print("Hello world!")

@@ -1,0 +1,34 @@
+{
+
+
+    "server": 
+    {
+        "HOST": "172.26.50.145",
+        "PORT": 20000,
+        "DEBUG": true
+    },
+
+
+    "visualizer": 
+    {
+        "DEBUG": true
+    },
+
+
+    "controller":
+    {
+        "DEBUG": true
+    },
+
+    
+    "serial_communication":
+    {
+        "SERIAL_PORT": "COM3",
+        "BAUD_RATE": 9600,
+        "TIMEOUT": 1,
+        "DEBUG": true
+    }
+
+    
+}
+  

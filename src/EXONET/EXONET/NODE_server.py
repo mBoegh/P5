@@ -1,3 +1,9 @@
+"""
+TO DO:
+ - Get settings from 'NODE_settings.py' on topic 'settings/NODE_server'
+ - Publish @ class 'serverTCP' function 'recieve_data_loop'; VARIABLE 'data_string' to topic 'EEG_datastream'
+"""
+
 import socket
 
 class serverTCP:
@@ -84,12 +90,6 @@ class serverTCP:
 ####################
 ######  MAIN  ######
 ####################
-
-"""
-TO DO:
- - Get settings from 'NODE_settings.py' on topic 'settings/NODE_serverTCP'
- - Publish @ class 'serverTCP' function 'recieve_data_loop'; VARIABLE 'data_string' to topic 'EEG_datastream'
-"""
 
 def main():
     print("Hello world!")
