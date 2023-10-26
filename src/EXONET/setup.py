@@ -21,9 +21,10 @@ setup(
     entry_points={
         'console_scripts': [
                 'settings = EXONET.NODE_settings:main',
-                'serverTCP = EXONET.NODE_serverTCP:main',
+                'server = EXONET.NODE_server:main',
                 'visualizer = EXONET.NODE_visualizer:main',
-                'serial2arduino = EXONET.NODE_serial2arduino:main'
+                'serial_communication = EXONET.NODE_serial_communication:main',
+                'controller = EXONET.NODE_controller:main'
         ],
 
     },

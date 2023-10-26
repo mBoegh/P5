@@ -78,7 +78,7 @@ class serverTCP:
 
             # If the DEBUG flag is raised, we print data to terminal
             if self.DEBUG:
-                print(f"DEBUG @ class 'serverTCP' function 'recieve_data_loop'; Variable 'data_string': {data_string}")
+                print(f"DEBUG @ class 'serverTCP' function 'recieve_data_loop'; VARIABLE 'data_string': {data_string}")
 
 
 ####################
@@ -88,7 +88,7 @@ class serverTCP:
 """
 TO DO:
  - Get settings from 'NODE_settings.py' on topic 'settings/NODE_serverTCP'
- - Publish @ class 'serverTCP' function 'recieve_data_loop'; Variable 'data_string' to topic 'EEG_datastream'
+ - Publish @ class 'serverTCP' function 'recieve_data_loop'; VARIABLE 'data_string' to topic 'EEG_datastream'
 """
 
 def main():

@@ -38,14 +38,14 @@ class serial2arduino:
 
         # If the DEBUG flag is raised, we print data to terminal
         if self.DEBUG:
-            print(f"DEBUG @ class 'serial2arduino' function 'Send_data'; Variable 'data': {data}")
+            print(f"DEBUG @ class 'serial2arduino' function 'Send_data'; VARIABLE 'data': {data}")
     
         # Encode data as encoded_data
         encoded_data = data.encode()
 
         # If the DEBUG flag is raised, we print data to terminal
         if self.DEBUG:
-            print(f"DEBUG @ class 'serial2arduino' function 'Send_data'; Variable 'encoded_data': {encoded_data}")
+            print(f"DEBUG @ class 'serial2arduino' function 'Send_data'; VARIABLE 'encoded_data': {encoded_data}")
 
         # Send encoded_data Arduino
         self.arduino.write(encoded_data)
@@ -58,8 +58,8 @@ class serial2arduino:
 """
 TO DO:
  - Get settings from 'NODE_settings.py' on topic 'settings/NODE_serial2arduino'
- - Recieve EEG data from topic 'EEG_datastream'
- - Send recieved EEG data as is to Arduino across serial connection using class 'serial2arduino'
+ - Recieve motor signals data from topic 'Motor_signals'
+ - Send recieved motor signals data as is to Arduino across serial connection using class 'serial2arduino'
 """
 
 def main():
