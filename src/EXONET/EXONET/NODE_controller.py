@@ -1,15 +1,70 @@
 """
 TO DO:
- - Get settings from 'NODE_settings.py' on topic 'settings/NODE_controller'
- - Recieve EEG data from topic 'EEG_datastream'
  - Create controll system
- - Publish controll system data to topic 'Motor_signals'
 """
 
-from EXONET.CLASS_json_handler import json_handler
+from EXONET.EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import String
+from std_msgs.msg import Int64
+
+
+class Controller(Node):
+    """
+    This is the Controller node of the EXONET ROS2 network.
+    Takes argument(s):
+     - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
+    """
+
+    def __init__(self, log_debug):
+
+        # Initialising variables
+        self.LOG_DEBUG = log_debug
+
+        # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
+        super().__init__('controller')
+
+        # Initialising a subscriber to the topic 'EEG_data'.
+        # On this topic is expected data of type std_msgs.msg.String which is imported as String.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.eeg_data_subscription = self.create_subscription(String, 'EEG_data', self.eeg_data_topic_callback, 10)
+        self.eeg_data_subscription  # prevent unused variable warning
+
+        # Initialising a publisher to the topic 'Motor_signals'.
+        # On this topic is expected data of type std_msgs.msg.Int64 which is imported as Int64.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.motor_signals_publisher = self.create_publisher(Int64, 'Motor_signals', 10)
+        self.motor_signals_publisher  # prevent unused variable warning
+
+    def eeg_data_topic_callback(self, msg):
+        """
+        Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'
+        """
+
+        if self.LOG_DEBUG:
+            self.get_logger().debug(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Recieved data '{msg.data}'")
+
+
+        ## CONTROLLER GOES HERE ##
+
+        # Replace 'None' with actual signal
+        self.signal = None
+
+        # redifine msg to be of datatype std_msgs.msg.Int64 which is imported as Int64
+        msg = Int64
+
+        # Load msg with signal data 
+        msg.data = self.signal
+
+        if self.LOG_DEBUG:
+            self.get_logger().debug(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Publishing data '{msg.data}'")
+
+        # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
+        self.motor_signals_publisher.publish(msg)
+
 
 
 ####################
@@ -17,29 +72,25 @@ from rclpy.node import Node
 ####################
 
 
-class MinimalPublisher(Node):
-
-    def __init__(self):
-        super().__init__('controller_node')  # Set the node name
-
-
 def main():
+    
+    # Path for 'settings.json' file
     json_file_path = ".//src//EXONET//EXONET//settings.json"
 
-    handler = json_handler(json_file_path)
+    # Instance the 'JSON_Handler' class for interacting with the 'settings.json' file
+    handler = JSON_Handler(json_file_path)
+    
+    # Get settings from 'settings.json' file
+    LOG_DEBUG = handler.get_subkey_value("visualizer", "LOG_DEBUG")
 
-    DEBUG = handler.get_subkey_value("controller", "DEBUG")
-
-    settings = ["DEBUG", DEBUG]
-
+    # Initialize the rclpy library
     rclpy.init()
 
-    controller_node = MinimalPublisher()
+    # Instance the serverTCP class
+    controller = Controller(LOG_DEBUG)
 
-    if DEBUG:
-        print(f"DEBUG @ NODE_controller; Launched with settings: {settings}")
-
-    rclpy.spin(controller_node)
+    # Begin looping the node
+    rclpy.spin(controller)
     
 
 if __name__ == "__main__":

@@ -3,21 +3,22 @@
 
     "server": 
     {
-        "HOST": "172.26.50.145",
+        "HOST": "172.26.50.180",
         "PORT": 20000,
-        "DEBUG": true
+        "TIMER_PERIOD": 0.1, 
+        "LOG_DEBUG": true
     },
 
 
     "visualizer": 
     {
-        "DEBUG": true
+        "LOG_DEBUG": true
     },
 
 
     "controller":
     {
-        "DEBUG": true
+        "LOG_DEBUG": true
     },
 
     
@@ -26,7 +27,7 @@
         "SERIAL_PORT": "COM3",
         "BAUD_RATE": 9600,
         "TIMEOUT": 1,
-        "DEBUG": true
+        "LOG_DEBUG": true
     }
 
     

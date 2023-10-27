@@ -1,61 +1,59 @@
 """
 TO DO:
- - Get settings from 'NODE_settings.py' on topic 'settings/NODE_serial_communication'
- - Recieve motor signals data from topic 'Motor_signals'
- - Send recieved motor signals data as is to Arduino across serial connection using class 'serial2arduino'
+ - Test live
 """
 
-import serial
-import time
+from EXONET.EXONET.EXOLIB import JSON_Handler
+from EXONET.EXONET.EXOLIB import serial2arduino
 
-class serial2arduino:
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+
+class Serial_Communication(Node, serial2arduino):
     """
-    Class for establishing serial communication between Python script and an Arduino. 
-    Takes parameters:
-       serial_port - the COM port connection with USB)
-       baud_rate - defaults 9600
-       timeout - time before connection attempt is abandonded in seconds)
-       Debug - bool print statements (defaults False)
+    This is the Serial_Communication node of the EXONET ROS2 network.
+    Takes argument(s):
+     - serial_port (EG. COM3)
+     - baud_rate (default 9600)
+     - timeout (time (seconds) before connection attempt is aborted)
+     - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
     """
 
-    def __init__(self, serial_port, baud_rate=9600, timeout=1, Debug=False):
+    def __init__(self, serial_port, baud_rate, timeout, log_debug):
 
-         # init variables
+        # Initialising variables
         self.SERIAL_PORT = serial_port
         self.BAUD_RATE = baud_rate
         self.TIMEOUT = timeout
-        self.DEBUG = Debug
+        self.LOG_DEBUG = log_debug
 
 
-    def establish_connection(self):
+        # Initialising the classes, from which this class is inheriting.
+        Node.__init__(self, 'serial_communication')
+        serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.TIMEOUT, self.LOG_DEBUG)
+
+        # Establish a connection with the arduino
+        self.establish_connection()
+
+        # Initialising a subscriber to the topic 'Motor_signals'.
+        # On this topic is expected data of type std_msgs.msg.String which is imported as String.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.motor_signals_subscription = self.create_subscription(String, 'Motor_signals', self.motor_signals_topic_callback, 10)
+        self.motor_signals_subscription  # prevent unused variable warning
+
+    def motor_signals_topic_callback(self, msg):
         """
-        Function for handling establishing connection between Python pyserial and Arduino.
+        Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
         """
 
-        # Open a serial connection
-        self.arduino = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.TIMEOUT)
+        if self.LOG_DEBUG:
+            self.get_logger().debug(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Recieved data '{msg.data}'")
 
-        # Wait for the Arduino to initialize
-        time.sleep(2)
-
-    def send_data(self, data):
-        """
-        Function for handling sending of data across serial connection established in function 'establish_connection'.
-        """
-
-        # If the DEBUG flag is raised, we print data to terminal
-        if self.DEBUG:
-            print(f"DEBUG @ class 'serial2arduino' function 'Send_data'; VARIABLE 'data': {data}")
-    
-        # Encode data as encoded_data
-        encoded_data = data.encode()
-
-        # If the DEBUG flag is raised, we print data to terminal
-        if self.DEBUG:
-            print(f"DEBUG @ class 'serial2arduino' function 'Send_data'; VARIABLE 'encoded_data': {encoded_data}")
-
-        # Send encoded_data Arduino
-        self.arduino.write(encoded_data)
+        # Sending data to Arduino
+        self.send_data(msg.data)
 
 
 ####################
@@ -64,15 +62,29 @@ class serial2arduino:
 
 
 def main():
-    print("Hello world!")
     
-    SERIAL_PORT = None
-    BAUD_RATE = None
-    TIMEOUT = None
-    DEBUG = None
+    # Path for 'settings.json' file
+    json_file_path = ".//src//EXONET//EXONET//settings.json"
 
-    # Instance the serial2arduino class
-    arduino = serial2arduino(SERIAL_PORT, BAUD_RATE, TIMEOUT, DEBUG)
+    # Instance the 'JSON_Handler' class for interacting with the 'settings.json' file
+    handler = JSON_Handler(json_file_path)
+    
+    # Get settings from 'settings.json' file
+    SERIAL_PORT = handler.get_subkey_value("serial_communication", "SERIAL_PORT")
+    BAUD_RATE = handler.get_subkey_value("serial_communication", "BAUD_RATE")
+    TIMEOUT = handler.get_subkey_value("serial_communication", "TIMEOUT")
+    LOG_DEBUG = handler.get_subkey_value("serial_communication", "LOG_DEBUG")
+
+    # Initialize the rclpy library
+    rclpy.init()
+
+    # Instance the serverTCP class
+    serial_communication = Serial_Communication(SERIAL_PORT, BAUD_RATE, TIMEOUT, LOG_DEBUG)
+
+    # Begin looping the node
+    rclpy.spin(serial_communication)
+    
 
 if __name__ == "__main__":
     main()
+    
