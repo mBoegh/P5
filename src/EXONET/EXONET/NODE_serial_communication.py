@@ -1,6 +1,6 @@
 """
 TO DO:
- - Test live
+ - Test live with Emotiv Epoc X
 """
 
 from EXONET.EXONET.EXOLIB import JSON_Handler
