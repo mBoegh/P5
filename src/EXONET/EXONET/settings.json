@@ -24,9 +24,11 @@
     
     "serial_communication":
     {
-        "SERIAL_PORT": "COM3",
+        "SERIAL_PORT": "/dev/ttyACM0",
         "BAUD_RATE": 9600,
-        "TIMEOUT": 1,
+        "BYTESIZE": "serial.SIXBITS",
+        "PARITY": "serial.PARITY_NONE",
+        "STOPBITS": "serial.STOPBITS_ONE",
         "LOG_DEBUG": true
     }
 

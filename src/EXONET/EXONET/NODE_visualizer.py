@@ -3,7 +3,7 @@ TO DO:
  - Make UI with visualisation of detected mental command and its power (Eg. 'Lift' or 'Drop' and power 0-100)
 """
 
-from EXONET.EXOLIB import JSON_Handler
+from EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node

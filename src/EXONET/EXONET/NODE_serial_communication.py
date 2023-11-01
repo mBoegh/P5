@@ -3,8 +3,8 @@ TO DO:
  - Test live with Emotiv Epoc X
 """
 
-from EXONET.EXONET.EXOLIB import JSON_Handler
-from EXONET.EXONET.EXOLIB import serial2arduino
+from EXONET.EXOLIB import JSON_Handler
+from EXONET.EXOLIB import serial2arduino
 
 import rclpy
 from rclpy.node import Node
@@ -21,21 +21,25 @@ class Serial_Communication(Node, serial2arduino):
      - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
     """
 
-    def __init__(self, serial_port, baud_rate, timeout, log_debug):
+    def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, log_debug):
+
+        print("Hello World!")
 
         # Initialising variables
         self.SERIAL_PORT = serial_port
         self.BAUD_RATE = baud_rate
-        self.TIMEOUT = timeout
+        self.BYTESIZE = bytesize
+        self.PARITY = parity
+        self.STOPBITS = stopbits
         self.LOG_DEBUG = log_debug
 
 
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'serial_communication')
-        serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.TIMEOUT, self.LOG_DEBUG)
+        serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
 
         # Establish a connection with the arduino
-        self.establish_connection()
+        self.arduino = self.establish_connection()
 
         # Initialising a subscriber to the topic 'Motor_signals'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
@@ -44,16 +48,23 @@ class Serial_Communication(Node, serial2arduino):
         self.motor_signals_subscription = self.create_subscription(String, 'Motor_signals', self.motor_signals_topic_callback, 10)
         self.motor_signals_subscription  # prevent unused variable warning
 
-    def motor_signals_topic_callback(self, msg):
+        self.timer = self.create_timer(1, self.motor_signals_topic_callback)
+        self.timer_counter = 0
+
+    def motor_signals_topic_callback(self):
         """
         Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
         """
 
-        if self.LOG_DEBUG:
-            self.get_logger().debug(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Recieved data '{msg.data}'")
+       # if self.LOG_DEBUG:
+       #     self.get_logger().debug(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Recieved data '{msg.data}'")
+
+        msg = String
+
+        msg.data="test"
 
         # Sending data to Arduino
-        self.send_data(msg.data)
+        self.send_data(self.arduino, msg.data)
 
 
 ####################
@@ -72,14 +83,16 @@ def main():
     # Get settings from 'settings.json' file
     SERIAL_PORT = handler.get_subkey_value("serial_communication", "SERIAL_PORT")
     BAUD_RATE = handler.get_subkey_value("serial_communication", "BAUD_RATE")
-    TIMEOUT = handler.get_subkey_value("serial_communication", "TIMEOUT")
+    BYTESIZE = handler.get_subkey_value("serial_communication", "BYTESIZE")
+    PARITY = handler.get_subkey_value("serial_communication", "PARITY")
+    STOPBITS = handler.get_subkey_value("serial_communication", "STOPBITS")
     LOG_DEBUG = handler.get_subkey_value("serial_communication", "LOG_DEBUG")
 
     # Initialize the rclpy library
     rclpy.init()
 
     # Instance the serverTCP class
-    serial_communication = Serial_Communication(SERIAL_PORT, BAUD_RATE, TIMEOUT, LOG_DEBUG)
+    serial_communication = Serial_Communication(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, LOG_DEBUG)
 
     # Begin looping the node
     rclpy.spin(serial_communication)

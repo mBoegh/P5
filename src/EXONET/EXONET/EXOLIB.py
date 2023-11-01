@@ -1,7 +1,9 @@
 import json
 import socket
 import serial
+import serial.tools.list_ports
 import time
+
 
 
 class JSON_Handler:
@@ -149,17 +151,26 @@ class serial2arduino:
     Takes parameters:
        serial_port - the COM port connection with USB)
        baud_rate - defaults 9600
-       timeout - time before connection attempt is abandonded in seconds)
+       bytesize - Number of databits transmitted in each byte of serial data.
        Debug - bool print statements (defaults False)
     """
 
-    def __init__(self, serial_port, baud_rate=9600, timeout=1, Debug=False):
+    def __init__(self, serial_port, baud_rate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, Debug=False):
 
          # init variables
         self.SERIAL_PORT = serial_port
         self.BAUD_RATE = baud_rate
-        self.TIMEOUT = timeout
+        self.BYTESIZE = eval(bytesize)
+        self.PARITY = eval(parity)
+        self.STOPBITS = eval(stopbits)
         self.DEBUG = Debug
+
+        if self.DEBUG:
+            # List available ports
+            ports = serial.tools.list_ports.comports()
+
+            for port, desc, hwid in sorted(ports):
+                print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function '__init__'; SYSTEM MESSAGE: List of avaible ports:\n{port}: {desc} [{hwid}]")
 
 
     def establish_connection(self):
@@ -168,7 +179,7 @@ class serial2arduino:
         """
 
         # Open a serial connection with the Arduino
-        connection = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.TIMEOUT)
+        connection = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS)
 
         # If the DEBUG flag is raised, we print data to terminal
         if self.DEBUG:
@@ -180,7 +191,7 @@ class serial2arduino:
         return connection
         
 
-    def send_data(self, data):
+    def send_data(self, arduino, data):
         """
         Function for handling sending of data across serial connection established in function 'establish_connection'.
         """
@@ -197,4 +208,4 @@ class serial2arduino:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'send_data'; VARIABLE 'encoded_data': {encoded_data}")
 
         # Send encoded_data Arduino
-        self.arduino.write(encoded_data)
+        arduino.write(encoded_data)

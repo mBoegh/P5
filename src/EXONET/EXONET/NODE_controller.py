@@ -3,7 +3,7 @@ TO DO:
  - Create controll system
 """
 
-from EXONET.EXONET.EXOLIB import JSON_Handler
+from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
@@ -19,6 +19,8 @@ class Controller(Node):
     """
 
     def __init__(self, log_debug):
+
+        print("Hello World!")
 
         # Initialising variables
         self.LOG_DEBUG = log_debug
