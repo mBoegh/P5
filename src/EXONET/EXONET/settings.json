@@ -3,7 +3,7 @@
 
     "server": 
     {
-        "HOST": "172.26.50.180",
+        "HOST": "192.168.1.12",
         "PORT": 20000,
         "TIMER_PERIOD": 0.1, 
         "LOG_DEBUG": true

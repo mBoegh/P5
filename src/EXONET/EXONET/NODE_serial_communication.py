@@ -8,7 +8,7 @@ from EXONET.EXOLIB import serial2arduino
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from std_msgs.msg import String, Int64
 
 
 class Serial_Communication(Node, serial2arduino):
@@ -38,15 +38,21 @@ class Serial_Communication(Node, serial2arduino):
         Node.__init__(self, 'serial_communication')
         serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
 
-        # Establish a connection with the arduino
-        self.arduino = self.establish_connection()
-
         # Initialising a subscriber to the topic 'Motor_signals'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.motor_signals_subscription = self.create_subscription(String, 'Motor_signals', self.motor_signals_topic_callback, 10)
+        self.motor_signals_subscription = self.create_subscription(Int64, 'Motor_signals', self.motor_signals_topic_callback, 10)
         self.motor_signals_subscription  # prevent unused variable warning
+
+        # Initialising a publisher to the topic 'Feedback'.
+        # On this topic is expected data of type std_msgs.msg.String which is imported as String.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.feedback_publisher = self.create_publisher(Int64, 'Feedback', 10)
+        self.feedback_publisher  # prevent unused variable warning
+
+        # Establish a connection with the arduino
+        self.arduino = self.establish_connection()
 
     def motor_signals_topic_callback(self, msg):
         """
@@ -59,10 +65,17 @@ class Serial_Communication(Node, serial2arduino):
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data)
 
-        return_msg = self.receive_data(self.arduino)
+        # Initialize a variable of datatype std_msgs.msg.Int64 imported as Int64
+        feedback_msg = Int64
+
+        # Load feedback_msg with returned data 
+        feedback_msg.data = self.receive_data(self.arduino)
 
         if self.LOG_DEBUG:
-            self.get_logger().info(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Received data: '{return_msg}'")
+            self.get_logger().info(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Received data: '{feedback_msg}'")
+
+        # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
+        self.feedback_publisher.publish(feedback_msg)
 
 
 ####################

@@ -177,19 +177,30 @@ class serial2arduino:
         """
         Function for handling establishing connection between Python pyserial and Arduino.
         """
-
-        # Open a serial connection with the Arduino
-        connection = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS)
-
-        # If the DEBUG flag is raised, we print data to terminal
-        if self.DEBUG:
-            print("DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'establish_connection'; SYSTEM MESSAGE: Waiting 2 (two) seconds for Arduino to initialize.")
         
-        # Wait for the Arduino to initialize
-        time.sleep(2)
+        # Attempt establishing a connection with the arduino until success.
+        while True:
 
-        return connection
-        
+            try:
+
+                # Open a serial connection with the Arduino
+                connection = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS)
+
+                # If the DEBUG flag is raised, we print data to terminal
+                if self.DEBUG:
+                    print("DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'establish_connection'; SYSTEM MESSAGE: Waiting 2 (two) seconds for Arduino to initialize.")
+                
+                # Wait for the Arduino to initialize
+                time.sleep(2)
+
+                return connection
+            
+            # Except all errors
+            except Exception as e:
+                if self.DEBUG:
+                    print(f"ERROR @ script 'EXOLIB.py' class 'serial2arduino' function 'establish_connection'; SYSTEM MESSAGE: Failed conencting to arduino at serial port '{self.SERIAL_PORT}' with error: {e}")
+                
+                
 
     def send_data(self, arduino, data):
         """

@@ -31,9 +31,6 @@ class Server(Node, TCP_Server):
         Node.__init__(self, 'server')
         TCP_Server.__init__(self, self.HOST, self.PORT, self.LOG_DEBUG)
 
-        # Waits for incomming connection to TCP server
-        self.connection = self.await_connection()
-
         # Create a timer which periodically calls the specified callback function at a defined interval.
         # Initialise timer_counter as zero. This is iterated on each node spin
         self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
@@ -44,6 +41,10 @@ class Server(Node, TCP_Server):
         # The '10' argument is some Quality of Service parameter (QoS).
         self.eeg_data_publisher = self.create_publisher(String, 'EEG_data', 10)
         self.eeg_data_publisher  # prevent unused variable warning
+
+        # Waits for incomming connection to TCP server
+        self.connection = self.await_connection()
+
 
     def timer_callback(self):
         

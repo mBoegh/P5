@@ -7,9 +7,7 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
-from std_msgs.msg import Int64
-
+from std_msgs.msg import String, Int64
 
 class Controller(Node):
     """
@@ -41,6 +39,13 @@ class Controller(Node):
         self.motor_signals_publisher = self.create_publisher(Int64, 'Motor_signals', 10)
         self.motor_signals_publisher  # prevent unused variable warning
 
+        # Initialising a subscriber to the topic 'Feedback'.
+        # On this topic is expected data of type std_msgs.msg.Int64 which is imported as Int64.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.feedback_subscription = self.create_subscription(Int64, 'Feedback', self.feedback_topic_callback, 10)
+        self.feedback_subscription  # prevent unused variable warning
+
     def eeg_data_topic_callback(self, msg):
         """
         Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'
@@ -66,6 +71,15 @@ class Controller(Node):
 
         # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
         self.motor_signals_publisher.publish(msg)
+
+
+    def feedback_topic_callback(self, msg):
+        """
+        Callback function called whenever a message is recieved on the subscription 'feedback_subscription'
+        """
+
+        if self.LOG_DEBUG:
+            self.get_logger().info(f"@ Class 'Controller' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
 
 
 ####################
