@@ -194,6 +194,8 @@ class serial2arduino:
     def send_data(self, arduino, data):
         """
         Function for handling sending of data across serial connection established in function 'establish_connection'.
+        The data that is to be send must be send as a string ending with a defined seperator matching with what is defined on the arduino.
+         - Eg. 'Example_' where the underscore is the seperator. This way the arduino can interpret n amount of bytes as a whole, instead of interpreting them individually.
         """
 
         # If the DEBUG flag is raised, we print data to terminal

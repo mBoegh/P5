@@ -32,13 +32,29 @@ class Visualizer(Node):
         self.eeg_data_subscription = self.create_subscription(String, 'EEG_data', self.eeg_data_topic_callback, 10)
         self.eeg_data_subscription  # prevent unused variable warning
 
+        # Initialising a subscriber to the topic 'EEG_data'.
+        # On this topic is expected data of type std_msgs.msg.String which is imported as String.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.motor_signals_subscription = self.create_subscription(String, 'Motor_signals', self.motor_signals_topic_callback, 10)
+        self.motor_signals_subscription  # prevent unused variable warning
+
     def eeg_data_topic_callback(self, msg):
         """
         Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'
         """
 
         if self.LOG_DEBUG:
-            self.get_logger().debug(f"@ Class 'Visualizer' Function 'eeg_data_topic_callback'; Recieved data '{msg.data}'")
+            self.get_logger().info(f"@ Class 'Visualizer' Function 'eeg_data_topic_callback'; Received data: '{msg.data}'")
+
+    def motor_signals_topic_callback(self, msg):
+        """
+        Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
+        """
+
+        if self.LOG_DEBUG:
+            self.get_logger().info(f"@ Class 'Visualizer' Function 'motor_signals_topic_callback'; Recieved data: '{msg.data}'")
+
 
 
 ####################

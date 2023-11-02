@@ -47,7 +47,7 @@ class Controller(Node):
         """
 
         if self.LOG_DEBUG:
-            self.get_logger().debug(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Recieved data '{msg.data}'")
+            self.get_logger().info(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Recieved data '{msg.data}'")
 
 
         ## CONTROLLER GOES HERE ##
@@ -62,11 +62,10 @@ class Controller(Node):
         msg.data = self.signal
 
         if self.LOG_DEBUG:
-            self.get_logger().debug(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Publishing data '{msg.data}'")
+            self.get_logger().info(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Publishing data '{msg.data}'")
 
         # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
         self.motor_signals_publisher.publish(msg)
-
 
 
 ####################

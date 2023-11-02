@@ -48,29 +48,22 @@ class Serial_Communication(Node, serial2arduino):
         self.motor_signals_subscription = self.create_subscription(String, 'Motor_signals', self.motor_signals_topic_callback, 10)
         self.motor_signals_subscription  # prevent unused variable warning
 
-        self.timer = self.create_timer(3, self.motor_signals_topic_callback)
-        self.timer_counter = 0
-
-    def motor_signals_topic_callback(self):
+    def motor_signals_topic_callback(self, msg):
         """
         Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
         """
 
-       # if self.LOG_DEBUG:
-       #     self.get_logger().debug(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Recieved data '{msg.data}'")
-
-        msg = String
-
-        msg.data="test,"
+        if self.LOG_DEBUG:
+            self.get_logger().info(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Recieved data: '{msg.data}'")
 
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data)
 
-        return_data = self.receive_data(self.arduino)
+        return_msg = self.receive_data(self.arduino)
 
-        print(f"return data: {return_data}")
+        if self.LOG_DEBUG:
+            self.get_logger().info(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Received data: '{return_msg}'")
 
-        self.timer_counter += 1
 
 ####################
 ######  MAIN  ######

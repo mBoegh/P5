@@ -57,7 +57,7 @@ class Server(Node, TCP_Server):
         self.eeg_data_publisher.publish(msg)
 
         if self.LOG_DEBUG:
-            self.get_logger().debug(f"@ Class 'Server' Function 'eeg_data_topic_callback'; Published data '{msg.data}'")
+            self.get_logger().info(f"@ Class 'Server' Function 'eeg_data_topic_callback'; Published data: '{msg.data}'")
 
         # Iterate timer
         self.timer_counter += 1
