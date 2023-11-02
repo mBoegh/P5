@@ -209,3 +209,20 @@ class serial2arduino:
 
         # Send encoded_data Arduino
         arduino.write(encoded_data)
+
+
+    def receive_data(self, arduino):
+        """
+        Function for handling reception of data from the Arduino over the established serial connection.
+        """
+
+        if self.DEBUG:
+            print("DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; SYSTEM MESSAGE: Receiving data from Arduino.")
+
+        # Read the data from the Arduino
+        received_data = arduino.readline().decode().strip()
+
+        if self.DEBUG:
+            print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; Variable 'received_data': {received_data}")
+
+        return received_data

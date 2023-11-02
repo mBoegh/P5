@@ -1,5 +1,5 @@
 {
     "board": "arduino:avr:leonardo",
     "programmer": "arduinoasisp",
-    "sketch": "src/EXONET/EXONET/arduino.ino"
+    "sketch": "arduino/arduino.ino"
 }

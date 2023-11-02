@@ -48,7 +48,7 @@ class Serial_Communication(Node, serial2arduino):
         self.motor_signals_subscription = self.create_subscription(String, 'Motor_signals', self.motor_signals_topic_callback, 10)
         self.motor_signals_subscription  # prevent unused variable warning
 
-        self.timer = self.create_timer(1, self.motor_signals_topic_callback)
+        self.timer = self.create_timer(3, self.motor_signals_topic_callback)
         self.timer_counter = 0
 
     def motor_signals_topic_callback(self):
@@ -61,11 +61,16 @@ class Serial_Communication(Node, serial2arduino):
 
         msg = String
 
-        msg.data="test"
+        msg.data="test,"
 
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data)
 
+        return_data = self.receive_data(self.arduino)
+
+        print(f"return data: {return_data}")
+
+        self.timer_counter += 1
 
 ####################
 ######  MAIN  ######
