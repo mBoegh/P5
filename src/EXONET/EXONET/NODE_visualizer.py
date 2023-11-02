@@ -52,8 +52,8 @@ class Visualizer(Node):
         Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'
         """
 
-        if self.LOG_DEBUG:
-            self.get_logger().info(f"@ Class 'Visualizer' Function 'eeg_data_topic_callback'; Received data: '{msg.data}'")
+        # Log info
+        self.get_logger().info(f"@ Class 'Visualizer' Function 'eeg_data_topic_callback'; Received data: '{msg.data}'")
 
 
     def motor_signals_topic_callback(self, msg):
@@ -61,8 +61,8 @@ class Visualizer(Node):
         Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
         """
 
-        if self.LOG_DEBUG:
-            self.get_logger().info(f"@ Class 'Visualizer' Function 'motor_signals_topic_callback'; Recieved data: '{msg.data}'")
+        # Log info
+        self.get_logger().info(f"@ Class 'Visualizer' Function 'motor_signals_topic_callback'; Recieved data: '{msg.data}'")
 
 
     def feedback_topic_callback(self, msg):
@@ -70,8 +70,8 @@ class Visualizer(Node):
         Callback function called whenever a message is recieved on the subscription 'feedback_subscription'
         """
 
-        if self.LOG_DEBUG:
-            self.get_logger().info(f"@ Class 'Controller' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
+        # Log info
+        self.get_logger().info(f"@ Class 'Controller' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
 
 
 ####################

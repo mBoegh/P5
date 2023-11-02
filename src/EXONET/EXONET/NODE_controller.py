@@ -51,8 +51,8 @@ class Controller(Node):
         Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'
         """
 
-        if self.LOG_DEBUG:
-            self.get_logger().info(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Recieved data '{msg.data}'")
+        # Log info
+        self.get_logger().info(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Recieved data '{msg.data}'")
 
 
         ## CONTROLLER GOES HERE ##
@@ -66,8 +66,8 @@ class Controller(Node):
         # Load msg with signal data 
         msg.data = self.signal
 
-        if self.LOG_DEBUG:
-            self.get_logger().info(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Publishing data '{msg.data}'")
+        # Log info
+        self.get_logger().info(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Publishing data '{msg.data}'")
 
         # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
         self.motor_signals_publisher.publish(msg)
@@ -78,8 +78,8 @@ class Controller(Node):
         Callback function called whenever a message is recieved on the subscription 'feedback_subscription'
         """
 
-        if self.LOG_DEBUG:
-            self.get_logger().info(f"@ Class 'Controller' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
+        # Log info
+        self.get_logger().info(f"@ Class 'Controller' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
 
 
 ####################

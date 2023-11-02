@@ -3,8 +3,7 @@ TO DO:
  - Test live with Emotiv Epoc X
 """
 
-from EXONET.EXOLIB import JSON_Handler
-from EXONET.EXOLIB import serial2arduino
+from EXONET.EXOLIB import JSON_Handler, serial2arduino
 
 import rclpy
 from rclpy.node import Node
@@ -22,8 +21,6 @@ class Serial_Communication(Node, serial2arduino):
     """
 
     def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, log_debug):
-
-        print("Hello World!")
 
         # Initialising variables
         self.SERIAL_PORT = serial_port
@@ -51,6 +48,8 @@ class Serial_Communication(Node, serial2arduino):
         self.feedback_publisher = self.create_publisher(Int64, 'Feedback', 10)
         self.feedback_publisher  # prevent unused variable warning
 
+        self.get_logger().debug("Hello world!")
+
         # Establish a connection with the arduino
         self.arduino = self.establish_connection()
 
@@ -59,8 +58,8 @@ class Serial_Communication(Node, serial2arduino):
         Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
         """
 
-        if self.LOG_DEBUG:
-            self.get_logger().info(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Recieved data: '{msg.data}'")
+        # Log info
+        self.get_logger().info(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Recieved data: '{msg.data}'")
 
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data)
@@ -71,8 +70,8 @@ class Serial_Communication(Node, serial2arduino):
         # Load feedback_msg with returned data 
         feedback_msg.data = self.receive_data(self.arduino)
 
-        if self.LOG_DEBUG:
-            self.get_logger().info(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Received data: '{feedback_msg}'")
+        # Log info
+        self.get_logger().info(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Received data: '{feedback_msg}'")
 
         # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
         self.feedback_publisher.publish(feedback_msg)

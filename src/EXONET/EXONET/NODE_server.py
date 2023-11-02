@@ -3,9 +3,7 @@ TO DO:
  - Test live with Emotiv Epoc X.
 """
 
-from EXONET.EXOLIB import JSON_Handler
-from EXONET.EXOLIB import TCP_Server
-        
+from EXONET.EXOLIB import JSON_Handler, TCP_Server        
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -57,8 +55,8 @@ class Server(Node, TCP_Server):
         # Publish msg using eeg_data_publisher on topic 'EEG_data'
         self.eeg_data_publisher.publish(msg)
 
-        if self.LOG_DEBUG:
-            self.get_logger().info(f"@ Class 'Server' Function 'eeg_data_topic_callback'; Published data: '{msg.data}'")
+        # Log info
+        self.get_logger().info(f"@ Class 'Server' Function 'eeg_data_topic_callback'; Published data: '{msg.data}'")
 
         # Iterate timer
         self.timer_counter += 1
