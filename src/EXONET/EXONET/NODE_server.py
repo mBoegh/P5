@@ -40,8 +40,16 @@ class Server(Node, TCP_Server):
         self.eeg_data_publisher = self.create_publisher(String, 'EEG_data', 10)
         self.eeg_data_publisher  # prevent unused variable warning
 
+        """
+        self.get_logger().debug("DEBUG Hello world!")
+        self.get_logger().info("INFO Hello world!")
+        self.get_logger().warning("WARNING Hello world!")
+        self.get_logger().error("ERROR Hello world!")
+        """
+
         # Waits for incomming connection to TCP server
         self.connection = self.await_connection()
+
 
 
     def timer_callback(self):

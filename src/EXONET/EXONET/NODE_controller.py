@@ -46,6 +46,13 @@ class Controller(Node):
         self.feedback_subscription = self.create_subscription(Int64, 'Feedback', self.feedback_topic_callback, 10)
         self.feedback_subscription  # prevent unused variable warning
 
+        """
+        self.get_logger().debug("DEBUG Hello world!")
+        self.get_logger().info("INFO Hello world!")
+        self.get_logger().warning("WARNING Hello world!")
+        self.get_logger().error("ERROR Hello world!")
+        """
+
     def eeg_data_topic_callback(self, msg):
         """
         Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'

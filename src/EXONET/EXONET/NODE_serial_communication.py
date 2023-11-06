@@ -48,8 +48,13 @@ class Serial_Communication(Node, serial2arduino):
         self.feedback_publisher = self.create_publisher(Int64, 'Feedback', 10)
         self.feedback_publisher  # prevent unused variable warning
 
-        self.get_logger().debug("Hello world!")
-
+        """
+        self.get_logger().debug("DEBUG Hello world!")
+        self.get_logger().info("INFO Hello world!")
+        self.get_logger().warning("WARNING Hello world!")
+        self.get_logger().error("ERROR Hello world!")
+        """
+        
         # Establish a connection with the arduino
         self.arduino = self.establish_connection()
 
