@@ -15,13 +15,15 @@ class manualControl(CTkFrame):
         self.parent = parent
         self.widgets()
 
-
+    """
+    # Function needs to be removed
     def OpenTopLevel():
+
         global IsDebugOpen
         
         if (IsDebugOpen == True): return # Do nothing is debug menu is open
 
-        # Funtion to close the debug menu
+        
         def ExitButton():
             global IsDebugOpen
             
@@ -37,7 +39,7 @@ class manualControl(CTkFrame):
         # Initialize the exit button and place it in debug window
         ExitbuttonButton = ctk.CTkButton(master=debug, text= "Exit Button", command=ExitButton)
         ExitbuttonButton.grid(row= 0, column= 0, padx= 10, pady= 10)
-
+    """
     def widgets(self):
         self.CurrentAngleManualLabel = CTkLabel(self, text= self.data.CurrentAngleManualControl)
 
@@ -66,7 +68,7 @@ class manualControl(CTkFrame):
 class EEG(CTkFrame):
     data = variables() # Making the live data accesible in the EEG frame
     def __init__(self, parent):
-        CTkFrame.__init__(self,parent)
+        CTkFrame.__init__(self, parent)
         self.parent = parent
         #self.widgets()
 
@@ -105,10 +107,20 @@ class DebugMenu(CTkToplevel):
     def __init__(self):
         CTkToplevel.__init__(self)
         self.geometry("400x300")
-        #self.parent = parent
 
-        self.Label1 = CTkLabel(self, text="TopLevelWindow")
-        self.Label1.pack(padx= 20, pady= 20)
+        def ExitButtonEvent():
+            global IsDebugOpen
+            
+            self.destroy()
+            IsDebugOpen = False
+
+        self.Label1 = CTkLabel(self, text="Debug Menu")
+        self.Label1.grid(row=0, column= 0, padx= 10, pady= 5)
+
+        self.ExitButton = CTkButton(self, text="Exit Button", command= ExitButtonEvent)
+        self.ExitButton.grid(row= 1, column= 0, padx= 10, pady= 5)
+
+        
 
 
 
@@ -145,6 +157,8 @@ class MainW(CTk):
         then it lifts the window and sets the focus to it"""
         if self.toplevel_window is None or not self.toplevel_window.winfo_exists():
             self.toplevel_window = DebugMenu()
+            self.toplevel_window.lift()
+            self.toplevel_window.focus()
         else:
             self.toplevel_window.focus()
             self.toplevel_window.lift()
