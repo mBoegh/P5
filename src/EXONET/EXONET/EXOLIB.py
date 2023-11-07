@@ -2,7 +2,9 @@ import json
 import socket
 import serial
 import time
+import logging
 
+logger = logging.getLogger(__name__)
 
 class JSON_Handler:
     """
@@ -10,7 +12,7 @@ class JSON_Handler:
     """
     
     def __init__(self, json_file_path):
-        
+                
         self.json_file_path = json_file_path
         self.json_obj = None
 
@@ -168,11 +170,14 @@ class serial2arduino:
         """
 
         # Open a serial connection with the Arduino
-        connection = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.TIMEOUT)
+        try:
+            connection = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.TIMEOUT)
+        except Exception as e:
+            logger.warn(f"@ script 'EXOLIB.py' class 'serial2arduino' function 'establish_connection'; Failed to establish serial connection with error: '{e}'")
 
         # If the DEBUG flag is raised, we print data to terminal
         if self.DEBUG:
-            print("DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'establish_connection'; SYSTEM MESSAGE: Waiting 2 (two) seconds for Arduino to initialize.")
+            logger.info("@ script 'EXOLIB.py' class 'serial2arduino' function 'establish_connection'; SYSTEM MESSAGE: Waiting 2 (two) seconds for Arduino to initialize.")
         
         # Wait for the Arduino to initialize
         time.sleep(2)
