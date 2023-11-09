@@ -1,4 +1,9 @@
 from customtkinter import *
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import numpy as np
+import math
+
 set_appearance_mode('dark')
 set_default_color_theme("green")
 
@@ -7,7 +12,9 @@ class variables():
     RPMData = 20
     TorqueData = 100
 
-    CurrentAngleManualControl = 41
+    length = 4
+    CurrentAngleManualControl = 170
+data = variables()
 
 class manualControl(CTkFrame):
     """Class for the manual control frame in the main window"""
@@ -20,7 +27,7 @@ class manualControl(CTkFrame):
     def widgets(self):
         """Function which initializes and places all the used widgets in the manual control frame"""
         # Initializes the label which shows the current angle of the exo skeleton
-        self.CurrentAngleManualLabel = CTkLabel(self, text= self.data.CurrentAngleManualControl)
+        self.CurrentAngleManualLabel = CTkLabel(self, text= data.CurrentAngleManualControl)
 
         # Initializes the buttons for manually controlling the exo angle
         self.ManualDownButton = CTkButton(self, text="v", command=self.ManualDownEvent)
@@ -30,7 +37,6 @@ class manualControl(CTkFrame):
         self.ManualUpButton.grid(row= 0, column= 0, padx= 10, pady= 5)
         self.ManualDownButton.grid(row= 0, column= 1, padx= 10, pady= 5)
         
-
         # Places the label which shows the current angle, and makes it the width of the above 2 buttons
         self.CurrentAngleManualLabel.grid(row= 1, column= 0, padx= 10, pady= 5, columnspan=2)
 
@@ -38,14 +44,14 @@ class manualControl(CTkFrame):
     def ManualUpEvent(self):
         
         # If the upper limit is reached, exit function
-        if (self.data.CurrentAngleManualControl == 170): return
-        self.data.CurrentAngleManualControl += 1
+        if (data.CurrentAngleManualControl == 170): return
+        data.CurrentAngleManualControl += 1
 
     def ManualDownEvent(self):
         
         # If the lower limit is reached, exit function
-        if (self.data.CurrentAngleManualControl == 40): return 
-        self.data.CurrentAngleManualControl -= 1
+        if (data.CurrentAngleManualControl == 40): return 
+        data.CurrentAngleManualControl -= 1
 
 class EEG(CTkFrame):
     data = variables() # Making the live data accesible in the EEG frame
@@ -103,7 +109,49 @@ class DebugMenu(CTkToplevel):
         self.ExitButton = CTkButton(self, text="Exit Button", command= ExitButtonEvent)
         self.ExitButton.grid(row= 1, column= 0, padx= 10, pady= 5)
 
+
+class Visual(CTkFrame):
+
+    # Initialize the frame
+    def __init__(self, parent):
+        CTkFrame.__init__(self, parent)
+        self.parent = parent
+        # Call the draw function
+        self.draw()
+
+    def draw(self):
+        """Handles the initial drawing of the visualization of the current configuration of the exoskeleton,
+        and ends by redrawing the canvas(figure)"""
+        endx = 2 + data.length * math.cos(math.radians((data.CurrentAngleManualControl-90))) # Calculate the end point for the movable arm
+        endy = 2 + data.length * -math.sin(math.radians(data.CurrentAngleManualControl-90))
+
+        self.figure = plt.figure(figsize=(5,5), dpi=100) # Create the figure without content
+        self.ax = self.figure.add_subplot(111) # Add a plot to the above figure
+        self.ax.set_ylim(-3,10) # Set the limits of the axes in the plot
+        self.ax.set_xlim(-3,10)
+        self.grap = self.ax.plot([2,2,endx], [6,2,endy], 'ro-') # Draw the plot in the figure
+
+        self.canvas = FigureCanvasTkAgg(self.figure, self) # Sets the figure to be a canvas, such it can be drawn by tkinter
+        self.canvas.get_tk_widget().pack(side='top', fill=BOTH, expand=True) # Place the canvas in the frame
+        self.canvas.draw_idle() # redraw the canvas
+    
+    def animate(self):
+        """Used to redraw the plot, needs to recalculate the end points for the movable arm"""
+        endx = 2 + data.length * math.cos(math.radians((data.CurrentAngleManualControl-90)))
+        endy = 2 + data.length * -math.sin(math.radians(data.CurrentAngleManualControl-90))
+
+        plt.cla() # Clears all content on the plot, without removing the axes
+        self.ax.set_ylim(-3,10) # Redefine the limits of the plot
+        self.ax.set_xlim(-3,10)
+        #self.grap.remove()
+        self.grap = self.ax.plot([2,2,endx], [6,2,endy], 'ro-') # Redraw the exoskeleton visualization
         
+        self.canvas.draw_idle() # And redraw the canvas
+
+
+
+
+
 
 
 
@@ -121,10 +169,12 @@ class MainW(CTk):
         self.ExoFrame = exo(self)
         self.ManualFrame = manualControl(self)
         self.EEGFrame = EEG(self)
+        self.VisualFrame = Visual(self)
 
         self.ExoFrame.grid(row= 0, column= 0, pady= 20, padx= 60)
         self.ManualFrame.grid(row= 1, column= 0, pady= 20, padx= 60)
         self.EEGFrame.grid(row= 0, column= 1, pady=20, padx= 60)
+        self.VisualFrame.grid(row= 1, column= 1, pady= 0, padx= 0)
 
         # The only way I could get the Debug window button to work
         # was by placing it here. Place it anywhere else,
@@ -140,8 +190,6 @@ class MainW(CTk):
         then it lifts the window and sets the focus to it"""
         if self.toplevel_window is None or not self.toplevel_window.winfo_exists():
             self.toplevel_window = DebugMenu()
-            self.toplevel_window.lift()
-            self.toplevel_window.focus()
         else:
             self.toplevel_window.focus()
             self.toplevel_window.lift()
@@ -156,10 +204,9 @@ if __name__=="__main__":
     # We need this while(True) such that we can update the values on screen
     # Thus all widgets(Values, Progressbar, EEG Graph) needs to be updated in this loop
     while(True):
-        app.ExoFrame.PWMBar.set(0.75)
-        app.ExoFrame.data.RPMData = 20
-        app.ExoFrame.data.TorqueData = 100
-        app.ManualFrame.CurrentAngleManualLabel.configure(text= app.ManualFrame.data.CurrentAngleManualControl)
+        app.ExoFrame.PWMBar.set(0.75) # Set the progress bar to be filled a certain amount, needs to be between 0-1
+        app.ManualFrame.CurrentAngleManualLabel.configure(text= data.CurrentAngleManualControl) # Update the content of the CurrentAngle Label
+        app.VisualFrame.animate() # Redraws the frame which contains the Exoskeleton visualization
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -167,4 +214,5 @@ if __name__=="__main__":
         # when updating it, by making a new window
         app.update_idletasks()
         app.update()
+        
 
