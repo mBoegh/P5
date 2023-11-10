@@ -58,11 +58,13 @@ class manualControl(CTkFrame):
         data.CurrentAngle -= 1
 
 class EEG(CTkFrame):
+    """Makes and displays the graph for the EEG data, the class will need to be given how many data mounts
+    which should be displayed on the graph"""
     def __init__(self, parent, nb_points):
         CTkFrame.__init__(self, parent)
         self.parent = parent
 
-
+        # Define the graph, and configure the axes
         self.figure = plt.figure(figsize=(5,3), dpi=100)
         self.ax = self.figure.add_subplot(111)
         # format the x-axis to show the time
