@@ -7,6 +7,7 @@ import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 from psutil import cpu_percent
 
+# Change appearance of the GUI
 set_appearance_mode('system')
 set_default_color_theme("blue")
 
@@ -80,8 +81,8 @@ class EEG(CTkFrame):
         self.ax.set_ylim(0,100)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
 
-        #label = Label(self, text="Example of Live Plotting")
-        #label.pack(pady=10, padx=10, side='top')
+        FrameTopLabel = CTkLabel(self, text="EEG Data")
+        FrameTopLabel.pack(pady=10, padx=10, side='top')
         self.canvas = FigureCanvasTkAgg(self.figure, self)
         self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
 
@@ -182,7 +183,6 @@ class Visual(CTkFrame):
         self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'bo-') # Redraw the exoskeleton visualization
         
         self.canvas.draw_idle() # And redraw the canvas
-
 
 
 class MainW(CTk):
