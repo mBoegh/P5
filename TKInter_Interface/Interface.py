@@ -3,9 +3,13 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 import math
+import matplotlib.dates as mdates
+from datetime import datetime, timedelta
+from psutil import cpu_percent
 
-set_appearance_mode('dark')
-set_default_color_theme("green")
+set_appearance_mode('system')
+set_default_color_theme("blue")
+
 
 class variables():
     """One centralized place for data to be stored"""
@@ -57,7 +61,9 @@ class EEG(CTkFrame):
     def __init__(self, parent, nb_points):
         CTkFrame.__init__(self, parent)
         self.parent = parent
-        self.figure = Figure(figsize=(5,5), dpi=100)
+
+
+        self.figure = plt.figure(figsize=(5,3), dpi=100)
         self.ax = self.figure.add_subplot(111)
         # format the x-axis to show the time
         myFmt = mdates.DateFormatter("%H:%M:%S")
@@ -72,13 +78,11 @@ class EEG(CTkFrame):
         self.ax.set_ylim(0,100)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
 
-        label = tk.Label(self, text="Example of Live Plotting")
-        label.pack(pady=10, padx=10, side='top')
+        #label = Label(self, text="Example of Live Plotting")
+        #label.pack(pady=10, padx=10, side='top')
         self.canvas = FigureCanvasTkAgg(self.figure, self)
-        self.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
-        self.animate()
+        self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
 
-        # self.widgets()
 
     def animate(self):
         #append new data point to x and y data
@@ -92,11 +96,6 @@ class EEG(CTkFrame):
         self.plot.set_ydata(self.y_data)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
         self.canvas.draw_idle() #redraw plot
-        self.after(1000, self.animate) #repeat after 1s
-        
-graph = EEG(root, nb_points=100)
-graph.pack(fill='both', expand=True)
-graph.animate()  # launch the animation
 
 class exo(CTkFrame):
     data = variables() # Making the live data accesible in the Exoskeleton frame
@@ -144,7 +143,6 @@ class DebugMenu(CTkToplevel):
         self.ExitButton = CTkButton(self, text="Exit Button", command= ExitButtonEvent)
         self.ExitButton.grid(row= 1, column= 0, padx= 10, pady= 5)
 
-
 class Visual(CTkFrame):
 
     # Initialize the frame
@@ -164,11 +162,11 @@ class Visual(CTkFrame):
         self.ax = self.figure.add_subplot(111) # Add a plot to the above figure
         self.ax.set_ylim(0,10) # Set the limits of the axes in the plot
         self.ax.set_xlim(0,10)
-        self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'ro-') # Draw the plot in the figure
+        self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'bo-') # Draw the plot in the figure
 
         self.canvas = FigureCanvasTkAgg(self.figure, self) # Sets the figure to be a canvas, such it can be drawn by tkinter
         self.canvas.get_tk_widget().pack(side='top', fill=BOTH, expand=True) # Place the canvas in the frame
-        self.canvas.draw_idle() # redraw the canvas
+
     
     def animate(self):
         """Used to redraw the plot, needs to recalculate the end points for the movable arm"""
@@ -179,7 +177,7 @@ class Visual(CTkFrame):
         self.ax.set_ylim(0,10) # Redefine the limits of the plot
         self.ax.set_xlim(0,10)
         #self.grap.remove()
-        self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'ro-') # Redraw the exoskeleton visualization
+        self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'bo-') # Redraw the exoskeleton visualization
         
         self.canvas.draw_idle() # And redraw the canvas
 
@@ -198,7 +196,7 @@ class MainW(CTk):
         """Calls and arranges all frames needed in the main window"""
         self.ExoFrame = exo(self)
         self.ManualFrame = manualControl(self)
-        self.EEGFrame = EEG(self)
+        self.EEGFrame = EEG(self, nb_points=100)
         self.VisualFrame = Visual(self)
 
         self.ExoFrame.grid(row= 0, column= 0, pady= 20, padx= 60)
@@ -237,6 +235,7 @@ if __name__=="__main__":
         app.ExoFrame.PWMBar.set(0.75) # Set the progress bar to be filled a certain amount, needs to be between 0-1
         app.ManualFrame.CurrentAngleManualLabel.configure(text= data.CurrentAngle) # Update the content of the CurrentAngle Label
         app.VisualFrame.animate() # Redraws the frame which contains the Exoskeleton visualization
+        app.EEGFrame.animate()
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
