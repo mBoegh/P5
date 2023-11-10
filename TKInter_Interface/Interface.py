@@ -54,11 +54,49 @@ class manualControl(CTkFrame):
         data.CurrentAngle -= 1
 
 class EEG(CTkFrame):
-    data = variables() # Making the live data accesible in the EEG frame
-    def __init__(self, parent):
+    def __init__(self, parent, nb_points):
         CTkFrame.__init__(self, parent)
         self.parent = parent
-        #self.widgets()
+        self.figure = Figure(figsize=(5,5), dpi=100)
+        self.ax = self.figure.add_subplot(111)
+        # format the x-axis to show the time
+        myFmt = mdates.DateFormatter("%H:%M:%S")
+        self.ax.xaxis.set_major_formatter(myFmt)
+
+        # initial x and y data
+        dateTimeObj = datetime.now() + timedelta(seconds=-nb_points)
+        self.x_data = [dateTimeObj + timedelta(seconds=i) for i in range(nb_points)]
+        self.y_data = [0 for i in range(nb_points)]
+        #create the first plot
+        self.plot = self.ax.plot(self.x_data, self.y_data, label='EEG data')[0]
+        self.ax.set_ylim(0,100)
+        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+
+        label = tk.Label(self, text="Example of Live Plotting")
+        label.pack(pady=10, padx=10, side='top')
+        self.canvas = FigureCanvasTkAgg(self.figure, self)
+        self.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+        self.animate()
+
+        # self.widgets()
+
+    def animate(self):
+        #append new data point to x and y data
+        self.x_data.append(datetime.now())
+        self.y_data.append(cpu_percent())
+        #remove oldest datapoint
+        self.x_data = self.x_data[1:]
+        self.y_data = self.y_data[1:]
+        #update plot data
+        self.plot.set_xdata(self.x_data)
+        self.plot.set_ydata(self.y_data)
+        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+        self.canvas.draw_idle() #redraw plot
+        self.after(1000, self.animate) #repeat after 1s
+        
+graph = EEG(root, nb_points=100)
+graph.pack(fill='both', expand=True)
+graph.animate()  # launch the animation
 
 class exo(CTkFrame):
     data = variables() # Making the live data accesible in the Exoskeleton frame
