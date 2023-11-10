@@ -13,7 +13,7 @@ class variables():
     TorqueData = 100
 
     length = 4
-    CurrentAngleManualControl = 170
+    CurrentAngle = 170
 data = variables()
 
 class manualControl(CTkFrame):
@@ -27,7 +27,7 @@ class manualControl(CTkFrame):
     def widgets(self):
         """Function which initializes and places all the used widgets in the manual control frame"""
         # Initializes the label which shows the current angle of the exo skeleton
-        self.CurrentAngleManualLabel = CTkLabel(self, text= data.CurrentAngleManualControl)
+        self.CurrentAngleManualLabel = CTkLabel(self, text= data.CurrentAngle)
 
         # Initializes the buttons for manually controlling the exo angle
         self.ManualDownButton = CTkButton(self, text="v", command=self.ManualDownEvent)
@@ -44,14 +44,14 @@ class manualControl(CTkFrame):
     def ManualUpEvent(self):
         
         # If the upper limit is reached, exit function
-        if (data.CurrentAngleManualControl == 170): return
-        data.CurrentAngleManualControl += 1
+        if (data.CurrentAngle == 170): return
+        data.CurrentAngle += 1
 
     def ManualDownEvent(self):
         
         # If the lower limit is reached, exit function
-        if (data.CurrentAngleManualControl == 40): return 
-        data.CurrentAngleManualControl -= 1
+        if (data.CurrentAngle == 40): return 
+        data.CurrentAngle -= 1
 
 class EEG(CTkFrame):
     data = variables() # Making the live data accesible in the EEG frame
@@ -95,13 +95,10 @@ class DebugMenu(CTkToplevel):
     where the content is contained"""
     def __init__(self):
         CTkToplevel.__init__(self)
-        self.geometry("400x300")
+        self.geometry("400x300") # Set the dimensions of the debug window
 
-        def ExitButtonEvent():
-            global IsDebugOpen
-            
-            self.destroy()
-            IsDebugOpen = False
+        # Destroy the Debug menu window, ie close the window
+        def ExitButtonEvent(): self.destroy()
 
         self.Label1 = CTkLabel(self, text="Debug Menu")
         self.Label1.grid(row=0, column= 0, padx= 10, pady= 5)
@@ -122,14 +119,14 @@ class Visual(CTkFrame):
     def draw(self):
         """Handles the initial drawing of the visualization of the current configuration of the exoskeleton,
         and ends by redrawing the canvas(figure)"""
-        endx = 2 + data.length * math.cos(math.radians((data.CurrentAngleManualControl-90))) # Calculate the end point for the movable arm
-        endy = 2 + data.length * -math.sin(math.radians(data.CurrentAngleManualControl-90))
+        endx = 2 + data.length * math.cos(math.radians((data.CurrentAngle-90))) # Calculate the end point for the movable arm
+        endy = 5 + data.length * -math.sin(math.radians(data.CurrentAngle-90))
 
-        self.figure = plt.figure(figsize=(5,5), dpi=100) # Create the figure without content
+        self.figure = plt.figure(figsize=(3,3), dpi=100) # Create the figure without content
         self.ax = self.figure.add_subplot(111) # Add a plot to the above figure
-        self.ax.set_ylim(-3,10) # Set the limits of the axes in the plot
-        self.ax.set_xlim(-3,10)
-        self.grap = self.ax.plot([2,2,endx], [6,2,endy], 'ro-') # Draw the plot in the figure
+        self.ax.set_ylim(0,10) # Set the limits of the axes in the plot
+        self.ax.set_xlim(0,10)
+        self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'ro-') # Draw the plot in the figure
 
         self.canvas = FigureCanvasTkAgg(self.figure, self) # Sets the figure to be a canvas, such it can be drawn by tkinter
         self.canvas.get_tk_widget().pack(side='top', fill=BOTH, expand=True) # Place the canvas in the frame
@@ -137,28 +134,23 @@ class Visual(CTkFrame):
     
     def animate(self):
         """Used to redraw the plot, needs to recalculate the end points for the movable arm"""
-        endx = 2 + data.length * math.cos(math.radians((data.CurrentAngleManualControl-90)))
-        endy = 2 + data.length * -math.sin(math.radians(data.CurrentAngleManualControl-90))
+        endx = 2 + data.length * math.cos(math.radians((data.CurrentAngle-90)))
+        endy = 5 + data.length * -math.sin(math.radians(data.CurrentAngle-90))
 
         plt.cla() # Clears all content on the plot, without removing the axes
-        self.ax.set_ylim(-3,10) # Redefine the limits of the plot
-        self.ax.set_xlim(-3,10)
+        self.ax.set_ylim(0,10) # Redefine the limits of the plot
+        self.ax.set_xlim(0,10)
         #self.grap.remove()
-        self.grap = self.ax.plot([2,2,endx], [6,2,endy], 'ro-') # Redraw the exoskeleton visualization
+        self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'ro-') # Redraw the exoskeleton visualization
         
         self.canvas.draw_idle() # And redraw the canvas
-
-
-
-
-
 
 
 
 class MainW(CTk):
     def __init__(self, parent):
         CTk.__init__(self, parent)
-        self.geometry("1000x500")
+        self.geometry("1200x800")
         self.parent = parent
         self.title("P5 GUI")
         self.mainWidgets()
@@ -205,7 +197,7 @@ if __name__=="__main__":
     # Thus all widgets(Values, Progressbar, EEG Graph) needs to be updated in this loop
     while(True):
         app.ExoFrame.PWMBar.set(0.75) # Set the progress bar to be filled a certain amount, needs to be between 0-1
-        app.ManualFrame.CurrentAngleManualLabel.configure(text= data.CurrentAngleManualControl) # Update the content of the CurrentAngle Label
+        app.ManualFrame.CurrentAngleManualLabel.configure(text= data.CurrentAngle) # Update the content of the CurrentAngle Label
         app.VisualFrame.animate() # Redraws the frame which contains the Exoskeleton visualization
 
         # The below functions are what actually does the updating of the window
