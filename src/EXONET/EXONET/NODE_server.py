@@ -56,9 +56,9 @@ class Server(Node, TCP_Server):
         
         # Initialise variable msg as being of data type 'std_msgs.msg.String' imported as String
         msg = String()
-
+        msg.data = "90, "
         # Load msg with EEG data recieved on the TCP server 
-        msg.data = self.recieve_data_loop()
+        #msg.data = self.recieve_data_loop()
 
         # Publish msg using eeg_data_publisher on topic 'EEG_data'
         self.eeg_data_publisher.publish(msg)
