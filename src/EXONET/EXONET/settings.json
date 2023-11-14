@@ -5,7 +5,7 @@
     {
         "HOST": "172.26.51.180",
         "PORT": 20000,
-        "TIMER_PERIOD": 0.1, 
+        "TIMER_PERIOD": 2, 
         "LOG_DEBUG": true,
         "LOG_LEVEL": "DEBUG"
     },

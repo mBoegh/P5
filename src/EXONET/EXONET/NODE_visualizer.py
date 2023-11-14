@@ -7,7 +7,8 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Int64
+from std_msgs.msg import String
+
 
 
 class Visualizer(Node):
@@ -43,7 +44,7 @@ class Visualizer(Node):
         # On this topic is expected data of type std_msgs.msg.Int64 which is imported as Int64.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_subscription = self.create_subscription(Int64, 'Feedback', self.feedback_topic_callback, 10)
+        self.feedback_subscription = self.create_subscription(String, 'Feedback', self.feedback_topic_callback, 10)
         self.feedback_subscription  # prevent unused variable warning
 
         """

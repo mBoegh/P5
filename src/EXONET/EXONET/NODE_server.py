@@ -8,8 +8,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-
-class Server(Node, TCP_Server):
+class Server(Node):
     """
     This is the server node of the EXONET ROS2 network.
     Takes argument(s):
@@ -27,7 +26,7 @@ class Server(Node, TCP_Server):
 
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'server')
-        TCP_Server.__init__(self, self.HOST, self.PORT, self.LOG_DEBUG)
+       # TCP_Server.__init__(self, self.HOST, self.PORT, self.LOG_DEBUG)
 
         # Create a timer which periodically calls the specified callback function at a defined interval.
         # Initialise timer_counter as zero. This is iterated on each node spin
@@ -48,7 +47,7 @@ class Server(Node, TCP_Server):
         """
 
         # Waits for incomming connection to TCP server
-        self.connection = self.await_connection()
+        #self.connection = self.await_connection()
 
 
 
