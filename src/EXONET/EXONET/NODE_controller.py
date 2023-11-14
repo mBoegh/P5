@@ -65,10 +65,10 @@ class Controller(Node):
         ## CONTROLLER GOES HERE ##
 
         # Replace 'None' with actual signal
-        self.signal = None
+        self.signal = "90,"
 
         # redifine msg to be of datatype std_msgs.msg.Int64 which is imported as Int64
-        msg = Int64
+        msg = String
 
         # Load msg with signal data 
         msg.data = self.signal
