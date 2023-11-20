@@ -6,7 +6,7 @@ TO DO:
 from EXONET.EXOLIB import JSON_Handler, TCP_Server        
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 
 
 class Server(Node, TCP_Server):
@@ -24,10 +24,10 @@ class Server(Node, TCP_Server):
         self.TIMER_PERIOD = timer_period
         self.LOG_DEBUG = log_debug
 
+        self.init_callback = True
 
-        # Initialising the classes, from which this class is inheriting.
+        # Initialising the node Class, from which this class is inheriting.
         Node.__init__(self, 'server')
-        TCP_Server.__init__(self, self.HOST, self.PORT, self.LOG_DEBUG)
 
         # Create a timer which periodically calls the specified callback function at a defined interval.
         # Initialise timer_counter as zero. This is iterated on each node spin
@@ -40,26 +40,57 @@ class Server(Node, TCP_Server):
         self.eeg_data_publisher = self.create_publisher(String, 'EEG_data', 10)
         self.eeg_data_publisher  # prevent unused variable warning
 
-        # Waits for incomming connection to TCP server
-        self.connection = self.await_connection()
+        self.eeg_toggle_subscriber = self.create_subscriber(Bool, 'EEG_toggle', self.callback_eeg_toggle, 10)
+        self.eeg_toggle_subscriber  # prevent unused variable warning
+    
+
+    def callback_eeg_toggle(self, msg):
+
+        if msg.data and self.init_callback:
+            
+            try:
+                # Instance the TCP_Server class to create a socket connection using defined parameters
+                TCP_Server.__init__(self, self.HOST, self.PORT, self.LOG_DEBUG)
+                
+                # Waits for incomming connection to TCP server
+                self.connection = self.await_connection()
+
+                self.init_callback = False
+
+                self.get_logger().info(f"@ Class 'Server' Function 'callback_parameter_EEG'; Successfully connected")
+
+            except Exception as e:
+                self.get_logger().error(f"@ Class 'Server' Function 'callback_parameter_EEG'; Failed connecting with error: {e}")
+
+
+        if msg.data:
+            self.toggle_EEG_parameter = True
+        
+        elif msg.data:
+            self.toggle_EEG_parameter = False
+        
+        else:
+            self.get_logger().warning(f"@ Class 'Server' Function 'callback_parameter_EEG'; Unexpected message data on topic.")
 
 
     def timer_callback(self):
         
-        # Initialise variable msg as being of data type 'std_msgs.msg.String' imported as String
-        msg = String()
+        if self.toggle_EEG_parameter:
+            # Initialise variable msg as being of data type 'std_msgs.msg.String' imported as String
+            msg = String()
 
-        # Load msg with EEG data recieved on the TCP server 
-        msg.data = self.recieve_data_loop()
+            # Load msg with EEG data recieved on the TCP server 
+            msg.data = self.recieve_data_loop()
 
-        # Publish msg using eeg_data_publisher on topic 'EEG_data'
-        self.eeg_data_publisher.publish(msg)
+            # Publish msg using eeg_data_publisher on topic 'EEG_data'
+            self.eeg_data_publisher.publish(msg)
 
-        # Log info
-        self.get_logger().info(f"@ Class 'Server' Function 'eeg_data_topic_callback'; Published data: '{msg.data}'")
+            # Log info
+            self.get_logger().info(f"@ Class 'Server' Function 'eeg_data_topic_callback'; Published data: '{msg.data}'")
 
-        # Iterate timer
-        self.timer_counter += 1
+            # Iterate timer
+            self.timer_counter += 1
+
 
 
 ####################
