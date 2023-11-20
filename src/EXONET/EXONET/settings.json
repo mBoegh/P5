@@ -1,0 +1,44 @@
+{
+
+
+    "server": 
+    {
+        "HOST": "192.168.1.12",
+        "PORT": 20000,
+        "TIMER_PERIOD": 0.1, 
+        "LOG_DEBUG": true,
+        "LOG_LEVEL": "DEBUG"
+    },
+
+
+    "visualizer": 
+    {
+        "LOG_DEBUG": true,
+        "LOG_LEVEL": "DEBUG"
+
+    },
+
+
+    "controller":
+    {
+        "LOG_DEBUG": true,
+        "LOG_LEVEL": "DEBUG"
+
+    },
+
+    
+    "serial_communication":
+    {
+        "SERIAL_PORT": "/dev/ttyACM0",
+        "BAUD_RATE": 9600,
+        "BYTESIZE": "serial.SIXBITS",
+        "PARITY": "serial.PARITY_NONE",
+        "STOPBITS": "serial.STOPBITS_ONE",
+        "LOG_DEBUG": true,
+        "LOG_LEVEL": "DEBUG"
+
+    }
+
+    
+}
+  
