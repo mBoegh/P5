@@ -42,17 +42,17 @@ class Server(Node, TCP_Server):
         self.eeg_data_publisher  # prevent unused variable warning
 
 
-        self.eeg_toggle_subscriber = self.create_subscription(Bool, 'EEG_toggle', self.callback_eeg_toggle, 10)
+        self.eeg_toggle_subscriber = self.create_subscription(Bool, 'EEG_toggle', self.eeg_toggle_topic_callback, 10)
         self.eeg_toggle_subscriber  # prevent unused variable warning
     
 
-    def callback_eeg_toggle(self, msg):
+    def eeg_toggle_topic_callback(self, msg):
         
         value = msg.data
 
         if value and self.init_callback:
             
-            self.get_logger().info(f"@ Class 'Server' Function 'callback_eeg_toggle'; Tooggled EEG True")
+            self.get_logger().debug(f"@ Class 'Server' Function 'callback_eeg_toggle'; Tooggled EEG True")
 
             try:
                 self.get_logger().info(f"@ Class 'Server' Function 'callback_eeg_toggle'; Attempting connection")
@@ -72,12 +72,12 @@ class Server(Node, TCP_Server):
 
 
         elif value:
-            self.get_logger().info(f"@ Class 'Server' Function 'callback_eeg_toggle'; Tooggled EEG True")
+            self.get_logger().debug(f"@ Class 'Server' Function 'callback_eeg_toggle'; Tooggled EEG True")
 
             self.toggle_EEG_parameter = True
         
         elif not value:
-            self.get_logger().info(f"@ Class 'Server' Function 'callback_eeg_toggle'; Tooggled EEG False")
+            self.get_logger().debug(f"@ Class 'Server' Function 'callback_eeg_toggle'; Tooggled EEG False")
 
             self.toggle_EEG_parameter = False
         
@@ -98,7 +98,7 @@ class Server(Node, TCP_Server):
             self.eeg_data_publisher.publish(msg)
 
             # Log info
-            self.get_logger().info(f"@ Class 'Server' Function 'eeg_data_topic_callback'; Published data: '{msg.data}'")
+            self.get_logger().debug(f"@ Class 'Server' Function 'eeg_data_topic_callback'; Published data: '{msg.data}'")
 
             # Iterate timer
             self.timer_counter += 1

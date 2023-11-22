@@ -7,7 +7,7 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Bool
+from std_msgs.msg import String, Bool, Int8
 
 from customtkinter import *
 from customtkinter import StringVar, CTkSwitch 
@@ -43,10 +43,12 @@ class Visualizer(Node):
      - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
     """
 
-    def __init__(self, log_debug):
+    def __init__(self, timer_period, log_debug):
 
         # Initialising variables
+        self.TIMER_PERIOD = timer_period
         self.LOG_DEBUG = log_debug
+        self.toggle_EEG_parameter = False
 
         # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
         super().__init__('visualizer')
@@ -68,17 +70,28 @@ class Visualizer(Node):
         self.motor_signals_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Feedback'.
-        # On this topic is expected data of type std_msgs.msg.Int64 which is imported as Int64.
+        # On this topic is expected data of type std_msgs.msg.Int8 which is imported as Int8.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.feedback_subscription = self.create_subscription(String, 'Feedback', self.feedback_topic_callback, 10)
         self.feedback_subscription  # prevent unused variable warning
 
-        # Initialising a publisher to the topic 'EEG_data'.
-        # On this topic is published data of type std_msgs.msg.String which is imported as String.
+        # Initialising a publisher to the topic 'EEG_toggle'.
+        # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.eeg_toggle_publisher = self.create_publisher(Bool, 'EEG_toggle', 10)
         self.eeg_toggle_publisher  # prevent unused variable warning
+
+        # Initialising a publisher to the topic 'Manual_control'.
+        # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.manual_control_data_publisher = self.create_publisher(Int8, 'Manual_control_data', 10)
+        self.manual_control_data_publisher  # prevent unused variable warning
+
+        # Create a timer which periodically calls the specified callback function at a defined interval.
+        # Initialise timer_counter as zero. This is iterated on each node spin
+        self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
+        self.timer_counter = 0
 
         self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
@@ -165,12 +178,32 @@ class Visualizer(Node):
 
         if value == "True":
             msg.data = True
+            self.toggle_EEG_parameter == True
 
         else:
-
             msg.data = False
+            self.toggle_EEG_parameter == False
 
         self.eeg_toggle_publisher.publish(msg)
+
+
+    def timer_callback(self):
+        
+        if self.toggle_EEG_parameter:
+            # Initialise variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
+            msg = Int8()
+
+            # Load msg with current angle set in GUI 
+            msg.data = data.current_angle
+
+            # Publish msg using manual_control_data_publisher on topic 'Manual_control_data'
+            self.manual_control_data_publisher.publish(msg)
+
+            # Log info
+            self.get_logger().debug(f"@ Class 'Server' Function 'timer_callback'; Published data: '{msg.data}'")
+
+            # Iterate timer
+            self.timer_counter += 1
 
 
 class MainW(CTk):
@@ -402,6 +435,7 @@ handler = JSON_Handler(json_file_path)
 
 # Get settings from 'settings.json' file
 LOG_DEBUG = handler.get_subkey_value("visualizer", "LOG_DEBUG")
+TIMER_PERIOD = handler.get_subkey_value("visualizer", "TIMER_PERIOD")
 
 # Change appearance of the GUI
 set_appearance_mode('system')
@@ -413,7 +447,7 @@ rclpy.init()
 data = variables()
 
 # Instance the node class
-visualizer = Visualizer(LOG_DEBUG)
+visualizer = Visualizer(TIMER_PERIOD, LOG_DEBUG)
 
 while True:
     # Begin looping the node

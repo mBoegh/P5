@@ -184,7 +184,7 @@ class serial2arduino:
             try:
 
                 # Open a serial connection with the Arduino
-                connection = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS)
+                connection = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, timeout=2)
 
                 # If the DEBUG flag is raised, we print data to terminal
                 if self.DEBUG:
@@ -193,7 +193,8 @@ class serial2arduino:
                 # Wait for the Arduino to initialize
                 time.sleep(2)
 
-                return connection
+                if connection:
+                    return connection
             
             # Except all errors
             except Exception as e:
