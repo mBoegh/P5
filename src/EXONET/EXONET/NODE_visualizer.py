@@ -17,6 +17,25 @@ import math
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 
+
+class variables:
+    
+    def __init__(self):
+        self.current_angle = 70
+
+        self.PWM_data = 75
+        self.torque_data = 5
+        self.RPM_data = 200
+
+        self.current_angle = 44
+
+        self.eeg_data = 0
+
+        self.current_angle = 69
+        self.length = 4
+
+data = variables()
+
 # Change appearance of the GUI
 set_appearance_mode('system')
 set_default_color_theme("blue")
@@ -60,7 +79,6 @@ class Visualizer(Node):
         self.feedback_subscription  # prevent unused variable warning
 
         self.app.exo_frame.PWMBar.set(0.75) # Set the progress bar to be filled a certain amount, needs to be between 0-1
-        self.app.manual_frame.current_angle_label.configure(text=45) # Update the content of the CurrentAngle Label
         self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
 
@@ -78,7 +96,6 @@ class Visualizer(Node):
         self.get_logger().error("ERROR Hello world!")
         """
 
-
     def eeg_data_topic_callback(self, msg):
         """
         Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'
@@ -95,6 +112,8 @@ class Visualizer(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
+        self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+        self.app.EEG_frame.animate()
 
     def motor_signals_topic_callback(self, msg):
         """
@@ -114,6 +133,8 @@ class Visualizer(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
+        self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+        self.app.EEG_frame.animate()
 
     def feedback_topic_callback(self, msg):
         """
@@ -131,6 +152,8 @@ class Visualizer(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
+        self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+        self.app.EEG_frame.animate()
 
 
 class MainW(CTk):
@@ -179,15 +202,13 @@ class ManualControl(CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
-        self.current_angle = 44
-
         self.parent = parent
         self.widgets()
 
     def widgets(self):
         """Function which initializes and places all the used widgets in the manual control frame"""
         # Initializes the label which shows the current angle of the exo skeleton
-        self.current_angle_label = CTkLabel(self, text= str(self.current_angle))
+        self.current_angle_label = CTkLabel(self, text= str(data.current_angle))
 
         # Initializes the buttons for manually controlling the exo angle
         self.manual_down_button = CTkButton(self, text="v", command= self.manual_down_event)
@@ -204,14 +225,14 @@ class ManualControl(CTkFrame):
     def manual_up_event(self):
         
         # If the upper limit is reached, exit function
-        if (self.data.current_angle == 170): return
-        self.data.current_angle += 1
+        if (data.current_angle == 170): return
+        data.current_angle += 1
 
     def manual_down_event(self):
         
         # If the lower limit is reached, exit function
-        if (self.data.current_angle == 40): return 
-        self.data.current_angle -= 1
+        if (data.current_angle == 40): return 
+        data.current_angle -= 1
 
 
 class EEG(CTkFrame):
@@ -220,8 +241,6 @@ class EEG(CTkFrame):
 
     def __init__(self, parent, nb_points):
         super().__init__(parent)
-
-        self.eeg_data = 100
 
         self.parent = parent
         self.widgets(nb_points)
@@ -249,7 +268,7 @@ class EEG(CTkFrame):
     def animate(self):
         #append new data point to x and y data
         self.x_data.append(datetime.now())
-        self.y_data.append(int(self.eeg_data))
+        self.y_data.append(int(data.eeg_data))
         #remove oldest datapoint
         self.x_data = self.x_data[1:]
         self.y_data = self.y_data[1:]
@@ -266,10 +285,6 @@ class Exo(CTkFrame):
     def __init__(self, parent):
         CTkFrame.__init__(self, parent)
 
-        self.PWM_data = 75
-        self.torque_data = 5
-        self.RPM_data = 200
-
         self.parent = parent
         self.widgets()
 
@@ -282,9 +297,9 @@ class Exo(CTkFrame):
         self.PWMBar = CTkProgressBar(self, orientation="horizontal")
 
         # Data Labels
-        self.PWMDataLabel = CTkLabel(self, text= str(self.PWM_data))
-        self.TorqueDataLabel = CTkLabel(self, text= str(self.torque_data))
-        self.RPMDataLabel = CTkLabel(self, text= str(self.RPM_data))
+        self.PWMDataLabel = CTkLabel(self, text= str(data.PWM_data))
+        self.TorqueDataLabel = CTkLabel(self, text= str(data.torque_data))
+        self.RPMDataLabel = CTkLabel(self, text= str(data.RPM_data))
 
         # Placing the widgets on the grid in the Exo frame
         self.TorqueDataLabel.grid(row= 1, column=1, padx=10, pady=5)
@@ -319,9 +334,6 @@ class Visual(CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
-        self.current_angle = 69
-        self.length = 10
-
         self.parent = parent
         # Call the draw function
         self.draw()
@@ -329,8 +341,8 @@ class Visual(CTkFrame):
     def draw(self):
         """Handles the initial drawing of the visualization of the current configuration of the exoskeleton,
         and ends by redrawing the canvas(figure)"""
-        endx = 2 + self.length * math.cos(math.radians((self.current_angle-90))) # Calculate the end point for the movable arm
-        endy = 5 + self.length * -math.sin(math.radians(self.current_angle-90))
+        endx = 2 + data.length * math.cos(math.radians((data.current_angle-90))) # Calculate the end point for the movable arm
+        endy = 5 + data.length * -math.sin(math.radians(data.current_angle-90))
 
         self.figure, self.ax = plt.subplots(figsize=(3,3), dpi=50) # Create the figure without content
         self.ax.set_ylim(0,10) # Set the limits of the axes in the plot
@@ -343,8 +355,8 @@ class Visual(CTkFrame):
     
     def animate(self):
         """Used to redraw the plot, needs to recalculate the end points for the movable arm"""
-        endx = 2 + self.length * math.cos(math.radians((self.current_angle-90)))
-        endy = 5 + self.length * -math.sin(math.radians(self.current_angle-90))
+        endx = 2 + data.length * math.cos(math.radians((data.current_angle-90)))
+        endy = 5 + data.length * -math.sin(math.radians(data.current_angle-90))
 
         plt.cla() # Clears all content on the plot, without removing the axes
         self.ax.set_ylim(0,10) # Redefine the limits of the plot
@@ -378,9 +390,17 @@ def main():
     # Instance the serverTCP class
     visualizer = Visualizer(LOG_DEBUG)
 
-    # Begin looping the node
-    rclpy.spin(visualizer)
-    
+    while True:
+        # Begin looping the node
+        rclpy.spin_once(visualizer, timeout_sec=0.01)
+
+        visualizer.app.manual_frame.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
+
+        visualizer.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+        visualizer.app.EEG_frame.animate()
+
+        visualizer.app.update_idletasks()
+        visualizer.app.update()     
 
 if __name__ == "__main__":
     main()
