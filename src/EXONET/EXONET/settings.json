@@ -11,7 +11,7 @@
     },
 
 
-    "visualizer": 
+    "gui": 
     {
         "TIMER_PERIOD": 0.1,
         "LOG_DEBUG": true,

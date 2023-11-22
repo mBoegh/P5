@@ -33,8 +33,8 @@ def generate_launch_description():
 
         Node(
             package='EXONET',
-            executable='visualizer',
-            name='visualizer',
+            executable='gui',
+            name='gui',
             parameters=[{'ros__parameters': {'ros__logging__logger_level': LaunchConfiguration('visualizer_log_level')}}]
         )
     ])

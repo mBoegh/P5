@@ -36,9 +36,9 @@ class variables:
         self.length = 4
 
 
-class Visualizer(Node):
+class Gui(Node):
     """
-    This is the visualizer node of the EXONET ROS2 network.
+    This is the gui node of the EXONET ROS2 network.
     Takes argument(s):
      - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
     """
@@ -51,7 +51,7 @@ class Visualizer(Node):
         self.toggle_EEG_parameter = False
 
         # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
-        super().__init__('visualizer')
+        super().__init__('gui')
 
         self.app = MainW(None)
 
@@ -116,7 +116,7 @@ class Visualizer(Node):
         """
 
         # Log info
-        self.get_logger().info(f"@ Class 'Visualizer' Function 'eeg_data_topic_callback'; Received data: '{msg.data}'")
+        self.get_logger().info(f"@ Class 'Gui' Function 'eeg_data_topic_callback'; Received data: '{msg.data}'")
 
         self.app.exo_frame.PWMBar.set(msg[1]) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
@@ -135,7 +135,7 @@ class Visualizer(Node):
         """
 
         # Log info
-        self.get_logger().info(f"@ Class 'Visualizer' Function 'motor_signals_topic_callback'; Recieved data: '{msg.data}'")
+        self.get_logger().info(f"@ Class 'Gui' Function 'motor_signals_topic_callback'; Recieved data: '{msg.data}'")
 
         self.app.exo_frame.PWM_data = msg.data[0]
         self.app.exo_frame.torque_data = msg.data[1]
@@ -330,7 +330,7 @@ class EEG(CTkFrame):
 
 
 class Exo(CTkFrame):
-    #motor_data = Visualizer() # Making the live data accesible in the Exoskeleton frame
+    #motor_data = Gui() # Making the live data accesible in the Exoskeleton frame
 
     def __init__(self, parent):
         CTkFrame.__init__(self, parent)
@@ -376,7 +376,7 @@ class DebugMenu(CTkToplevel):
         self.debug_menu_label.grid(row=0, column= 0, padx= 10, pady= 5)
 
         self.switch_var = StringVar(value="False")
-        self.switch = CTkSwitch(self, text="EEG", command=visualizer.eeg_toggle,
+        self.switch = CTkSwitch(self, text="EEG", command=gui.eeg_toggle,
                                  variable=self.switch_var, onvalue="True", offvalue="False")
         self.switch.grid(row=1, column= 1, padx= 10, pady= 5)
 
@@ -434,8 +434,8 @@ json_file_path = ".//src//EXONET//EXONET//settings.json"
 handler = JSON_Handler(json_file_path)
 
 # Get settings from 'settings.json' file
-LOG_DEBUG = handler.get_subkey_value("visualizer", "LOG_DEBUG")
-TIMER_PERIOD = handler.get_subkey_value("visualizer", "TIMER_PERIOD")
+LOG_DEBUG = handler.get_subkey_value("gui", "LOG_DEBUG")
+TIMER_PERIOD = handler.get_subkey_value("gui", "TIMER_PERIOD")
 
 # Change appearance of the GUI
 set_appearance_mode('system')
@@ -447,19 +447,19 @@ rclpy.init()
 data = variables()
 
 # Instance the node class
-visualizer = Visualizer(TIMER_PERIOD, LOG_DEBUG)
+gui = Gui(TIMER_PERIOD, LOG_DEBUG)
 
 while True:
     # Begin looping the node
-    rclpy.spin_once(visualizer, timeout_sec=0.01)
+    rclpy.spin_once(gui, timeout_sec=0.01)
 
-    visualizer.app.manual_frame.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
-    visualizer.app.exo_frame.PWMBar.set(data.PWM_data) # Set the progress bar to be filled a certain amount, needs to be between 0-1
+    gui.app.manual_frame.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
+    gui.app.exo_frame.PWMBar.set(data.PWM_data) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
-    visualizer.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
-    visualizer.app.EEG_frame.animate()
+    gui.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+    gui.app.EEG_frame.animate()
 
-    visualizer.app.update_idletasks()
-    visualizer.app.update()     
+    gui.app.update_idletasks()
+    gui.app.update()     
 
     

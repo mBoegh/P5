@@ -26,7 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
                 'server = EXONET.NODE_server:main',
-                'visualizer = EXONET.NODE_visualizer:main',
+                'gui = EXONET.NODE_gui:main',
                 'serial_communication = EXONET.NODE_serial_communication:main',
                 'controller = EXONET.NODE_controller:main'
         ],
