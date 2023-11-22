@@ -10,9 +10,9 @@ from rclpy.node import Node
 from std_msgs.msg import String, Int8
 
 
-class Serial_Communication(Node, serial2arduino):
+class Serial_Communicator(Node, serial2arduino):
     """
-    This is the Serial_Communication node of the EXONET ROS2 network.
+    This is the Serial_Communicator node of the EXONET ROS2 network.
     Takes argument(s):
      - serial_port (EG. COM3)
      - baud_rate (default 9600)
@@ -32,7 +32,7 @@ class Serial_Communication(Node, serial2arduino):
 
 
         # Initialising the classes, from which this class is inheriting.
-        Node.__init__(self, 'serial_communication')
+        Node.__init__(self, 'serial_communicator')
         serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
 
         # Initialising a subscriber to the topic 'Motor_signals'.
@@ -59,7 +59,7 @@ class Serial_Communication(Node, serial2arduino):
         """
 
         # Log info
-        self.get_logger().debug(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Recieved data: '{msg.data}'")
+        self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription'; Recieved data: '{msg.data}'")
 
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data)
@@ -71,7 +71,7 @@ class Serial_Communication(Node, serial2arduino):
         feedback_msg.data = self.receive_data(self.arduino)
 
         # Log info
-        self.get_logger().debug(f"@ Class 'Serial_Communication' Function 'motor_signals_subscription'; Received data: '{feedback_msg}'")
+        self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription'; Received data: '{feedback_msg}'")
 
         # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
         self.feedback_publisher.publish(feedback_msg)
@@ -91,21 +91,21 @@ def main():
     handler = JSON_Handler(json_file_path)
     
     # Get settings from 'settings.json' file
-    SERIAL_PORT = handler.get_subkey_value("serial_communication", "SERIAL_PORT")
-    BAUD_RATE = handler.get_subkey_value("serial_communication", "BAUD_RATE")
-    BYTESIZE = handler.get_subkey_value("serial_communication", "BYTESIZE")
-    PARITY = handler.get_subkey_value("serial_communication", "PARITY")
-    STOPBITS = handler.get_subkey_value("serial_communication", "STOPBITS")
-    LOG_DEBUG = handler.get_subkey_value("serial_communication", "LOG_DEBUG")
+    SERIAL_PORT = handler.get_subkey_value("serial_communicator", "SERIAL_PORT")
+    BAUD_RATE = handler.get_subkey_value("serial_communicator", "BAUD_RATE")
+    BYTESIZE = handler.get_subkey_value("serial_communicator", "BYTESIZE")
+    PARITY = handler.get_subkey_value("serial_communicator", "PARITY")
+    STOPBITS = handler.get_subkey_value("serial_communicator", "STOPBITS")
+    LOG_DEBUG = handler.get_subkey_value("serial_communicator", "LOG_DEBUG")
 
     # Initialize the rclpy library
     rclpy.init()
 
     # Instance the serverTCP class
-    serial_communication = Serial_Communication(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, LOG_DEBUG)
+    serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, LOG_DEBUG)
 
     # Begin looping the node
-    rclpy.spin(serial_communication)
+    rclpy.spin(serial_communicator)
     
 
 if __name__ == "__main__":

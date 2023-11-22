@@ -26,8 +26,8 @@ def generate_launch_description():
 
         Node(
             package='EXONET',
-            executable='serial_communication',
-            name='serial_communication',
+            executable='serial_communicator',
+            name='serial_communicator',
             parameters=[{'ros__parameters': {'ros__logging__logger_level': LaunchConfiguration('serial_communication_log_level')}}]
         ),
 

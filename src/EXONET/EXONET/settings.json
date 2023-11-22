@@ -27,7 +27,7 @@
     },
 
     
-    "serial_communication":
+    "serial_communicator":
     {
         "SERIAL_PORT": "/dev/ttyACM0",
         "BAUD_RATE": 9600,

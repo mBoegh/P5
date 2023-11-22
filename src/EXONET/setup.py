@@ -27,7 +27,7 @@ setup(
         'console_scripts': [
                 'server = EXONET.NODE_server:main',
                 'gui = EXONET.NODE_gui:main',
-                'serial_communication = EXONET.NODE_serial_communication:main',
+                'serial_communicator = EXONET.NODE_serial_communicator:main',
                 'controller = EXONET.NODE_controller:main'
         ],
 
