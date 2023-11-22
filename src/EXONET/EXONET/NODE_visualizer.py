@@ -7,7 +7,7 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 
 from customtkinter import *
 import matplotlib.pyplot as plt
@@ -78,7 +78,12 @@ class Visualizer(Node):
         self.feedback_subscription = self.create_subscription(String, 'Feedback', self.feedback_topic_callback, 10)
         self.feedback_subscription  # prevent unused variable warning
 
-        self.app.exo_frame.PWMBar.set(0.75) # Set the progress bar to be filled a certain amount, needs to be between 0-1
+        # Initialising a publisher to the topic 'EEG_data'.
+        # On this topic is published data of type std_msgs.msg.String which is imported as String.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.eeg_toggle_publisher = self.create_publisher(String, 'EEG_toggle', 10)
+        self.eeg_toggle_publisher  # prevent unused variable warning
+
         self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
 
@@ -154,6 +159,15 @@ class Visualizer(Node):
         self.app.update()
         self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
+
+
+    def eeg_toggle(self, value: bool):
+
+        msg = Bool
+
+        msg.data = value
+
+        self.eeg_toggle_publisher.publish(msg)
 
 
 class MainW(CTk):
@@ -395,6 +409,7 @@ def main():
         rclpy.spin_once(visualizer, timeout_sec=0.01)
 
         visualizer.app.manual_frame.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
+        visualizer.app.exo_frame.PWMBar.set(data.PWM_data) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
         visualizer.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         visualizer.app.EEG_frame.animate()
