@@ -9,7 +9,11 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Int64
 
+from simple_pid import PID
+
 class Controller(Node):
+
+
     """
     This is the Controller node of the EXONET ROS2 network.
     Takes argument(s):
@@ -17,6 +21,9 @@ class Controller(Node):
     """
 
     def __init__(self, log_debug):
+
+        # D should always be 0, Don't change setpoint!!! 
+        self.pi = PID(1, 0, 0, setpoint=1)
 
         print("Hello World!")
 
@@ -57,8 +64,22 @@ class Controller(Node):
 
         ## CONTROLLER GOES HERE ##
 
+
+        t_vel = 70 # Target velocity
+        j_vel = 100 # Joint velocity
+        volt = 10   # Current voltage
+
+        error = 1 - (j_vel/t_vel)
+        control = self.pi(error)
+        volt_p = volt/control
+
+
+
+
+
+
         # Replace 'None' with actual signal
-        self.signal = None
+        self.signal = volt_p
 
         # redifine msg to be of datatype std_msgs.msg.Int64 which is imported as Int64
         msg = Int64
