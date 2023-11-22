@@ -7,9 +7,10 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 
 from customtkinter import *
+from customtkinter import StringVar, CTkSwitch 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
@@ -34,11 +35,6 @@ class variables:
         self.current_angle = 69
         self.length = 4
 
-data = variables()
-
-# Change appearance of the GUI
-set_appearance_mode('system')
-set_default_color_theme("blue")
 
 class Visualizer(Node):
     """
@@ -78,7 +74,12 @@ class Visualizer(Node):
         self.feedback_subscription = self.create_subscription(String, 'Feedback', self.feedback_topic_callback, 10)
         self.feedback_subscription  # prevent unused variable warning
 
-        self.app.exo_frame.PWMBar.set(0.75) # Set the progress bar to be filled a certain amount, needs to be between 0-1
+        # Initialising a publisher to the topic 'EEG_data'.
+        # On this topic is published data of type std_msgs.msg.String which is imported as String.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.eeg_toggle_publisher = self.create_publisher(Bool, 'EEG_toggle', 10)
+        self.eeg_toggle_publisher  # prevent unused variable warning
+
         self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
 
@@ -154,6 +155,22 @@ class Visualizer(Node):
         self.app.update()
         self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
+
+
+    def eeg_toggle(self):
+
+        msg = Bool()
+
+        value = self.app.toplevel_window.switch_var.get()
+
+        if value == "True":
+            msg.data = True
+
+        else:
+
+            msg.data = False
+
+        self.eeg_toggle_publisher.publish(msg)
 
 
 class MainW(CTk):
@@ -325,6 +342,11 @@ class DebugMenu(CTkToplevel):
         self.debug_menu_label = CTkLabel(self, text="Debug Menu")
         self.debug_menu_label.grid(row=0, column= 0, padx= 10, pady= 5)
 
+        self.switch_var = StringVar(value="False")
+        self.switch = CTkSwitch(self, text="EEG", command=visualizer.eeg_toggle,
+                                 variable=self.switch_var, onvalue="True", offvalue="False")
+        self.switch.grid(row=1, column= 1, padx= 10, pady= 5)
+
         self.exit_button = CTkButton(self, text="Exit Button", command= exit_button_event)
         self.exit_button.grid(row= 1, column= 0, padx= 10, pady= 5)
 
@@ -369,39 +391,41 @@ class Visual(CTkFrame):
 
 
 ####################
-######  MAIN  ######
+####    MAIN    ####
 ####################
 
+# Path for 'settings.json' file
+json_file_path = ".//src//EXONET//EXONET//settings.json"
 
-def main():
-    
-    # Path for 'settings.json' file
-    json_file_path = ".//src//EXONET//EXONET//settings.json"
+# Instance the 'JSON_Handler' class for interacting with the 'settings.json' file
+handler = JSON_Handler(json_file_path)
 
-    # Instance the 'JSON_Handler' class for interacting with the 'settings.json' file
-    handler = JSON_Handler(json_file_path)
-    
-    # Get settings from 'settings.json' file
-    LOG_DEBUG = handler.get_subkey_value("visualizer", "LOG_DEBUG")
+# Get settings from 'settings.json' file
+LOG_DEBUG = handler.get_subkey_value("visualizer", "LOG_DEBUG")
 
-    # Initialize the rclpy library
-    rclpy.init()
+# Change appearance of the GUI
+set_appearance_mode('system')
+set_default_color_theme("blue")
 
-    # Instance the serverTCP class
-    visualizer = Visualizer(LOG_DEBUG)
+# Initialize the rclpy library
+rclpy.init()
 
-    while True:
-        # Begin looping the node
-        rclpy.spin_once(visualizer, timeout_sec=0.01)
+data = variables()
 
-        visualizer.app.manual_frame.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
+# Instance the node class
+visualizer = Visualizer(LOG_DEBUG)
 
-        visualizer.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
-        visualizer.app.EEG_frame.animate()
+while True:
+    # Begin looping the node
+    rclpy.spin_once(visualizer, timeout_sec=0.01)
 
-        visualizer.app.update_idletasks()
-        visualizer.app.update()     
+    visualizer.app.manual_frame.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
+    visualizer.app.exo_frame.PWMBar.set(data.PWM_data) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
-if __name__ == "__main__":
-    main()
+    visualizer.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+    visualizer.app.EEG_frame.animate()
+
+    visualizer.app.update_idletasks()
+    visualizer.app.update()     
+
     
