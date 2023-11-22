@@ -25,6 +25,7 @@ class Server(Node, TCP_Server):
         self.LOG_DEBUG = log_debug
 
         self.init_callback = True
+        self.toggle_EEG_parameter = False
 
         # Initialising the node Class, from which this class is inheriting.
         Node.__init__(self, 'server')
@@ -40,13 +41,15 @@ class Server(Node, TCP_Server):
         self.eeg_data_publisher = self.create_publisher(String, 'EEG_data', 10)
         self.eeg_data_publisher  # prevent unused variable warning
 
-        self.eeg_toggle_subscriber = self.create_subscriber(Bool, 'EEG_toggle', self.callback_eeg_toggle, 10)
+        self.eeg_toggle_subscriber = self.create_subscription(Bool, 'EEG_toggle', self.callback_eeg_toggle, 10)
         self.eeg_toggle_subscriber  # prevent unused variable warning
     
 
     def callback_eeg_toggle(self, msg):
+        
+        value = msg.data
 
-        if msg.data and self.init_callback:
+        if value and self.init_callback:
             
             try:
                 # Instance the TCP_Server class to create a socket connection using defined parameters
@@ -57,20 +60,24 @@ class Server(Node, TCP_Server):
 
                 self.init_callback = False
 
-                self.get_logger().info(f"@ Class 'Server' Function 'callback_parameter_EEG'; Successfully connected")
+                self.get_logger().info(f"@ Class 'Server' Function 'callback_eeg_toggle'; Successfully connected")
 
             except Exception as e:
-                self.get_logger().error(f"@ Class 'Server' Function 'callback_parameter_EEG'; Failed connecting with error: {e}")
+                self.get_logger().error(f"@ Class 'Server' Function 'callback_eeg_toggle'; Failed connecting with error: {e}")
 
 
-        if msg.data:
+        elif value:
+            self.get_logger().info(f"@ Class 'Server' Function 'callback_eeg_toggle'; Tooggled EEG True")
+
             self.toggle_EEG_parameter = True
         
-        elif msg.data:
+        elif not value:
+            self.get_logger().info(f"@ Class 'Server' Function 'callback_eeg_toggle'; Tooggled EEG False")
+
             self.toggle_EEG_parameter = False
         
         else:
-            self.get_logger().warning(f"@ Class 'Server' Function 'callback_parameter_EEG'; Unexpected message data on topic.")
+            self.get_logger().warning(f"@ Class 'Server' Function 'callback_eeg_toggle'; Unexpected message data on topic.")
 
 
     def timer_callback(self):
