@@ -35,6 +35,8 @@ class variables:
         self.current_angle = 69
         self.length = 4
 
+        self.slider_state = "normal"
+
 
 class Gui(Node):
     """
@@ -232,7 +234,7 @@ class MainW(CTk):
         # and it will kick your brain by asking for more args than needed
         # for some reason. So leave it here
         self.debug_button = CTkButton(master=self.manual_frame, text="Debug Menu", command=self.open_top_level)
-        self.debug_button.grid(row= 0, column= 2, padx= 10, pady= 5)
+        self.debug_button.grid(row= 4, column= 0, padx= 10, pady= 5)
 
     # 
     def open_top_level(self):
@@ -255,21 +257,30 @@ class ManualControl(CTkFrame):
         self.parent = parent
         self.widgets()
 
+        self.manual_control_msg = Int8()
+
+
     def widgets(self):
         """Function which initializes and places all the used widgets in the manual control frame"""
         # Initializes the label which shows the current angle of the exo skeleton
         self.current_angle_label = CTkLabel(self, text= str(data.current_angle))
 
         # Initializes the buttons for manually controlling the exo angle
+        self.manual_stop_button = CTkButton(self, text="Stop", command= self.manual_stop_event)
         self.manual_down_button = CTkButton(self, text="v", command= self.manual_down_event)
         self.manual_up_button = CTkButton(self, text="^", command= self.manual_up_event)
 
         # Places the above buttons in the manual control frame
-        self.manual_up_button.grid(row= 0, column= 0, padx= 10, pady= 5)
-        self.manual_down_button.grid(row= 0, column= 1, padx= 10, pady= 5)
+        self.manual_stop_button.grid(row=0, column= 0, padx= 10, pady= 5)
+        self.manual_up_button.grid(row= 1, column= 0, padx= 10, pady= 5)
+        self.manual_down_button.grid(row= 3, column= 0, padx= 10, pady= 5)
+
+        self.slider = CTkSlider(self, from_=-100, to=100, command=self.slider_event, width=400, number_of_steps= 200, state= data.slider_state)
+        self.slider.grid(row= 2, column= 2, padx= 10, pady= 5, columnspan=2)
+
         
         # Places the label which shows the current angle, and makes it the width of the above 2 buttons
-        self.current_angle_label.grid(row= 1, column= 0, padx= 10, pady= 5, columnspan=2)
+        self.current_angle_label.grid(row= 3, column= 2, padx= 10, pady= 5, columnspan=2)
 
     # Define Functions used in the Manual Control frame
     def manual_up_event(self):
@@ -283,6 +294,25 @@ class ManualControl(CTkFrame):
         # If the lower limit is reached, exit function
         if (data.current_angle == 40): return 
         data.current_angle -= 1
+
+    def slider_event(self, value):
+        if value > -15 and value < 15:
+            value = 0
+
+        self.manual_control_msg.data = int(value)
+
+        gui.manual_control_data_publisher.publish(self.manual_control_msg)
+
+    def manual_stop_event(self):
+        self.slider.set(0)
+
+        if data.slider_state == "normal":
+            data.slider_state = "disabled"
+
+        elif data.slider_state == "disabled":
+            data.slider_state = "normal"
+        
+        self.slider_event(0)
 
 
 class EEG(CTkFrame):

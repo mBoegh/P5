@@ -21,6 +21,7 @@
 
     "controller":
     {
+        "TIMER_PERIOD": 0.1,
         "LOG_DEBUG": true,
         "LOG_LEVEL": "DEBUG"
 

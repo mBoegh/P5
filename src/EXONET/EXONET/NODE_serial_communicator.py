@@ -7,8 +7,9 @@ from EXONET.EXOLIB import JSON_Handler, serial2arduino
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Int8
+from std_msgs.msg import String, Int8, Int16, Int64
 
+import time
 
 class Serial_Communicator(Node, serial2arduino):
     """
@@ -30,6 +31,16 @@ class Serial_Communicator(Node, serial2arduino):
         self.STOPBITS = stopbits
         self.LOG_DEBUG = log_debug
 
+        # Flag for controlling what computations are done with the feedback signal.
+        # If high then we get a time0 value
+        # If low then we compute
+        self.first_feedback = True
+        self.time0 = None
+        self.data0 = None
+
+        # Initialize a variable of datatype std_msgs.msg.Int8 imported as Int8
+        self.feedback_msg = Int8()
+
 
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'serial_communicator')
@@ -39,13 +50,13 @@ class Serial_Communicator(Node, serial2arduino):
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.motor_signals_subscription = self.create_subscription(Int8, 'Motor_signals', self.motor_signals_topic_callback, 10)
+        self.motor_signals_subscription = self.create_subscription(Int64, 'Motor_signals', self.motor_signals_topic_callback, 10)
         self.motor_signals_subscription  # prevent unused variable warning
 
         # Initialising a publisher to the topic 'Feedback'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_publisher = self.create_publisher(Int8, 'Feedback', 10)
+        self.feedback_publisher = self.create_publisher(String, 'Feedback', 10)
         self.feedback_publisher  # prevent unused variable warning
 
         self.get_logger().debug("Hello world!")
@@ -64,18 +75,43 @@ class Serial_Communicator(Node, serial2arduino):
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data)
 
-        # Initialize a variable of datatype std_msgs.msg.Int8 imported as Int8
-        feedback_msg = Int8
-
         # Load feedback_msg with returned data 
-        feedback_msg.data = self.receive_data(self.arduino)
+        data = self.receive_data(self.arduino)
 
-        # Log info
-        self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription'; Received data: '{feedback_msg}'")
+        if self.first_feedback:
+            self.time0 = time.time()
+            self.data0 = data
 
-        # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
-        self.feedback_publisher.publish(feedback_msg)
+            self.first_feedback = False
 
+        else:
+            time_now = time.time()
+        
+            time_diff = time - self.time0
+
+            self.time0 = time_now
+        
+            data_diff = data - self.data0
+
+            self.data0 = data        
+            
+            j_vel = data_diff / time_diff  # Joint velocity
+
+            elbow_joint_angle = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
+
+            formatted_feedback_string = f"{j_vel},{elbow_joint_angle}"
+
+            self.feedback_msg.data = formatted_feedback_string
+
+            # Log info
+            self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription'; Received data: '{feedback_msg}'")
+
+            # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
+            self.feedback_publisher.publish(self.feedback_msg)
+            
+
+    def map_range(self, x, in_min, in_max, out_min, out_max):
+        return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
 
 ####################
 ######  MAIN  ######
