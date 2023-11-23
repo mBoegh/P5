@@ -215,7 +215,9 @@ class MainW(CTk):
         self.parent = parent
         self.title("P5 GUI")
         self.mainWidgets()
-        self.toplevel_window = None
+        self.velocity_control_window = None
+        self.position_control_window = None
+        self.debug_menu_window = None
 
     def mainWidgets(self):
         """Calls and arranges all frames needed in the main window"""
@@ -233,19 +235,49 @@ class MainW(CTk):
         # was by placing it here. Place it anywhere else,
         # and it will kick your brain by asking for more args than needed
         # for some reason. So leave it here
-        self.debug_button = CTkButton(master=self.manual_frame, text="Debug Menu", command=self.open_top_level)
-        self.debug_button.grid(row= 4, column= 0, padx= 10, pady= 5)
 
-    # 
-    def open_top_level(self):
+
+        self.position_control_button = CTkButton(master=self.manual_frame, text="Position Control Menu", command=self.open_position_control_menu)
+        self.position_control_button.grid(row= 5, column= 0, padx= 10, pady= 5)
+
+        self.velocity_control_button = CTkButton(master=self.manual_frame, text="Velocity Control Menu", command=self.open_velocity_control_menu)
+        self.velocity_control_button.grid(row= 5, column= 1, padx= 10, pady= 5)
+
+        self.debug_button = CTkButton(master=self.manual_frame, text="Debug Menu", command=self.open_debug_menu)
+        self.debug_button.grid(row= 5, column= 2, padx= 10, pady= 5)
+
+
+    def open_velocity_control_menu(self):
         """First chekcs if the debug menu exists (is open), and if it isnt
         Then it creates the window. Or if it does exist, 
         then it lifts the window and sets the focus to it"""
-        if self.toplevel_window is None or not self.toplevel_window.winfo_exists():
-            self.toplevel_window = DebugMenu()
+        if self.velocity_control_window is None or not self.velocity_control_window.winfo_exists():
+            self.velocity_control_window = VelocityControl()
         else:
-            self.toplevel_window.focus()
-            self.toplevel_window.lift()
+            self.velocity_control_window.focus()
+            self.velocity_control_window.lift()
+
+
+    def open_position_control_menu(self):
+        """First chekcs if the debug menu exists (is open), and if it isnt
+        Then it creates the window. Or if it does exist, 
+        then it lifts the window and sets the focus to it"""
+        if self.position_control_window is None or not self.position_control_window.winfo_exists():
+            self.position_control_window = PositionControl()
+        else:
+            self.position_control_window.focus()
+            self.position_control_window.lift()
+
+
+    def open_debug_menu(self):
+        """First chekcs if the debug menu exists (is open), and if it isnt
+        Then it creates the window. Or if it does exist, 
+        then it lifts the window and sets the focus to it"""
+        if self.debug_menu_window is None or not self.debug_menu_window.winfo_exists():
+            self.debug_menu_window = DebugMenu()
+        else:
+            self.debug_menu_window.focus()
+            self.debug_menu_window.lift()
 
 
 class ManualControl(CTkFrame):
@@ -257,62 +289,13 @@ class ManualControl(CTkFrame):
         self.parent = parent
         self.widgets()
 
-        self.manual_control_msg = Int8()
-
 
     def widgets(self):
         """Function which initializes and places all the used widgets in the manual control frame"""
-        # Initializes the label which shows the current angle of the exo skeleton
-        self.current_angle_label = CTkLabel(self, text= str(data.current_angle))
+
 
         # Initializes the buttons for manually controlling the exo angle
-        self.manual_stop_button = CTkButton(self, text="Stop", command= self.manual_stop_event)
-        self.manual_down_button = CTkButton(self, text="v", command= self.manual_down_event)
-        self.manual_up_button = CTkButton(self, text="^", command= self.manual_up_event)
-
-        # Places the above buttons in the manual control frame
-        self.manual_stop_button.grid(row=0, column= 0, padx= 10, pady= 5)
-        self.manual_up_button.grid(row= 1, column= 0, padx= 10, pady= 5)
-        self.manual_down_button.grid(row= 3, column= 0, padx= 10, pady= 5)
-
-        self.slider = CTkSlider(self, from_=-100, to=100, command=self.slider_event, width=400, number_of_steps= 200, state= data.slider_state)
-        self.slider.grid(row= 2, column= 2, padx= 10, pady= 5, columnspan=2)
-
-        
-        # Places the label which shows the current angle, and makes it the width of the above 2 buttons
-        self.current_angle_label.grid(row= 3, column= 2, padx= 10, pady= 5, columnspan=2)
-
-    # Define Functions used in the Manual Control frame
-    def manual_up_event(self):
-        
-        # If the upper limit is reached, exit function
-        if (data.current_angle == 170): return
-        data.current_angle += 1
-
-    def manual_down_event(self):
-        
-        # If the lower limit is reached, exit function
-        if (data.current_angle == 40): return 
-        data.current_angle -= 1
-
-    def slider_event(self, value):
-        if value > -15 and value < 15:
-            value = 0
-
-        self.manual_control_msg.data = int(value)
-
-        gui.manual_control_data_publisher.publish(self.manual_control_msg)
-
-    def manual_stop_event(self):
-        self.slider.set(0)
-
-        if data.slider_state == "normal":
-            data.slider_state = "disabled"
-
-        elif data.slider_state == "disabled":
-            data.slider_state = "normal"
-        
-        self.slider_event(0)
+        pass
 
 
 class EEG(CTkFrame):
@@ -389,6 +372,85 @@ class Exo(CTkFrame):
         self.PWMBar.grid(row= 0, column= 1, padx= 10, pady= 5)
         self.PWMDataLabel.grid(row= 0, column=2, padx= 10, pady= 5)
         self.PWMLabel.grid(row= 0, column= 0, padx= 10, pady= 5)
+
+
+class VelocityControl(CTkFrame):
+    def __init__(self):
+
+        CTkToplevel.__init__(self)
+        self.geometry("400x300") # Set the dimensions of the debug window
+
+        self.manual_control_msg = Int8()
+
+        # Destroy the Debug menu window, ie close the window
+        def exit_button_event(): self.destroy()
+
+        self.exit_button = CTkButton(self, text="Exit Button", command= exit_button_event)
+        self.exit_button.grid(row= 1, column= 0, padx= 10, pady= 5)
+
+        self.manual_stop_button = CTkButton(self, text="Stop", command= self.manual_stop_event)
+        self.manual_stop_button.grid(row=3, column= 0, padx= 10, pady= 5)
+
+        self.slider = CTkSlider(self, from_=-100, to=100, command=self.slider_event, width=400, number_of_steps= 200, state= data.slider_state)
+        self.slider.grid(row= 3, column= 2, padx= 10, pady= 5, columnspan=2)
+
+
+    def slider_event(self, value):
+        if value > -15 and value < 15:
+            value = 0
+
+        self.manual_control_msg.data = int(value)
+
+        gui.manual_control_data_publisher.publish(self.manual_control_msg)
+
+    def manual_stop_event(self):
+        self.slider.set(0)
+
+        if data.slider_state == "normal":
+            data.slider_state = "disabled"
+
+        elif data.slider_state == "disabled":
+            data.slider_state = "normal"
+        
+        self.slider_event(0)
+
+
+class PositionControl(CTkToplevel):
+    def __init__(self):
+
+        CTkToplevel.__init__(self)
+        self.geometry("400x300") # Set the dimensions of the debug window
+
+        # Destroy the Debug menu window, ie close the window
+        def exit_button_event(): self.destroy()
+
+        # Initializes the label which shows the current angle of the exo skeleton
+        self.current_angle_label = CTkLabel(self, text= str(data.current_angle))
+        self.manual_down_button = CTkButton(self, text="v", command= self.manual_down_event)
+        self.manual_up_button = CTkButton(self, text="^", command= self.manual_up_event)
+        self.manual_up_button.grid(row= 2, column= 0, padx= 10, pady= 5)
+        self.manual_down_button.grid(row= 2, column= 2, padx= 10, pady= 5)
+        # Places the label which shows the current angle, and makes it the width of the above 2 buttons
+        self.current_angle_label.grid(row= 2, column= 1, padx= 10, pady= 5, columnspan=2)
+
+        self.exit_button = CTkButton(self, text="Exit Button", command= exit_button_event)
+        self.exit_button.grid(row= 1, column= 0, padx= 10, pady= 5)
+
+    # Define Functions used in the Manual Control frame
+    def manual_up_event(self):
+        
+        # If the upper limit is reached, exit function
+        if (data.current_angle == 170): return
+        data.current_angle += 1
+        gui.app.position_control_window.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
+
+
+    def manual_down_event(self):
+        
+        # If the lower limit is reached, exit function
+        if (data.current_angle == 40): return 
+        data.current_angle -= 1
+        gui.app.position_control_window.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
 
 
 class DebugMenu(CTkToplevel):
@@ -483,7 +545,6 @@ while True:
     # Begin looping the node
     rclpy.spin_once(gui, timeout_sec=0.01)
 
-    gui.app.manual_frame.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
     gui.app.exo_frame.PWMBar.set(data.PWM_data) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
     gui.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
