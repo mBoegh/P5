@@ -10,6 +10,8 @@ from rclpy.node import Node
 from std_msgs.msg import String, Int64
 
 from simple_pid import PID
+import numpy as np
+import time
 
 class Controller(Node):
 
@@ -24,6 +26,8 @@ class Controller(Node):
 
         # D should always be 0, Don't change setpoint!!! 
         self.pi = PID(1, 0, 0, setpoint=1)
+        #self.v0 = 0
+        #self.start_time = time.time()
 
         print("Hello World!")
 
@@ -64,14 +68,52 @@ class Controller(Node):
 
         ## CONTROLLER GOES HERE ##
 
-
+        # Variables that need to subscribe to the right stuff
         t_vel = 70 # Target velocity
         j_vel = 100 # Joint velocity
+        elbow_joint_angle = 20 # Joint angle 
         volt = 10   # Current voltage
+
+        # Constants for the controller (need updates)
+        g_acceleration = 9.82 # Gravitational acceleration
+        exo_weight = 1 #kg
+        av_arm_weight = 1 # kg
+        av_payload_weight = 0.5 # kg
+        shoulder_joint_angle = 0 # kg, should always be 0 since we don't know what it is
+        cable_angle = 0 # The angle which the cable is attached to the exoskeleton
+        l2_lenght = 0.225 # meters 
+        spool_radius  = 0.025 # meters 
+
+
+        # Dynamic calculations for gravity compensation
+        fg2 = (av_arm_weight+exo_weight)*g_acceleration
+        fgp = av_payload_weight*g_acceleration
+
+        f2 = np.cos(elbow_joint_angle-shoulder_joint_angle)*(l2_lenght/2)*fg2
+        fp = np.cos(elbow_joint_angle-shoulder_joint_angle)*l2_lenght*fgp
+
+        torque_joint = f2 * (l2_lenght/2)+fp*l2_lenght
+
+        fc1 = None
+        fc2 = np.tan((np.pi/2)-cable_angle)*fc1
+
+        fc = np.sqrt(fc1*fc1+fc2*fc2)
+
+        torque_motor = fc*spool_radius
+
+        compensation_volt = 10.52 * torque_motor + 7.173 # function for converting torque to volt
+
+        #gravity_acc_compensation = fc * (av_arm_weight+av_payload_weight+exo_weight)
+
+        #time = time.time() - self.start_time
+        #v = self.v0 + gravity_acc_compensation * time
+        #self.time = time.time()
+        #self.v0 = v 
+
 
         error = 1 - (j_vel/t_vel)
         control = self.pi(error)
-        volt_p = volt/control
+        volt_p = volt+compensation_volt/control
 
 
 
