@@ -110,12 +110,16 @@ class Controller(Node):
         #self.time = time.time()
         #self.v0 = v 
 
-
+        # The controller
         error = 1 - (j_vel/t_vel)
         control = self.pi(error)
         volt_p = volt+compensation_volt/control
 
-
+        # The alternative controller
+        # error = j_vel-t_vel
+        # control = self.pi(error)
+        # rpm = control/(2*np.pi/60)
+        # volt = 4.7714*1.02**rpm
 
 
 
