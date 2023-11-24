@@ -7,7 +7,7 @@
         "PORT": 20000,
         "TIMER_PERIOD": 0.1, 
         "LOG_DEBUG": true,
-        "LOG_LEVEL": "DEBUG"
+        "LOG_LEVEL": "rclpy.logging.LoggingSeverity.DEBUG"
     },
 
 
@@ -15,7 +15,7 @@
     {
         "TIMER_PERIOD": 0.1,
         "LOG_DEBUG": true,
-        "LOG_LEVEL": "DEBUG"
+        "LOG_LEVEL": "rclpy.logging.LoggingSeverity.DEBUG"
     },
 
 
@@ -23,7 +23,7 @@
     {
         "TIMER_PERIOD": 0.1,
         "LOG_DEBUG": true,
-        "LOG_LEVEL": "DEBUG"
+        "LOG_LEVEL": "rclpy.logging.LoggingSeverity.DEBUG"
 
     },
 
@@ -36,7 +36,7 @@
         "PARITY": "serial.PARITY_NONE",
         "STOPBITS": "serial.STOPBITS_ONE",
         "LOG_DEBUG": true,
-        "LOG_LEVEL": "DEBUG"
+        "LOG_LEVEL": "rclpy.logging.LoggingSeverity.DEBUG"
 
     }
 

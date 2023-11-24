@@ -52,11 +52,16 @@ class Controller(Node):
         self.LOG_DEBUG = log_debug
         self.toggle_EEG_parameter = True
 
+        self.called_manual_control_data_topic_callback = False
+        self.called_eeg_data_topic_callback = False
+        self.called_feedback_topic_callback = False
+
         self.msg = Int64()
 
         # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
         super().__init__('controller')
 
+        self.get_logger().debug("Hello world!")
 
         # Initialising a subscriber to the topic 'EEG_toggle'.
         # On this topic is expected data of type std_msgs.msg.Bool which is imported as Bool.
@@ -121,6 +126,8 @@ class Controller(Node):
         Callback function called whenever a message is recieved on the subscription 'manual_data_subscription'
         """
 
+        self.called_eeg_data_topic_callback = True
+
         if self.toggle_EEG_parameter == True:
             data_string = msg.data
 
@@ -132,10 +139,10 @@ class Controller(Node):
                 command_power = data_string[seperator_index:]
 
             if command_power == "Lift":
-                self.t_vel = command_power
+                variables.t_vel = command_power
             
             elif command_power == "Drop":
-                self.t_vel = -command_power
+                variables.t_vel = -command_power
 
             else:
                 self.get_logger().warning(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Unexpected mental command in recieved EEG data.")
@@ -147,8 +154,10 @@ class Controller(Node):
         Callback function called whenever a message is recieved on the subscription 'manual_control_subscription'
         """ 
 
+        self.called_manual_control_data_topic_callback = True
+
         if self.toggle_EEG_parameter == False:
-            self.t_vel = msg.data # Target velocity
+            variables.t_vel = msg.data # Target velocity
 
 
     def feedback_topic_callback(self, msg):
@@ -156,70 +165,124 @@ class Controller(Node):
         Callback function called whenever a message is recieved on the subscription 'feedback_subscription'
         """
 
+        self.called_feedback_topic_callback = True
+
         # Log info
         self.get_logger().debug(f"@ Class 'Controller' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
 
         data_string = msg.data
 
-        if "," in data_string:
-            seperator_index = data_string.index(",")
-            variables.j_vel = float(data_string[:seperator_index])
-            variables.elbow_joint_angle = float(data_string[seperator_index+1:])
+       # if "," in data_string:
+        seperator_index = data_string.index(",")
+        variables.j_vel = float(data_string[:seperator_index])
+        variables.elbow_joint_angle = float(data_string[seperator_index+1:])
 
     def timer_callback(self):
         
         ## Closed loop control system ##
+        if self.called_feedback_topic_callback and ((self.called_manual_control_data_topic_callback and self.toggle_EEG_parameter) or (self.called_eeg_data_topic_callback and not self.toggle_EEG_parameter)):
 
-        # Dynamic calculations for gravity compensation
-        fg2 = (variables.av_arm_weight + variables.exo_weight) * variables.g_acceleration
-        fgp = variables.av_payload_weight * variables.g_acceleration
-        
-        f2 = np.cos(variables.elbow_joint_angle - variables.shoulder_joint_angle) * (variables.l2_lenght / 2) * fg2
-        fp = np.cos(variables.elbow_joint_angle - variables.shoulder_joint_angle) * variables.l2_lenght * fgp
+        # Log the variables used in the controller
+            self.get_logger().debug(f"""VARIABLES USED IN CONTROLLER:
+            - Target velocity: {variables.t_vel}
+            - Joint velocity: {variables.j_vel}
+            - Elbow joint angle: {variables.elbow_joint_angle}
+            - Gravitational acceleration: {variables.g_acceleration}
+            - Exoskeleton weight: {variables.exo_weight}
+            - Avatar arm weight: {variables.av_arm_weight}
+            - Avatar payload weight: {variables.av_payload_weight}
+            - Shoulder joint angle: {variables.shoulder_joint_angle}
+            - Cable angle: {variables.cable_angle}
+            - l2 length: {variables.l2_lenght}
+            - lm2 length: {variables.lm2_length}
+            - Spool radius: {variables.spool_radius}""")
 
-        torque_joint = f2 * (variables.l2_lenght / 2) + fp * variables.l2_lenght 
+            # Dynamic calculations for gravity compensation
+            fg2 = (variables.av_arm_weight + variables.exo_weight) * variables.g_acceleration
+            fgp = variables.av_payload_weight * variables.g_acceleration
 
-        # Force cable composant 1 and 2
-        fc1 = torque_joint / variables.lm2_length
-        fc2 = np.tan((np.pi / 2) - variables.cable_angle) * fc1
+            f2 = np.cos(variables.elbow_joint_angle - variables.shoulder_joint_angle) * (variables.l2_lenght / 2) * fg2
+            fp = np.cos(variables.elbow_joint_angle - variables.shoulder_joint_angle) * variables.l2_lenght * fgp
 
-        # Force cable
-        fc = np.sqrt(fc1**2 + fc2**2)
+            torque_joint = f2 * (variables.l2_lenght / 2) + fp * variables.l2_lenght
 
-        torque_motor = fc * variables.spool_radius
+            # Log gravity compensation calculations
+            self.get_logger().debug(
+                f"Gravity Compensation Calculations:"
+                f"\n- fg2: {fg2}"
+                f"\n- fgp: {fgp}"
+                f"\n- f2: {f2}"
+                f"\n- fp: {fp}"
+                f"\n- Torque Joint: {torque_joint}"
+            )
 
-        compensation_duty_cycle = 10.52 * torque_motor + 7.173 # function for converting torque to volt
+            # Force cable components 1 and 2
+            fc1 = torque_joint / variables.lm2_length
+            fc2 = np.tan((np.pi / 2) - variables.cable_angle) * fc1
 
-        #gravity_acc_compensation = fc * (av_arm_weight+av_payload_weight+exo_weight)
+            # Log force cable calculations
+            self.get_logger().debug(
+                f"Force Cable Calculations:"
+                f"\n- fc1: {fc1}"
+                f"\n- fc2: {fc2}"
+            )
 
-        #time = time.time() - self.start_time
-        #v = self.v0 + gravity_acc_compensation * time
-        #self.time = time.time()
-        #self.v0 = v 
+            # Force cable
+            fc = np.sqrt(fc1**2 + fc2**2)
 
-        # The controller
-    ### error = 1 - (variables.j_vel / variables.t_vel)
-        error = variables.t_vel - variables.j_vel
-        control = self.pi(error)
-        duty_cycle = compensation_duty_cycle + control
+            torque_motor = fc * variables.spool_radius
 
-        # The alternative controller
-        # error = j_vel-t_vel
-        # control = self.pi(error)
-        # rpm = control/(2*np.pi/60)
-        # volt = 4.7714*1.02**rpm
-        
-        # Load msg with duty cycle data
-        self.msg.data = int(duty_cycle)
+            # Log torque motor calculation
+            self.get_logger().debug(
+                f"Torque Motor Calculation:"
+                f"\n- Torque Motor: {torque_motor}"
+            )
 
-        # Publish msg using motor_signals_publisher on topic 'Motor_signals'
-        self.motor_signals_publisher.publish(self.msg)
+            compensation_duty_cycle = 10.52 * torque_motor + 7.173  # function for converting torque to volt
 
-        # Log info
-        self.get_logger().debug(f"@ Class 'Server' Function 'eeg_data_topic_callback'; Published data: '{self.msg.data}'")
+            # Log duty cycle calculations
+            self.get_logger().debug(
+                f"Duty Cycle Calculations:"
+                f"\n- Compensation Duty Cycle: {compensation_duty_cycle}"
+            )
 
-        # Iterate timer
-        self.timer_counter += 1
+            #gravity_acc_compensation = fc * (av_arm_weight+av_payload_weight+exo_weight)
+
+            #time = time.time() - self.start_time
+            #v = self.v0 + gravity_acc_compensation * time
+            #self.time = time.time()
+            #self.v0 = v 
+
+            # The controller
+            error = variables.t_vel - variables.j_vel
+            control = self.pi(error)
+            duty_cycle = compensation_duty_cycle + control
+
+            # Log controller calculations
+            self.get_logger().debug(
+                f"Controller Calculations:"
+                f"\n- Error: {error}"
+                f"\n- Control: {control}"
+                f"\n- Duty Cycle: {duty_cycle}"
+            )
+
+            # The alternative controller
+            # error = j_vel-t_vel
+            # control = self.pi(error)
+            # rpm = control/(2*np.pi/60)
+            # volt = 4.7714*1.02**rpm
+            
+            # Load msg with duty cycle data
+            self.msg.data = int(duty_cycle)
+
+            # Publish msg using motor_signals_publisher on topic 'Motor_signals'
+            self.motor_signals_publisher.publish(self.msg)
+
+            # Log info
+            self.get_logger().debug(f"@ Class 'Controller' Function 'timer_callback'; Published data: '{self.msg.data}'")
+
+            # Iterate timer
+            self.timer_counter += 1
 
 
 ####################
@@ -235,18 +298,20 @@ json_file_path = ".//src//EXONET//EXONET//settings.json"
 handler = JSON_Handler(json_file_path)
 
 # Get settings from 'settings.json' file
-TIMER_PERIOD = handler.get_subkey_value("gui", "TIMER_PERIOD")
-LOG_DEBUG = handler.get_subkey_value("gui", "LOG_DEBUG")
+TIMER_PERIOD = handler.get_subkey_value("controller", "TIMER_PERIOD")
+LOG_DEBUG = handler.get_subkey_value("controller", "LOG_DEBUG")
+LOG_LEVEL = handler.get_subkey_value("controller", "LOG_LEVEL")
+
 
 variables = Variables()
 
 # Initialize the rclpy library
 rclpy.init()
 
+rclpy.logging.set_logger_level("controller", eval(LOG_LEVEL))
+
 # Instance the serverTCP class
 controller = Controller(TIMER_PERIOD, LOG_DEBUG)
-
-rclpy.logging.set_logger_level("controller", rclpy.logging.LoggingSeverity.DEBUG)
 
 # Begin looping the node
 rclpy.spin(controller)

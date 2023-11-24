@@ -41,10 +41,11 @@ class Serial_Communicator(Node, serial2arduino):
         # Initialize a variable of datatype std_msgs.msg.Int8 imported as Int8
         self.feedback_msg = String()
 
-
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'serial_communicator')
         serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
+
+        self.get_logger().debug("Hello world!")
 
         # Initialising a subscriber to the topic 'Motor_signals'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
@@ -58,8 +59,6 @@ class Serial_Communicator(Node, serial2arduino):
         # The '10' argument is some Quality of Service parameter (QoS).
         self.feedback_publisher = self.create_publisher(String, 'Feedback', 10)
         self.feedback_publisher  # prevent unused variable warning
-
-        self.get_logger().debug("Hello world!")
 
         # Establish a connection with the arduino
         self.arduino = self.establish_connection()
@@ -75,42 +74,45 @@ class Serial_Communicator(Node, serial2arduino):
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data, seperator=",")
 
+        time.sleep(2)
+
         # Load feedback_msg with returned data 
         data = int(self.receive_data(self.arduino))
+
 
         self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Received serial data: '{data}'")
 
 
-        if self.first_feedback:
-            self.time0 = time.time()
-            self.data0 = data
+        # if self.first_feedback:
+        #     self.time0 = time.time()
+        #     self.data0 = data
 
-            self.first_feedback = False
+        #     self.first_feedback = False
 
-        else:
-            time_now = time.time()
+        # else:
+        #     time_now = time.time()
         
-            time_diff = time_now - self.time0
+        #     time_diff = time_now - self.time0
 
-            self.time0 = time_now
+        #     self.time0 = time_now
         
-            data_diff = data - self.data0
+        #     data_diff = data - self.data0
 
-            self.data0 = data        
+        #     self.data0 = data        
             
-            j_vel = data_diff / time_diff  # Joint velocity
+        #     j_vel = data_diff / time_diff  # Joint velocity
 
-            elbow_joint_angle = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
+        #     elbow_joint_angle = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
 
-            formatted_feedback_string = f"{j_vel},{elbow_joint_angle}"
+        #     formatted_feedback_string = f"{j_vel},{elbow_joint_angle}"
 
-            self.feedback_msg.data = formatted_feedback_string
+        #     self.feedback_msg.data = formatted_feedback_string
 
-            # Log info
-            self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Computed feedback data: '{self.feedback_msg.data}'")
+        #     # Log info
+        #     self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Computed feedback data: '{self.feedback_msg.data}'")
 
-            # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
-            self.feedback_publisher.publish(self.feedback_msg)
+        #     # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
+        #     self.feedback_publisher.publish(self.feedback_msg)
             
 
     def map_range(self, x, in_min, in_max, out_min, out_max):
@@ -136,14 +138,16 @@ def main():
     PARITY = handler.get_subkey_value("serial_communicator", "PARITY")
     STOPBITS = handler.get_subkey_value("serial_communicator", "STOPBITS")
     LOG_DEBUG = handler.get_subkey_value("serial_communicator", "LOG_DEBUG")
+    LOG_LEVEL = handler.get_subkey_value("serial_communicator", "LOG_LEVEL")
+
 
     # Initialize the rclpy library
     rclpy.init()
 
+    rclpy.logging.set_logger_level("serial_communicator", eval(LOG_LEVEL))
+
     # Instance the serverTCP class
     serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, LOG_DEBUG)
-
-    rclpy.logging.set_logger_level("serial_communicator", rclpy.logging.LoggingSeverity.DEBUG)
 
     # Begin looping the node
     rclpy.spin(serial_communicator)

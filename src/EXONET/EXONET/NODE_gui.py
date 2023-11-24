@@ -1,6 +1,6 @@
 """
 TO DO:
- - Make UI with visualisation of detected mental command and its power (Eg. 'Lift' or 'Drop' and power 0-100)
+- Make UI with visualisation of detected mental command and its power (Eg. 'Lift' or 'Drop' and power 0-100)
 """
 
 from EXONET.EXOLIB import JSON_Handler
@@ -42,7 +42,7 @@ class Gui(Node):
     """
     This is the gui node of the EXONET ROS2 network.
     Takes argument(s):
-     - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
+    - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
     """
 
     def __init__(self, timer_period, log_debug):
@@ -55,7 +55,13 @@ class Gui(Node):
         # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
         super().__init__('gui')
 
-        self.app = MainW(None)
+        self.get_logger().debug("Hello world!")
+
+
+        self.app = MainW(None, self.get_logger())
+
+        # Initialise variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
+        self.msg = Int8()
 
         # Initialising a subscriber to the topic 'EEG_data'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
@@ -139,9 +145,9 @@ class Gui(Node):
         # Log info
         self.get_logger().debug(f"@ Class 'Gui' Function 'motor_signals_topic_callback'; Recieved data: '{msg.data}'")
 
-        self.app.exo_frame.PWM_data = msg.data[0]
-        self.app.exo_frame.torque_data = msg.data[1]
-        self.app.exo_frame.RPM_data = msg.data[2]
+       # self.app.exo_frame.PWM_data = msg.data[0]
+       # self.app.exo_frame.torque_data = msg.data[1]
+       # self.app.exo_frame.RPM_data = msg.data[2]
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -159,7 +165,7 @@ class Gui(Node):
         """
 
         # Log info
-        self.get_logger().debug(f"@ Class 'Controller' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
+        self.get_logger().debug(f"@ Class 'Gui' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
 
         if self.app.position_control_window is not None:
             self.app.position_control_window.current_angle_label.configure(text=msg.data) # Update the content of the CurrentAngle Label
@@ -178,25 +184,25 @@ class Gui(Node):
     def timer_callback(self):
         
         if self.toggle_EEG_parameter:
-            # Initialise variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
-            msg = Int8()
-
             # Load msg with current angle set in GUI 
-            msg.data = data.current_angle
+            self.msg.data = data.current_angle
 
             # Publish msg using manual_control_data_publisher on topic 'Manual_control_data'
-            self.manual_control_data_publisher.publish(msg)
+            self.manual_control_data_publisher.publish(self.msg)
 
             # Log info
-            self.get_logger().debug(f"@ Class 'Server' Function 'timer_callback'; Published data: '{msg.data}'")
+            self.get_logger().debug(f"@ Class 'Gui' Function 'timer_callback'; Published data: '{msg.data}'")
 
             # Iterate timer
             self.timer_counter += 1
 
 
 class MainW(CTk):
-    def __init__(self, parent):
+    def __init__(self, parent, logger):
         super().__init__(parent)
+
+        self.logger = logger
+
         self.geometry("1200x800")
         self.parent = parent
         self.title("P5 GUI")
@@ -207,9 +213,9 @@ class MainW(CTk):
 
     def mainWidgets(self):
         """Calls and arranges all frames needed in the main window"""
-        self.exo_frame = Exo(self)
-        self.manual_frame = ManualControl(self)
-        self.EEG_frame = EEG(self, nb_points=100)
+        self.exo_frame = Exo(self, self.logger)
+        self.manual_frame = ManualControl(self, self.logger)
+        self.EEG_frame = EEG(self, nb_points=100, logger=self.logger)
 
         self.exo_frame.grid(row= 0, column= 0, pady= 20, padx= 60)
         self.manual_frame.grid(row= 1, column= 0, pady= 20, padx= 60)
@@ -222,10 +228,10 @@ class MainW(CTk):
 
 
         self.position_control_button = CTkButton(master=self.manual_frame, text="Position Control Menu", command=self.open_position_control_menu)
-        self.position_control_button.grid(row= 5, column= 0, padx= 10, pady= 5)
+        self.position_control_button.grid(row= 1, column= 1, padx= 10, pady= 5)
 
         self.velocity_control_button = CTkButton(master=self.manual_frame, text="Velocity Control Menu", command=self.open_velocity_control_menu)
-        self.velocity_control_button.grid(row= 5, column= 1, padx= 10, pady= 5)
+        self.velocity_control_button.grid(row= 1, column= 2, padx= 10, pady= 5)
 
 
     def open_velocity_control_menu(self):
@@ -233,7 +239,7 @@ class MainW(CTk):
         Then it creates the window. Or if it does exist, 
         then it lifts the window and sets the focus to it"""
         if self.velocity_control_window is None or not self.velocity_control_window.winfo_exists():
-            self.velocity_control_window = VelocityControl()
+            self.velocity_control_window = VelocityControl(self.logger)
         else:
             self.velocity_control_window.focus()
             self.velocity_control_window.lift()
@@ -244,8 +250,8 @@ class MainW(CTk):
         Then it creates the window. Or if it does exist, 
         then it lifts the window and sets the focus to it"""
         if self.position_control_window is None or not self.position_control_window.winfo_exists():
-            self.position_control_window = PositionControl()
-            self.visual_frame = Visual(self.position_control_window)
+            self.position_control_window = PositionControl(self.logger)
+            self.visual_frame = Visual(self.position_control_window, self.logger)
             self.visual_frame.grid(row= 1, column= 1, pady= 0, padx= 0)
 
 
@@ -257,8 +263,10 @@ class MainW(CTk):
 class ManualControl(CTkFrame):
     """Class for the manual control frame in the main window"""
 
-    def __init__(self, parent):
+    def __init__(self, parent, logger):
         super().__init__(parent)
+
+        self.logger = logger
 
         self.parent = parent
         self.widgets()
@@ -269,8 +277,8 @@ class ManualControl(CTkFrame):
         
         self.switch_var = StringVar(value="False")
         self.switch = CTkSwitch(self, text="EEG", command= self.eeg_toggle,
-                                 variable=self.switch_var, onvalue="True", offvalue="False")
-        self.switch.grid(row=1, column= 1, padx= 10, pady= 5)
+                                variable=self.switch_var, onvalue="True", offvalue="False")
+        self.switch.grid(row=1, column= 0, padx= 10, pady= 5)
 
     def eeg_toggle(self):
 
@@ -279,11 +287,27 @@ class ManualControl(CTkFrame):
         value = gui.app.manual_frame.switch_var.get()
 
         if value == "True":
+            gui.app.position_control_button.configure(state= DISABLED)
+            gui.app.velocity_control_button.configure(state= DISABLED)
+            
+            if gui.app.position_control_window:
+                gui.app.position_control_window.destroy()
+
+
+            if gui.app.velocity_control_window: 
+                gui.app.velocity_control_window.destroy()
+   
+
             msg.data = True
+            
             gui.toggle_EEG_parameter == True
 
         else:
+            gui.app.position_control_button.configure(state= NORMAL)
+            gui.app.velocity_control_button.configure(state= NORMAL)
+            
             msg.data = False
+            
             gui.toggle_EEG_parameter == False
 
         gui.eeg_toggle_publisher.publish(msg)
@@ -294,8 +318,10 @@ class EEG(CTkFrame):
     """Makes and displays the graph for the EEG data, the class will need to be given how many data mounts
     which should be displayed on the graph"""
 
-    def __init__(self, parent, nb_points):
+    def __init__(self, parent, nb_points, logger):
         super().__init__(parent)
+
+        self.logger = logger
 
         self.parent = parent
         self.widgets(nb_points)
@@ -337,8 +363,10 @@ class EEG(CTkFrame):
 class Exo(CTkFrame):
     #motor_data = Gui() # Making the live data accesible in the Exoskeleton frame
 
-    def __init__(self, parent):
+    def __init__(self, parent, logger):
         CTkFrame.__init__(self, parent)
+
+        self.logger = logger
 
         self.parent = parent
         self.widgets()
@@ -366,26 +394,31 @@ class Exo(CTkFrame):
         self.PWMLabel.grid(row= 0, column= 0, padx= 10, pady= 5)
 
 
+
 class VelocityControl(CTkToplevel):
-    def __init__(self):
+    def __init__(self, logger):
 
         CTkToplevel.__init__(self)
-        self.geometry("400x300") # Set the dimensions of the debug window
+        self.geometry("400x300")  # Set the dimensions of the debug window
+
+        self.logger = logger
+
 
         self.manual_control_msg = Int8()
 
         # Destroy the Debug menu window, ie close the window
-        def exit_button_event(): self.destroy()
+        def exit_button_event(self):
+            self.destroy()
 
-        self.exit_button = CTkButton(self, text="Exit Button", command= exit_button_event)
-        self.exit_button.grid(row= 1, column= 0, padx= 10, pady= 5)
+        self.exit_button = CTkButton(self, text="Exit Button", command=exit_button_event)
+        self.exit_button.grid(row=1, column=0, padx=10, pady=5)
 
-        self.manual_stop_button = CTkButton(self, text="Stop", command= self.manual_stop_event)
-        self.manual_stop_button.grid(row=3, column= 0, padx= 10, pady= 5)
+        self.manual_stop_button = CTkButton(self, text="Stop", command=self.manual_stop_event)
+        self.manual_stop_button.grid(row=3, column=0, padx=10, pady=5)
 
-        self.slider = CTkSlider(self, from_=-100, to=100, command=self.slider_event, width=400, number_of_steps= 200, state= data.slider_state)
-        self.slider.grid(row= 3, column= 2, padx= 10, pady= 5, columnspan=2)
-
+        self.slider = CTkSlider(self, from_=-100, to=100, command=self.slider_event, width=400, number_of_steps=200,
+                                state=data.slider_state)
+        self.slider.grid(row=3, column=2, padx=10, pady=5, columnspan=2)
 
     def slider_event(self, value):
         if value > -15 and value < 15:
@@ -395,6 +428,8 @@ class VelocityControl(CTkToplevel):
 
         gui.manual_control_data_publisher.publish(self.manual_control_msg)
 
+        self.logger.debug(f"Velocity Control: Slider event, value: {value}")
+
     def manual_stop_event(self):
         self.slider.set(0)
 
@@ -403,18 +438,22 @@ class VelocityControl(CTkToplevel):
 
         elif data.slider_state == "disabled":
             data.slider_state = "normal"
-        
+
         self.slider_event(0)
+        self.logger.info("Velocity Control: Manual stop event")
+
 
 
 class PositionControl(CTkToplevel):
-    def __init__(self):
+    def __init__(self, logger):
 
         CTkToplevel.__init__(self)
         self.geometry("400x300") # Set the dimensions of the debug window
 
+        self.logger = logger
+
         # Destroy the Debug menu window, ie close the window
-        def exit_button_event(): self.destroy()
+        def exit_button_event(self): self.destroy()
 
         # Initializes the label which shows the current angle of the exo skeleton
         self.current_angle_label = CTkLabel(self, text= str(data.current_angle))
@@ -447,8 +486,10 @@ class PositionControl(CTkToplevel):
 
 class Visual(CTkFrame):
     # Initialize the frame
-    def __init__(self, parent):
+    def __init__(self, parent, logger):
         super().__init__(parent)
+
+        self.logger = logger
 
         self.parent = parent
         # Call the draw function
@@ -503,15 +544,16 @@ LOG_LEVEL = handler.get_subkey_value("gui", "LOG_LEVEL")
 set_appearance_mode('system')
 set_default_color_theme("blue")
 
+data = variables()
+
 # Initialize the rclpy library
 rclpy.init()
 
-data = variables()
+rclpy.logging.set_logger_level("gui", eval(LOG_LEVEL))
 
 # Instance the node class
 gui = Gui(TIMER_PERIOD, LOG_DEBUG)
 
-rclpy.logging.set_logger_level("gui", rclpy.logging.LoggingSeverity.DEBUG)
 
 while True:
     # Begin looping the node

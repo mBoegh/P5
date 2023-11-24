@@ -30,6 +30,8 @@ class Server(Node, TCP_Server):
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'server')
 
+        self.get_logger().debug("Hello world!")
+
         # Create a timer which periodically calls the specified callback function at a defined interval.
         # Initialise timer_counter as zero. This is iterated on each node spin
         self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
@@ -121,14 +123,16 @@ def main():
     PORT = handler.get_subkey_value("server", "PORT")
     TIMER_PERIOD = handler.get_subkey_value("server", "TIMER_PERIOD")
     LOG_DEBUG = handler.get_subkey_value("server", "LOG_DEBUG")
+    LOG_LEVEL = handler.get_subkey_value("server", "LOG_LEVEL")
+
 
     # Initialize the rclpy library
     rclpy.init()
 
+    rclpy.logging.set_logger_level("server", eval(LOG_LEVEL))
+
     # Instance the serverTCP class
     server = Server(HOST, PORT, TIMER_PERIOD, LOG_DEBUG)
-
-    rclpy.logging.set_logger_level("server", rclpy.logging.LoggingSeverity.DEBUG)
 
     # Begin looping the node
     rclpy.spin(server)
