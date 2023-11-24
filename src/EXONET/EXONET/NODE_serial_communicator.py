@@ -73,7 +73,7 @@ class Serial_Communicator(Node, serial2arduino):
         self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription'; Recieved data: '{msg.data}'")
 
         # Sending data to Arduino
-        self.send_data(self.arduino, msg.data)
+        self.send_data(self.arduino, msg.data, seperator=",")
 
         # Load feedback_msg with returned data 
         data = self.receive_data(self.arduino)
