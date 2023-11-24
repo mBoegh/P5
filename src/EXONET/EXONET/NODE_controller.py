@@ -246,6 +246,8 @@ rclpy.init()
 # Instance the serverTCP class
 controller = Controller(TIMER_PERIOD, LOG_DEBUG)
 
+rclpy.logging.set_logger_level("controller", rclpy.logging.LoggingSeverity.DEBUG)
+
 # Begin looping the node
 rclpy.spin(controller)
     

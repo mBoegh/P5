@@ -5,10 +5,10 @@ from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument('server_log_level', default_value='INFO'),
-        DeclareLaunchArgument('controller_log_level', default_value='INFO'),
-        DeclareLaunchArgument('serial_communication_log_level', default_value='INFO'),
-        DeclareLaunchArgument('visualizer_log_level', default_value='INFO'),
+        DeclareLaunchArgument('server_log_level', default_value='DEBUG'),
+        DeclareLaunchArgument('controller_log_level', default_value='DEBUG'),
+        DeclareLaunchArgument('serial_communication_log_level', default_value='DEBUG'),
+        DeclareLaunchArgument('visualizer_log_level', default_value='DEBUG'),
 
         Node(
             package='EXONET',

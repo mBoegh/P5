@@ -117,7 +117,7 @@ class Gui(Node):
         """
 
         # Log info
-        self.get_logger().info(f"@ Class 'Gui' Function 'eeg_data_topic_callback'; Received data: '{msg.data}'")
+        self.get_logger().debug(f"@ Class 'Gui' Function 'eeg_data_topic_callback'; Received data: '{msg.data}'")
 
         self.app.exo_frame.PWMBar.set(msg[1]) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
@@ -127,7 +127,7 @@ class Gui(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
-        if self.app.position_control_window is not None or self.app.position_control_window.winfo_exists():
+        if self.app.position_control_window is not None:
             self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
 
@@ -137,7 +137,7 @@ class Gui(Node):
         """
 
         # Log info
-        self.get_logger().info(f"@ Class 'Gui' Function 'motor_signals_topic_callback'; Recieved data: '{msg.data}'")
+        self.get_logger().debug(f"@ Class 'Gui' Function 'motor_signals_topic_callback'; Recieved data: '{msg.data}'")
 
         self.app.exo_frame.PWM_data = msg.data[0]
         self.app.exo_frame.torque_data = msg.data[1]
@@ -149,7 +149,7 @@ class Gui(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
-        if self.app.position_control_window is not None or self.app.position_control_window.winfo_exists():
+        if self.app.position_control_window is not None:
             self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
 
@@ -159,9 +159,10 @@ class Gui(Node):
         """
 
         # Log info
-        self.get_logger().info(f"@ Class 'Controller' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
+        self.get_logger().debug(f"@ Class 'Controller' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
 
-        self.app.manual_frame.current_angle_label.configure(text=msg.data) # Update the content of the CurrentAngle Label
+        if self.app.position_control_window is not None:
+            self.app.position_control_window.current_angle_label.configure(text=msg.data) # Update the content of the CurrentAngle Label
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -169,7 +170,7 @@ class Gui(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
-        if self.app.position_control_window is not None or self.app.position_control_window.winfo_exists():
+        if self.app.position_control_window is not None:
             self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
 
@@ -496,6 +497,7 @@ handler = JSON_Handler(json_file_path)
 # Get settings from 'settings.json' file
 LOG_DEBUG = handler.get_subkey_value("gui", "LOG_DEBUG")
 TIMER_PERIOD = handler.get_subkey_value("gui", "TIMER_PERIOD")
+LOG_LEVEL = handler.get_subkey_value("gui", "LOG_LEVEL")
 
 # Change appearance of the GUI
 set_appearance_mode('system')
@@ -508,6 +510,8 @@ data = variables()
 
 # Instance the node class
 gui = Gui(TIMER_PERIOD, LOG_DEBUG)
+
+rclpy.logging.set_logger_level("gui", rclpy.logging.LoggingSeverity.DEBUG)
 
 while True:
     # Begin looping the node
