@@ -95,7 +95,6 @@ class Gui(Node):
         self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
         self.timer_counter = 0
 
-        self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
 
         # The below functions are what actually does the updating of the window
@@ -128,7 +127,8 @@ class Gui(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
-        self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+        if self.app.position_control_window is not None or self.app.position_control_window.winfo_exists():
+            self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
 
     def motor_signals_topic_callback(self, msg):
@@ -149,7 +149,8 @@ class Gui(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
-        self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+        if self.app.position_control_window is not None or self.app.position_control_window.winfo_exists():
+            self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
 
     def feedback_topic_callback(self, msg):
@@ -168,25 +169,9 @@ class Gui(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
-        self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+        if self.app.position_control_window is not None or self.app.position_control_window.winfo_exists():
+            self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
-
-
-    def eeg_toggle(self):
-
-        msg = Bool()
-
-        value = self.app.toplevel_window.switch_var.get()
-
-        if value == "True":
-            msg.data = True
-            self.toggle_EEG_parameter == True
-
-        else:
-            msg.data = False
-            self.toggle_EEG_parameter == False
-
-        self.eeg_toggle_publisher.publish(msg)
 
 
     def timer_callback(self):
@@ -224,12 +209,10 @@ class MainW(CTk):
         self.exo_frame = Exo(self)
         self.manual_frame = ManualControl(self)
         self.EEG_frame = EEG(self, nb_points=100)
-        self.visual_frame = Visual(self)
 
         self.exo_frame.grid(row= 0, column= 0, pady= 20, padx= 60)
         self.manual_frame.grid(row= 1, column= 0, pady= 20, padx= 60)
         self.EEG_frame.grid(row= 0, column= 1, pady=20, padx= 60)
-        self.visual_frame.grid(row= 1, column= 1, pady= 0, padx= 0)
 
         # The only way I could get the Debug window button to work
         # was by placing it here. Place it anywhere else,
@@ -242,9 +225,6 @@ class MainW(CTk):
 
         self.velocity_control_button = CTkButton(master=self.manual_frame, text="Velocity Control Menu", command=self.open_velocity_control_menu)
         self.velocity_control_button.grid(row= 5, column= 1, padx= 10, pady= 5)
-
-        self.debug_button = CTkButton(master=self.manual_frame, text="Debug Menu", command=self.open_debug_menu)
-        self.debug_button.grid(row= 5, column= 2, padx= 10, pady= 5)
 
 
     def open_velocity_control_menu(self):
@@ -264,20 +244,13 @@ class MainW(CTk):
         then it lifts the window and sets the focus to it"""
         if self.position_control_window is None or not self.position_control_window.winfo_exists():
             self.position_control_window = PositionControl()
+            self.visual_frame = Visual(self.position_control_window)
+            self.visual_frame.grid(row= 1, column= 1, pady= 0, padx= 0)
+
+
         else:
             self.position_control_window.focus()
             self.position_control_window.lift()
-
-
-    def open_debug_menu(self):
-        """First chekcs if the debug menu exists (is open), and if it isnt
-        Then it creates the window. Or if it does exist, 
-        then it lifts the window and sets the focus to it"""
-        if self.debug_menu_window is None or not self.debug_menu_window.winfo_exists():
-            self.debug_menu_window = DebugMenu()
-        else:
-            self.debug_menu_window.focus()
-            self.debug_menu_window.lift()
 
 
 class ManualControl(CTkFrame):
@@ -292,10 +265,28 @@ class ManualControl(CTkFrame):
 
     def widgets(self):
         """Function which initializes and places all the used widgets in the manual control frame"""
+        
+        self.switch_var = StringVar(value="False")
+        self.switch = CTkSwitch(self, text="EEG", command= self.eeg_toggle,
+                                 variable=self.switch_var, onvalue="True", offvalue="False")
+        self.switch.grid(row=1, column= 1, padx= 10, pady= 5)
 
+    def eeg_toggle(self):
 
-        # Initializes the buttons for manually controlling the exo angle
-        pass
+        msg = Bool()
+
+        value = gui.app.manual_frame.switch_var.get()
+
+        if value == "True":
+            msg.data = True
+            gui.toggle_EEG_parameter == True
+
+        else:
+            msg.data = False
+            gui.toggle_EEG_parameter == False
+
+        gui.eeg_toggle_publisher.publish(msg)
+        
 
 
 class EEG(CTkFrame):
@@ -374,7 +365,7 @@ class Exo(CTkFrame):
         self.PWMLabel.grid(row= 0, column= 0, padx= 10, pady= 5)
 
 
-class VelocityControl(CTkFrame):
+class VelocityControl(CTkToplevel):
     def __init__(self):
 
         CTkToplevel.__init__(self)
@@ -453,29 +444,6 @@ class PositionControl(CTkToplevel):
         gui.app.position_control_window.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
 
 
-class DebugMenu(CTkToplevel):
-    """Content for the debug menu, aswell as generating the window 
-    where the content is contained"""
-
-    def __init__(self):
-        CTkToplevel.__init__(self)
-        self.geometry("400x300") # Set the dimensions of the debug window
-
-        # Destroy the Debug menu window, ie close the window
-        def exit_button_event(): self.destroy()
-
-        self.debug_menu_label = CTkLabel(self, text="Debug Menu")
-        self.debug_menu_label.grid(row=0, column= 0, padx= 10, pady= 5)
-
-        self.switch_var = StringVar(value="False")
-        self.switch = CTkSwitch(self, text="EEG", command=gui.eeg_toggle,
-                                 variable=self.switch_var, onvalue="True", offvalue="False")
-        self.switch.grid(row=1, column= 1, padx= 10, pady= 5)
-
-        self.exit_button = CTkButton(self, text="Exit Button", command= exit_button_event)
-        self.exit_button.grid(row= 1, column= 0, padx= 10, pady= 5)
-
-
 class Visual(CTkFrame):
     # Initialize the frame
     def __init__(self, parent):
@@ -547,7 +515,8 @@ while True:
 
     gui.app.exo_frame.PWMBar.set(data.PWM_data) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
-    gui.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+    if gui.app.position_control_window is not None:
+        gui.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
     gui.app.EEG_frame.animate()
 
     gui.app.update_idletasks()
