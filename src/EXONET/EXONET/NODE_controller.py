@@ -34,8 +34,6 @@ class Variables():
         self.spool_radius  = 0.025 # meters 
 
 class Controller(Node):
-
-
     """
     This is the Controller node of the EXONET ROS2 network.
     Takes argument(s):
@@ -62,6 +60,10 @@ class Controller(Node):
         super().__init__('controller')
 
         self.get_logger().debug("Hello world!")
+        self.get_logger().info("Hello world!")
+        self.get_logger().warning("Hello world!")
+        self.get_logger().error("Hello world!")
+        self.get_logger().fatal("Hello world!")
 
         # Initialising a subscriber to the topic 'EEG_toggle'.
         # On this topic is expected data of type std_msgs.msg.Bool which is imported as Bool.
@@ -108,17 +110,17 @@ class Controller(Node):
         value = msg.data
 
         if value:
-            self.get_logger().debug(f"@ Class 'Controller' Function 'eeg_toggle_topic_callback'; Tooggled EEG True")
+            self.get_logger().debug(f"Tooggled EEG True")
 
             self.toggle_EEG_parameter = True
         
         elif not value:
-            self.get_logger().debug(f"@ Class 'Controller' Function 'eeg_toggle_topic_callback'; Tooggled EEG False")
+            self.get_logger().debug(f"Tooggled EEG False")
 
             self.toggle_EEG_parameter = False
         
         else:
-            self.get_logger().warning(f"@ Class 'Controller' Function 'eeg_toggle_topic_callback'; Unexpected message data on topic.")
+            self.get_logger().warning(f"Unexpected message data on topic.")
 
 
     def eeg_data_topic_callback(self, msg):
@@ -145,7 +147,7 @@ class Controller(Node):
                 variables.t_vel = -command_power
 
             else:
-                self.get_logger().warning(f"@ Class 'Controller' Function 'eeg_data_topic_callback'; Unexpected mental command in recieved EEG data.")
+                self.get_logger().warning(f"Unexpected mental command in recieved EEG data.")
 
         
 
@@ -168,7 +170,7 @@ class Controller(Node):
         self.called_feedback_topic_callback = True
 
         # Log info
-        self.get_logger().debug(f"@ Class 'Controller' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
+        self.get_logger().debug(f"Recieved data '{msg.data}'")
 
         data_string = msg.data
 
@@ -279,7 +281,7 @@ class Controller(Node):
             self.motor_signals_publisher.publish(self.msg)
 
             # Log info
-            self.get_logger().debug(f"@ Class 'Controller' Function 'timer_callback'; Published data: '{self.msg.data}'")
+            self.get_logger().debug(f"Published data: '{self.msg.data}'")
 
             # Iterate timer
             self.timer_counter += 1

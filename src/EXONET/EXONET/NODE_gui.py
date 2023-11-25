@@ -56,7 +56,10 @@ class Gui(Node):
         super().__init__('gui')
 
         self.get_logger().debug("Hello world!")
-
+        self.get_logger().info("Hello world!")
+        self.get_logger().warning("Hello world!")
+        self.get_logger().error("Hello world!")
+        self.get_logger().fatal("Hello world!")
 
         self.app = MainW(None, self.get_logger())
 
@@ -116,12 +119,6 @@ class Gui(Node):
         self.app.update_idletasks()
         self.app.update()
 
-        """
-        self.get_logger().debug("DEBUG Hello world!")
-        self.get_logger().info("INFO Hello world!")
-        self.get_logger().warning("WARNING Hello world!")
-        self.get_logger().error("ERROR Hello world!")
-        """
 
     def eeg_data_topic_callback(self, msg):
         """
@@ -129,7 +126,7 @@ class Gui(Node):
         """
 
         # Log info
-        self.get_logger().debug(f"@ Class 'Gui' Function 'eeg_data_topic_callback'; Received data: '{msg.data}'")
+        self.get_logger().debug(f"Received data: '{msg.data}'")
 
         self.app.exo_frame.PWMBar.set(msg[1]) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
@@ -149,7 +146,7 @@ class Gui(Node):
         """
 
         # Log info
-        self.get_logger().debug(f"@ Class 'Gui' Function 'motor_signals_topic_callback'; Recieved data: '{msg.data}'")
+        self.get_logger().debug(f"Recieved data: '{msg.data}'")
 
        # self.app.exo_frame.PWM_data = msg.data[0]
        # self.app.exo_frame.torque_data = msg.data[1]
@@ -171,7 +168,7 @@ class Gui(Node):
         """
 
         # Log info
-        self.get_logger().debug(f"@ Class 'Gui' Function 'feedback_topic_callback'; Recieved data '{msg.data}'")
+        self.get_logger().debug(f"Recieved data '{msg.data}'")
 
         if self.app.position_control_window is not None:
             self.app.position_control_window.current_angle_label.configure(text=msg.data) # Update the content of the CurrentAngle Label
@@ -197,7 +194,7 @@ class Gui(Node):
             self.manual_control_data_publisher.publish(self.msg)
 
             # Log info
-            self.get_logger().debug(f"@ Class 'Gui' Function 'timer_callback'; Published data: '{self.msg.data}'")
+            self.get_logger().debug(f"Published data: '{self.msg.data}'")
 
             # Iterate timer
             self.timer_counter += 1
@@ -442,7 +439,7 @@ class VelocityControl(CTkToplevel):
 
         gui.manual_control_veloity_control_data_publisher.publish(self.velocity_control_msg)
 
-        self.logger.debug(f"Velocity Control: Slider event, value: {value}")
+        self.logger.debug(f"Target velocity: {value}")
 
     def manual_stop_event(self):
         self.slider.set(0)
@@ -454,7 +451,7 @@ class VelocityControl(CTkToplevel):
             data.slider_state = "normal"
 
         self.slider_event(0)
-        self.logger.info("Velocity Control: Manual stop event")
+        self.logger.info("Stopped")
 
 
 
@@ -516,7 +513,7 @@ class PositionControl(CTkToplevel):
 
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
         
-        self.logger.debug(f"@ Class 'PositionControl' Function 'manual_up_event'; Published data: '{self.position_control_msg.data}'")
+        self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
 
 
     def manual_down_event(self):
@@ -530,7 +527,7 @@ class PositionControl(CTkToplevel):
 
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
 
-        self.logger.debug(f"@ Class 'PositionControl' Function 'manual_up_event'; Published data: '{self.position_control_msg.data}'")
+        self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
 
 
     # Destroy the pop up menu window, ie close the window
@@ -559,10 +556,10 @@ class PositionControl(CTkToplevel):
         
         try:
             gui.manual_position_control_data_publisher.publish(self.msg)
-            self.logger.debug(f"@ Class 'PositionControl' Function 'submit'; Published data: '{self.msg.data}'")
+            self.logger.debug(f"Published data: '{self.msg.data}'")
 
         except Exception as e:
-            self.logger.warning(f"@ Class 'PositionControl' Function 'submit'; \n - Failed to publish data: '{self.msg.data}' \n - With error: {e}")
+            self.logger.warning(f"Failed to publish data: '{self.msg.data}' With error: {e}")
 
 
 

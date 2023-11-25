@@ -46,7 +46,11 @@ class Serial_Communicator(Node, serial2arduino):
         serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
 
         self.get_logger().debug("Hello world!")
-
+        self.get_logger().info("Hello world!")
+        self.get_logger().warning("Hello world!")
+        self.get_logger().error("Hello world!")
+        self.get_logger().fatal("Hello world!")
+        
         # Initialising a subscriber to the topic 'Motor_signals'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
         # The subscriber calls a defined callback function upon message recieval from the topic.
@@ -72,7 +76,7 @@ class Serial_Communicator(Node, serial2arduino):
         """
 
         # Log info
-        self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Recieved topic data: '{msg.data}'")
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data, seperator=",")
@@ -83,7 +87,7 @@ class Serial_Communicator(Node, serial2arduino):
         data = int(self.receive_data(self.arduino))
 
 
-        self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Received serial data: '{data}'")
+        self.get_logger().debug(f"Received serial data: '{data}'")
 
 
         # if self.first_feedback:
@@ -121,7 +125,7 @@ class Serial_Communicator(Node, serial2arduino):
     def manual_position_control_data_callback(self, msg):
 
         # Log info
-        self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Recieved topic data: '{msg.data}'")
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data, seperator= ",", state= "/")
@@ -131,7 +135,7 @@ class Serial_Communicator(Node, serial2arduino):
         # Load feedback_msg with returned data 
         data = int(self.receive_data(self.arduino))
 
-        self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Received serial data: '{data}'")
+        self.get_logger().debug(f"Received serial data: '{data}'")
 
 
     def map_range(self, x, in_min, in_max, out_min, out_max):

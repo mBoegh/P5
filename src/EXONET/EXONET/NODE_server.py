@@ -31,6 +31,10 @@ class Server(Node, TCP_Server):
         Node.__init__(self, 'server')
 
         self.get_logger().debug("Hello world!")
+        self.get_logger().info("Hello world!")
+        self.get_logger().warning("Hello world!")
+        self.get_logger().error("Hello world!")
+        self.get_logger().fatal("Hello world!")
 
         # Create a timer which periodically calls the specified callback function at a defined interval.
         # Initialise timer_counter as zero. This is iterated on each node spin
@@ -54,10 +58,10 @@ class Server(Node, TCP_Server):
 
         if value and self.init_callback:
             
-            self.get_logger().debug(f"@ Class 'Server' Function 'eeg_toggle_topic_callback'; Tooggled EEG True")
+            self.get_logger().debug(f"Tooggled EEG True")
 
             try:
-                self.get_logger().info(f"@ Class 'Server' Function 'eeg_toggle_topic_callback'; Attempting connection")
+                self.get_logger().info(f"Attempting connection")
 
                 # Instance the TCP_Server class to create a socket connection using defined parameters
                 TCP_Server.__init__(self, self.HOST, self.PORT, self.LOG_DEBUG)
@@ -67,24 +71,24 @@ class Server(Node, TCP_Server):
 
                 self.init_callback = False
 
-                self.get_logger().info(f"@ Class 'Server' Function 'eeg_toggle_topic_callback'; Successfully connected")
+                self.get_logger().info(f"Successfully connected")
 
             except Exception as e:
-                self.get_logger().error(f"@ Class 'Server' Function 'eeg_toggle_topic_callback'; Failed connecting with error: {e}")
+                self.get_logger().error(f"Failed connecting with error: {e}")
 
 
         elif value:
-            self.get_logger().debug(f"@ Class 'Server' Function 'eeg_toggle_topic_callback'; Tooggled EEG True")
+            self.get_logger().debug(f"Tooggled EEG True")
 
             self.toggle_EEG_parameter = True
         
         elif not value:
-            self.get_logger().debug(f"@ Class 'Server' Function 'eeg_toggle_topic_callback'; Tooggled EEG False")
+            self.get_logger().debug(f"Tooggled EEG False")
 
             self.toggle_EEG_parameter = False
         
         else:
-            self.get_logger().warning(f"@ Class 'Server' Function 'eeg_toggle_topic_callback'; Unexpected message data on topic.")
+            self.get_logger().warning(f"Unexpected message data on topic.")
 
 
     def timer_callback(self):
@@ -100,7 +104,7 @@ class Server(Node, TCP_Server):
             self.eeg_data_publisher.publish(msg)
 
             # Log info
-            self.get_logger().debug(f"@ Class 'Server' Function 'timer_callback'; Published data: '{msg.data}'")
+            self.get_logger().debug(f"Published data: '{msg.data}'")
 
             # Iterate timer
             self.timer_counter += 1
