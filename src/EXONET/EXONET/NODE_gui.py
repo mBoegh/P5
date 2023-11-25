@@ -20,6 +20,10 @@ from datetime import datetime, timedelta
 
 
 class variables:
+    """
+    Class for initialising, setting and getting variables.
+    When instanced in global space, then every other scope can access the variables.
+    """
     
     def __init__(self):
         self.current_angle = 70
@@ -40,9 +44,9 @@ class variables:
 
 class Gui(Node):
     """
-    This is the gui node of the EXONET ROS2 network.
-    Takes argument(s):
-    - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
+    This is the GUI node of the EXONET ROS2 network.
+    The purpose of the GUI is to make the prototype exoskeleton more usable, 
+    and to aid in debugging and testing.
     """
 
     def __init__(self, timer_period, log_debug):
@@ -61,7 +65,7 @@ class Gui(Node):
         self.get_logger().error("Hello world!")
         self.get_logger().fatal("Hello world!")
 
-        self.app = MainW(None, self.get_logger())
+        self.app = ParentWindow_MainMenu(None, self.get_logger())
 
         # Initialise variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
         self.msg = Int8()
@@ -102,8 +106,8 @@ class Gui(Node):
         # Initialising a publisher to the topic 'Manual_control'.
         # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_control_veloity_control_data_publisher = self.create_publisher(Int16, 'Manual_velocity_control_data', 10)
-        self.manual_control_veloity_control_data_publisher  # prevent unused variable warning
+        self.manual_veloity_control_data_publisher = self.create_publisher(Int16, 'Manual_velocity_control_data', 10)
+        self.manual_veloity_control_data_publisher  # prevent unused variable warning
 
         # Create a timer which periodically calls the specified callback function at a defined interval.
         # Initialise timer_counter as zero. This is iterated on each node spin
@@ -185,6 +189,9 @@ class Gui(Node):
 
 
     def timer_callback(self):
+        """
+        Function called at specific time interval, specified in 'settings.json'.
+        """
         
         if self.toggle_EEG_parameter:
             # Load msg with current angle set in GUI 
@@ -200,7 +207,11 @@ class Gui(Node):
             self.timer_counter += 1
 
 
-class MainW(CTk):
+class ParentWindow_MainMenu(CTk):
+    """
+    Main window of the GUI. Instances the Child windows.
+    """
+
     def __init__(self, parent, logger):
         super().__init__(parent)
 
@@ -215,10 +226,14 @@ class MainW(CTk):
         self.debug_menu_window = None
 
     def mainWidgets(self):
-        """Calls and arranges all frames needed in the main window"""
-        self.exo_frame = Exo(self, self.logger)
-        self.manual_frame = ManualControl(self, self.logger)
-        self.EEG_frame = EEG(self, nb_points=100, logger=self.logger)
+        """
+        Calls and arranges all frames needed in the main window.
+        Also makes and positiones the buttons which create child windows.
+        """
+
+        self.exo_frame = Frame_InfoExo(self, self.logger)
+        self.manual_frame = Frame_MainMenu(self, self.logger)
+        self.EEG_frame = Frame_VisualEegData(self, nb_points=100, logger=self.logger)
 
         self.exo_frame.grid(row= 0, column= 0, pady= 20, padx= 60)
         self.manual_frame.grid(row= 1, column= 0, pady= 20, padx= 60)
@@ -230,189 +245,61 @@ class MainW(CTk):
         # for some reason. So leave it here
 
 
-        self.position_control_button = CTkButton(master=self.manual_frame, text="Position Control Menu", command=self.open_position_control_menu)
+        self.position_control_button = CTkButton(master=self.manual_frame, text="Position Control", command=self.open_position_control_menu)
         self.position_control_button.grid(row= 1, column= 1, padx= 10, pady= 5)
 
-        self.velocity_control_button = CTkButton(master=self.manual_frame, text="Velocity Control Menu", command=self.open_velocity_control_menu)
+        self.velocity_control_button = CTkButton(master=self.manual_frame, text="Velocity Control", command=self.open_velocity_control_menu)
         self.velocity_control_button.grid(row= 1, column= 2, padx= 10, pady= 5)
 
 
     def open_velocity_control_menu(self):
-        """First chekcs if the debug menu exists (is open), and if it isnt
-        Then it creates the window. Or if it does exist, 
-        then it lifts the window and sets the focus to it"""
+        """
+        First chekcs if the menu exists (is open), 
+        and if not then it creates the window. 
+        Otherwise it lifts the window and sets the focus to it.
+        """
 
         if gui.app.position_control_window:
             gui.app.position_control_window.destroy()
 
         if self.velocity_control_window is None or not self.velocity_control_window.winfo_exists():
-            self.velocity_control_window = VelocityControl(self.logger)
+            self.velocity_control_window = ChildWindow_VelocityControl(self.logger)
         else:
             self.velocity_control_window.focus()
             self.velocity_control_window.lift()
 
 
     def open_position_control_menu(self):
-        """First chekcs if the debug menu exists (is open), and if it isnt
-        Then it creates the window. Or if it does exist, 
-        then it lifts the window and sets the focus to it"""
+        """
+        First chekcs if the menu exists (is open), 
+        and if not then it creates the window. 
+        Otherwise it lifts the window and sets the focus to it.
+        """
         
         if gui.app.velocity_control_window: 
             gui.app.velocity_control_window.destroy()
     
         if self.position_control_window is None or not self.position_control_window.winfo_exists():
-            self.position_control_window = PositionControl(self.logger)
-            self.visual_frame = Visual(self.position_control_window, self.logger)
+            self.position_control_window = ChildWindow_PositionControl(self.logger)
+            self.visual_frame = Frame_VisualCurrentExoAngle(self.position_control_window, self.logger)
             self.visual_frame.grid(row= 4, column= 1, pady= 10, padx= 5)
 
         else:
             self.position_control_window.focus()
             self.position_control_window.lift()
-
-
-class ManualControl(CTkFrame):
-    """Class for the manual control frame in the main window"""
-
-    def __init__(self, parent, logger):
-        super().__init__(parent)
-
-        self.logger = logger
-
-        self.parent = parent
-        self.widgets()
-
-
-    def widgets(self):
-        """Function which initializes and places all the used widgets in the manual control frame"""
-        
-        self.switch_var = StringVar(value="False")
-        self.switch = CTkSwitch(self, text="EEG", command= self.eeg_toggle,
-                                variable=self.switch_var, onvalue="True", offvalue="False")
-        self.switch.grid(row=1, column= 0, padx= 10, pady= 5)
-
-    def eeg_toggle(self):
-
-        msg = Bool()
-
-        value = gui.app.manual_frame.switch_var.get()
-
-        if value == "True":
-            gui.app.position_control_button.configure(state= DISABLED)
-            gui.app.velocity_control_button.configure(state= DISABLED)
-            
-            if gui.app.position_control_window:
-                gui.app.position_control_window.destroy()
-
-
-            if gui.app.velocity_control_window: 
-                gui.app.velocity_control_window.destroy()
-   
-
-            msg.data = True
-            
-            gui.toggle_EEG_parameter == True
-
-        else:
-            gui.app.position_control_button.configure(state= NORMAL)
-            gui.app.velocity_control_button.configure(state= NORMAL)
-            
-            msg.data = False
-            
-            gui.toggle_EEG_parameter == False
-
-        gui.eeg_toggle_publisher.publish(msg)
         
 
+class ChildWindow_VelocityControl(CTkToplevel):
+    """
+    This window contains everything related to manual velocity control.
+    """
 
-class EEG(CTkFrame):
-    """Makes and displays the graph for the EEG data, the class will need to be given how many data mounts
-    which should be displayed on the graph"""
-
-    def __init__(self, parent, nb_points, logger):
-        super().__init__(parent)
-
-        self.logger = logger
-
-        self.parent = parent
-        self.widgets(nb_points)
-
-    def widgets(self, nb_points):
-        # Define the graph, and configure the axes
-        self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
-        # format the x-axis to show the time
-        self.ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
-
-        # initial x and y data
-        date_time_obj = datetime.now() + timedelta(seconds=-nb_points)
-        self.x_data = [date_time_obj + timedelta(seconds=i) for i in range(nb_points)]
-        self.y_data = [0 for i in range(nb_points)]
-        #create the first plot
-        self.plot = self.ax.plot(self.x_data, self.y_data, label='EEG data')[0]
-        self.ax.set_ylim(0,100)
-        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
-
-        FrameTopLabel = CTkLabel(self, text="EEG Data")
-        FrameTopLabel.pack(pady=10, padx=10, side='top')
-        self.canvas = FigureCanvasTkAgg(self.figure, self)
-        self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
-
-    def animate(self):
-        #append new data point to x and y data
-        self.x_data.append(datetime.now())
-        self.y_data.append(int(data.eeg_data))
-        #remove oldest datapoint
-        self.x_data = self.x_data[1:]
-        self.y_data = self.y_data[1:]
-        #update plot data
-        self.plot.set_xdata(self.x_data)
-        self.plot.set_ydata(self.y_data)
-        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
-        self.canvas.draw_idle() #redraw plot
-
-
-class Exo(CTkFrame):
-    #motor_data = Gui() # Making the live data accesible in the Exoskeleton frame
-
-    def __init__(self, parent, logger):
-        CTkFrame.__init__(self, parent)
-
-        self.logger = logger
-
-        self.parent = parent
-        self.widgets()
-
-    def widgets(self):
-        """All the used widgets are initialized and placed in the frame here"""
-        # Text Labels
-        self.PWMLabel = CTkLabel(self, text="PWM: ")
-        self.TorqueLabel = CTkLabel(self, text="Torque: ")
-        self.RPMLabel = CTkLabel(self, text="Motor RPM: ")
-        self.PWMBar = CTkProgressBar(self, orientation="horizontal")
-
-        # Data Labels
-        self.PWMDataLabel = CTkLabel(self, text= str(data.PWM_data))
-        self.TorqueDataLabel = CTkLabel(self, text= str(data.torque_data))
-        self.RPMDataLabel = CTkLabel(self, text= str(data.RPM_data))
-
-        # Placing the widgets on the grid in the Exo frame
-        self.TorqueDataLabel.grid(row= 1, column=1, padx=10, pady=5)
-        self.TorqueLabel.grid(row= 1, column= 0, padx= 10, pady= 5)
-        self.RPMLabel.grid(row=2, column= 0, padx=10, pady=5)
-        self.RPMDataLabel.grid(row= 2, column= 1, padx= 10, pady= 5)
-        self.PWMBar.grid(row= 0, column= 1, padx= 10, pady= 5)
-        self.PWMDataLabel.grid(row= 0, column=2, padx= 10, pady= 5)
-        self.PWMLabel.grid(row= 0, column= 0, padx= 10, pady= 5)
-
-
-
-class VelocityControl(CTkToplevel):
     def __init__(self, logger):
 
         CTkToplevel.__init__(self)
         self.geometry("400x300")  # Set the dimensions of the debug window
 
         self.logger = logger
-
 
         self.velocity_control_msg = Int16()
 
@@ -422,40 +309,51 @@ class VelocityControl(CTkToplevel):
         self.manual_stop_button = CTkButton(self, text="Stop", command=self.manual_stop_event)
         self.manual_stop_button.grid(row=3, column=0, padx=10, pady=5)
 
-        self.slider = CTkSlider(self, from_=-100, to=100, command=self.slider_event, width=400, number_of_steps=200,
-                                state=data.slider_state)
+        self.slider = CTkSlider(self, from_=-100, to=100, command=self.slider_event, width=400, number_of_steps=200)
         self.slider.grid(row=3, column=2, padx=10, pady=5, columnspan=2)
 
-    # Destroy the Debug menu window, ie close the window
+
     def exit_button_event(self):
+        """
+        Destroy the window, ie close the window.
+        """
         self.destroy()
 
 
     def slider_event(self, value):
+        """
+        Function called whenever the slider is manipulated.
+        Handles deadzone, and publishes slider value to topic
+        'Manual_velocity_control_data'.
+        """
+
         if value > -15 and value < 15:
             value = 0
 
         self.velocity_control_msg.data = int(value)
 
-        gui.manual_control_veloity_control_data_publisher.publish(self.velocity_control_msg)
+        gui.manual_veloity_control_data_publisher.publish(self.velocity_control_msg)
 
         self.logger.debug(f"Target velocity: {value}")
 
+
     def manual_stop_event(self):
+        """
+        Function called whenever the Stop button is pressed.
+        Sets the slider to 0, thereby stopping the motor.
+        """
+
         self.slider.set(0)
-
-        if data.slider_state == "normal":
-            data.slider_state = "disabled"
-
-        elif data.slider_state == "disabled":
-            data.slider_state = "normal"
 
         self.slider_event(0)
         self.logger.info("Stopped")
 
 
+class ChildWindow_PositionControl(CTkToplevel):
+    """
+    This window contains everything related to manual position control.
+    """
 
-class PositionControl(CTkToplevel):
     def __init__(self, logger):
 
         CTkToplevel.__init__(self)
@@ -501,8 +399,14 @@ class PositionControl(CTkToplevel):
         # Bind the Enter key to the submit method
         self.entry.bind("<Return>", lambda event: self.submit())
 
+
     # Define Functions used in the Manual Control frame
     def manual_up_event(self):
+        """
+        Function called when the '^' button is pressed.
+        Increases the target joint angle with one degree.
+        This is where the upper joint angle limit is set.
+        """
         
         # If the upper limit is reached, exit function
         if (data.current_angle == 170): return
@@ -517,6 +421,11 @@ class PositionControl(CTkToplevel):
 
 
     def manual_down_event(self):
+        """
+        Function called when the 'v' button is pressed.
+        Decreases the target joint angle with one degree.
+        This is where the lower joint angle limit is set.
+        """
         
         # If the lower limit is reached, exit function
         if (data.current_angle == 40): return 
@@ -532,12 +441,26 @@ class PositionControl(CTkToplevel):
 
     # Destroy the pop up menu window, ie close the window
     def exit_button_event(self): 
+        """
+        Destroy the window, ie close the window.
+        """
+
         self.destroy()
 
+
     def clear(self):
+        """
+        Clears the entry field of any characters.
+        """
+
         self.entry.delete(0, END)
 
     def submit(self):
+        """
+        Publishes integer values in the entry field.
+        Can be triggered with 'RETURN' button.
+        """
+
         value = int(self.entry.get())
 
         if (value <= 40): 
@@ -561,14 +484,165 @@ class PositionControl(CTkToplevel):
         except Exception as e:
             self.logger.warning(f"Failed to publish data: '{self.position_control_msg.data}' With error: {e}")
 
-
-
         self.clear()
 
 
+class Frame_MainMenu(CTkFrame):
+    """
+    Frame wherin the main menu controls are placed.
+    """
 
-class Visual(CTkFrame):
-    # Initialize the frame
+    def __init__(self, parent, logger):
+        super().__init__(parent)
+
+        self.logger = logger
+
+        self.parent = parent
+        self.widgets()
+
+
+    def widgets(self):
+        """
+        Function which initializes and places all the used widgets in the frame.
+        """
+        
+        self.switch_var = StringVar(value="False")
+        self.switch = CTkSwitch(self, text="EEG", command= self.eeg_toggle,
+                                variable=self.switch_var, onvalue="True", offvalue="False")
+        self.switch.grid(row=1, column= 0, padx= 10, pady= 5)
+
+    def eeg_toggle(self):
+        """
+        Function called when the EEG switch is toggled.
+        The switch state determines wether or not the system shall attempt
+        to connect with the EEG Node-Red system on TCP.
+        When a connection is established, then this determines wether or not
+        the system reacts to the EEG data stream.
+        """
+
+        msg = Bool()
+
+        value = gui.app.manual_frame.switch_var.get()
+
+        if value == "True":
+            gui.app.position_control_button.configure(state= DISABLED)
+            gui.app.velocity_control_button.configure(state= DISABLED)
+            
+            if gui.app.position_control_window:
+                gui.app.position_control_window.destroy()
+
+
+            if gui.app.velocity_control_window: 
+                gui.app.velocity_control_window.destroy()
+   
+
+            msg.data = True
+            
+            gui.toggle_EEG_parameter == True
+
+        else:
+            gui.app.position_control_button.configure(state= NORMAL)
+            gui.app.velocity_control_button.configure(state= NORMAL)
+            
+            msg.data = False
+            
+            gui.toggle_EEG_parameter == False
+
+        gui.eeg_toggle_publisher.publish(msg)
+
+
+class Frame_InfoExo(CTkFrame):
+    """
+    Frame wherein information about the current state of the exo skeleton is shown.
+    """
+
+    def __init__(self, parent, logger):
+        CTkFrame.__init__(self, parent)
+
+        self.logger = logger
+
+        self.parent = parent
+        self.widgets()
+
+    def widgets(self):
+        """
+        All the used widgets are initialized and placed in the frame here.
+        """
+        
+        # Text Labels
+        self.PWMLabel = CTkLabel(self, text="PWM: ")
+        self.TorqueLabel = CTkLabel(self, text="Torque: ")
+        self.RPMLabel = CTkLabel(self, text="Motor RPM: ")
+        self.PWMBar = CTkProgressBar(self, orientation="horizontal")
+
+        # Data Labels
+        self.PWMDataLabel = CTkLabel(self, text= str(data.PWM_data))
+        self.TorqueDataLabel = CTkLabel(self, text= str(data.torque_data))
+        self.RPMDataLabel = CTkLabel(self, text= str(data.RPM_data))
+
+        # Placing the widgets on the grid in the ExoFrame frame
+        self.TorqueDataLabel.grid(row= 1, column=1, padx=10, pady=5)
+        self.TorqueLabel.grid(row= 1, column= 0, padx= 10, pady= 5)
+        self.RPMLabel.grid(row=2, column= 0, padx=10, pady=5)
+        self.RPMDataLabel.grid(row= 2, column= 1, padx= 10, pady= 5)
+        self.PWMBar.grid(row= 0, column= 1, padx= 10, pady= 5)
+        self.PWMDataLabel.grid(row= 0, column=2, padx= 10, pady= 5)
+        self.PWMLabel.grid(row= 0, column= 0, padx= 10, pady= 5)
+
+
+class Frame_VisualEegData(CTkFrame):
+    """
+    Makes and displays the graph for the EEG data, the class will need to be given how many data mounts
+    which should be displayed on the graph.
+    """
+
+    def __init__(self, parent, nb_points, logger):
+        super().__init__(parent)
+
+        self.logger = logger
+
+        self.parent = parent
+        self.widgets(nb_points)
+
+    def widgets(self, nb_points):
+        # Define the graph, and configure the axes
+        self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
+        # format the x-axis to show the time
+        self.ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+
+        # initial x and y data
+        date_time_obj = datetime.now() + timedelta(seconds=-nb_points)
+        self.x_data = [date_time_obj + timedelta(seconds=i) for i in range(nb_points)]
+        self.y_data = [0 for i in range(nb_points)]
+        #create the first plot
+        self.plot = self.ax.plot(self.x_data, self.y_data, label='EEG data')[0]
+        self.ax.set_ylim(0,100)
+        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+
+        FrameTopLabel = CTkLabel(self, text="EEG Data")
+        FrameTopLabel.pack(pady=10, padx=10, side='top')
+        self.canvas = FigureCanvasTkAgg(self.figure, self)
+        self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
+
+    def animate(self):
+        #append new data point to x and y data
+        self.x_data.append(datetime.now())
+        self.y_data.append(int(data.eeg_data))
+        #remove oldest datapoint
+        self.x_data = self.x_data[1:]
+        self.y_data = self.y_data[1:]
+        #update plot data
+        self.plot.set_xdata(self.x_data)
+        self.plot.set_ydata(self.y_data)
+        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+        self.canvas.draw_idle() #redraw plot
+
+
+class Frame_VisualCurrentExoAngle(CTkFrame):
+    """
+    Frame wherein the current angle of the exoskeleton is illustrated.
+    """
+
     def __init__(self, parent, logger):
         super().__init__(parent)
 
@@ -579,8 +653,11 @@ class Visual(CTkFrame):
         self.draw()
 
     def draw(self):
-        """Handles the initial drawing of the visualization of the current configuration of the exoskeleton,
-        and ends by redrawing the canvas(figure)"""
+        """
+        Handles the initial drawing of the visualization of the current configuration of the exoskeleton,
+        and ends by redrawing the canvas(figure).
+        """
+        
         endx = 2 + data.length * math.cos(math.radians((data.current_angle-90))) # Calculate the end point for the movable arm
         endy = 5 + data.length * -math.sin(math.radians(data.current_angle-90))
 
@@ -594,7 +671,10 @@ class Visual(CTkFrame):
 
     
     def animate(self):
-        """Used to redraw the plot, needs to recalculate the end points for the movable arm"""
+        """
+        Used to redraw the plot, needs to recalculate the end points for the movable arm.
+        """
+        
         endx = 2 + data.length * math.cos(math.radians((data.current_angle-90)))
         endy = 5 + data.length * -math.sin(math.radians(data.current_angle-90))
 
@@ -605,7 +685,6 @@ class Visual(CTkFrame):
         self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'bo-') # Redraw the exoskeleton visualization
         
         self.canvas.draw_idle() # And redraw the canvas
-
 
 
 ####################
