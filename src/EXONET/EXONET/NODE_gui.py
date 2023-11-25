@@ -7,7 +7,7 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Bool, Int8
+from std_msgs.msg import String, Bool, Int8, Int16, UInt8
 
 from customtkinter import *
 from customtkinter import StringVar, CTkSwitch 
@@ -90,11 +90,17 @@ class Gui(Node):
         self.eeg_toggle_publisher = self.create_publisher(Bool, 'EEG_toggle', 10)
         self.eeg_toggle_publisher  # prevent unused variable warning
 
+        # Initialising a publisher to the topic 'EEG_toggle'.
+        # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.manual_position_control_data_publisher = self.create_publisher(UInt8, 'Manual_position_control_data', 10)
+        self.manual_position_control_data_publisher  # prevent unused variable warning
+
         # Initialising a publisher to the topic 'Manual_control'.
         # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_control_data_publisher = self.create_publisher(Int8, 'Manual_control_data', 10)
-        self.manual_control_data_publisher  # prevent unused variable warning
+        self.manual_control_veloity_control_data_publisher = self.create_publisher(Int16, 'Manual_velocity_control_data', 10)
+        self.manual_control_veloity_control_data_publisher  # prevent unused variable warning
 
         # Create a timer which periodically calls the specified callback function at a defined interval.
         # Initialise timer_counter as zero. This is iterated on each node spin
@@ -191,7 +197,7 @@ class Gui(Node):
             self.manual_control_data_publisher.publish(self.msg)
 
             # Log info
-            self.get_logger().debug(f"@ Class 'Gui' Function 'timer_callback'; Published data: '{msg.data}'")
+            self.get_logger().debug(f"@ Class 'Gui' Function 'timer_callback'; Published data: '{self.msg.data}'")
 
             # Iterate timer
             self.timer_counter += 1
@@ -238,6 +244,10 @@ class MainW(CTk):
         """First chekcs if the debug menu exists (is open), and if it isnt
         Then it creates the window. Or if it does exist, 
         then it lifts the window and sets the focus to it"""
+
+        if gui.app.position_control_window:
+            gui.app.position_control_window.destroy()
+
         if self.velocity_control_window is None or not self.velocity_control_window.winfo_exists():
             self.velocity_control_window = VelocityControl(self.logger)
         else:
@@ -249,11 +259,14 @@ class MainW(CTk):
         """First chekcs if the debug menu exists (is open), and if it isnt
         Then it creates the window. Or if it does exist, 
         then it lifts the window and sets the focus to it"""
+        
+        if gui.app.velocity_control_window: 
+            gui.app.velocity_control_window.destroy()
+    
         if self.position_control_window is None or not self.position_control_window.winfo_exists():
             self.position_control_window = PositionControl(self.logger)
             self.visual_frame = Visual(self.position_control_window, self.logger)
-            self.visual_frame.grid(row= 1, column= 1, pady= 0, padx= 0)
-
+            self.visual_frame.grid(row= 4, column= 1, pady= 10, padx= 5)
 
         else:
             self.position_control_window.focus()
@@ -404,13 +417,9 @@ class VelocityControl(CTkToplevel):
         self.logger = logger
 
 
-        self.manual_control_msg = Int8()
+        self.velocity_control_msg = Int16()
 
-        # Destroy the Debug menu window, ie close the window
-        def exit_button_event(self):
-            self.destroy()
-
-        self.exit_button = CTkButton(self, text="Exit Button", command=exit_button_event)
+        self.exit_button = CTkButton(self, text="Exit Button", command=self.exit_button_event)
         self.exit_button.grid(row=1, column=0, padx=10, pady=5)
 
         self.manual_stop_button = CTkButton(self, text="Stop", command=self.manual_stop_event)
@@ -420,13 +429,18 @@ class VelocityControl(CTkToplevel):
                                 state=data.slider_state)
         self.slider.grid(row=3, column=2, padx=10, pady=5, columnspan=2)
 
+    # Destroy the Debug menu window, ie close the window
+    def exit_button_event(self):
+        self.destroy()
+
+
     def slider_event(self, value):
         if value > -15 and value < 15:
             value = 0
 
-        self.manual_control_msg.data = int(value)
+        self.velocity_control_msg.data = int(value)
 
-        gui.manual_control_data_publisher.publish(self.manual_control_msg)
+        gui.manual_control_veloity_control_data_publisher.publish(self.velocity_control_msg)
 
         self.logger.debug(f"Velocity Control: Slider event, value: {value}")
 
@@ -452,20 +466,43 @@ class PositionControl(CTkToplevel):
 
         self.logger = logger
 
-        # Destroy the Debug menu window, ie close the window
-        def exit_button_event(self): self.destroy()
+        self.position_control_msg = UInt8()
 
         # Initializes the label which shows the current angle of the exo skeleton
         self.current_angle_label = CTkLabel(self, text= str(data.current_angle))
         self.manual_down_button = CTkButton(self, text="v", command= self.manual_down_event)
         self.manual_up_button = CTkButton(self, text="^", command= self.manual_up_event)
+        
         self.manual_up_button.grid(row= 2, column= 0, padx= 10, pady= 5)
         self.manual_down_button.grid(row= 2, column= 2, padx= 10, pady= 5)
-        # Places the label which shows the current angle, and makes it the width of the above 2 buttons
-        self.current_angle_label.grid(row= 2, column= 1, padx= 10, pady= 5, columnspan=2)
 
-        self.exit_button = CTkButton(self, text="Exit Button", command= exit_button_event)
-        self.exit_button.grid(row= 1, column= 0, padx= 10, pady= 5)
+        # Places the label which shows the current angle, and makes it the width of the above 2 buttons
+        self.current_angle_label.grid(row= 3, column= 1, padx= 10, pady= 5)
+
+        self.exit_button = CTkButton(self, text="Exit Button", command= self.exit_button_event)
+        self.exit_button.grid(row= 0, column= 0, padx= 10, pady= 5)
+
+    ##  label = CTkLabel(self, text="", font=("Helvetica", 24))
+    ##  label.grid(row=4, column=0, padx=10, pady=5)
+
+        self.entry = CTkEntry(self,
+            placeholder_text="Angle (degrees)",
+            height=50,
+            width=200,
+            font=("Helvetica", 18),
+            corner_radius=50,
+            text_color="black",
+            placeholder_text_color="grey",
+            fg_color=("system", "white"),  # outer, inner
+            state="normal",
+        )
+        self.entry.grid(row=2, column=1, padx=10, pady=5)
+
+        submit_button = CTkButton(self, text="Submit", command= self.submit)
+        submit_button.grid(row=1, column=1, padx=10, pady=5)
+
+        # Bind the Enter key to the submit method
+        self.entry.bind("<Return>", lambda event: self.submit())
 
     # Define Functions used in the Manual Control frame
     def manual_up_event(self):
@@ -473,7 +510,13 @@ class PositionControl(CTkToplevel):
         # If the upper limit is reached, exit function
         if (data.current_angle == 170): return
         data.current_angle += 1
-        gui.app.position_control_window.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
+        gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
+
+        self.position_control_msg.data = int(data.current_angle)
+
+        gui.manual_position_control_data_publisher.publish(self.position_control_msg)
+        
+        self.logger.debug(f"@ Class 'PositionControl' Function 'manual_up_event'; Published data: '{self.position_control_msg.data}'")
 
 
     def manual_down_event(self):
@@ -481,7 +524,50 @@ class PositionControl(CTkToplevel):
         # If the lower limit is reached, exit function
         if (data.current_angle == 40): return 
         data.current_angle -= 1
-        gui.app.position_control_window.current_angle_label.configure(text=data.current_angle) # Update the content of the CurrentAngle Label
+        gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
+        
+        self.position_control_msg.data = int(data.current_angle)
+
+        gui.manual_position_control_data_publisher.publish(self.position_control_msg)
+
+        self.logger.debug(f"@ Class 'PositionControl' Function 'manual_up_event'; Published data: '{self.position_control_msg.data}'")
+
+
+    # Destroy the pop up menu window, ie close the window
+    def exit_button_event(self): 
+        self.destroy()
+
+    def clear(self):
+        self.entry.delete(0, END)
+
+    def submit(self):
+        value = int(self.entry.get())
+
+        if (value <= 40): 
+            data.current_angle = 40 
+
+        elif (value >= 170):
+            data.current_angle = 170
+        
+        else:
+            data.current_angle = value
+
+        gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
+        
+
+        self.msg.data = data.current_angle
+        
+        try:
+            gui.manual_position_control_data_publisher.publish(self.msg)
+            self.logger.debug(f"@ Class 'PositionControl' Function 'submit'; Published data: '{self.msg.data}'")
+
+        except Exception as e:
+            self.logger.warning(f"@ Class 'PositionControl' Function 'submit'; \n - Failed to publish data: '{self.msg.data}' \n - With error: {e}")
+
+
+
+        self.clear()
+
 
 
 class Visual(CTkFrame):

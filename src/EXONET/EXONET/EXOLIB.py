@@ -203,7 +203,7 @@ class serial2arduino:
                 
                 
 
-    def send_data(self, arduino, data, seperator):
+    def send_data(self, arduino, data, seperator, state=""):
         """
         Function for handling sending of data across serial connection established in function 'establish_connection'.
         The data that is to be send must be send as a string ending with a defined seperator matching with what is defined on the arduino.
@@ -214,7 +214,7 @@ class serial2arduino:
         if self.DEBUG:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'send_data'; VARIABLE 'data': {data}")
     
-        data = f"{data}{seperator}"
+        data = f"{state}{data}{seperator}"
 
         # Encode data as encoded_data
         encoded_data = data.encode()

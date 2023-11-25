@@ -7,7 +7,7 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Int8, Int16, Bool, Int64
+from std_msgs.msg import String, Int16, Bool, Int64
 
 import numpy as np
 from simple_pid import PID
@@ -81,8 +81,8 @@ class Controller(Node):
         # On this topic is expected data of type std_msgs.msg.Int8 which is imported as Int8.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_control_data_subscription = self.create_subscription(Int8, 'Manual_control_data', self.manual_control_data_topic_callback, 10)
-        self.manual_control_data_subscription  # prevent unused variable warning
+        self.manual_velocity_control_data_subscription = self.create_subscription(Int16, 'Manual_velocity_control_data', self.manual_control_data_topic_callback, 10)
+        self.manual_velocity_control_data_subscription  # prevent unused variable warning
 
         # Initialising a publisher to the topic 'Motor_signals'.
         # On this topic is expected data of type std_msgs.msg.Int8 which is imported as Int8.

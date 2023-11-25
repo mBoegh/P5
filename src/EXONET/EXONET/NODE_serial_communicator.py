@@ -7,7 +7,7 @@ from EXONET.EXOLIB import JSON_Handler, serial2arduino
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Int8, Int16, Int64
+from std_msgs.msg import String, UInt16, Int64
 
 import time
 
@@ -51,8 +51,11 @@ class Serial_Communicator(Node, serial2arduino):
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.motor_signals_subscription = self.create_subscription(Int64, 'Motor_signals', self.motor_signals_topic_callback, 10)
-        self.motor_signals_subscription  # prevent unused variable warning
+        self.velocity_motor_signals_subscription = self.create_subscription(Int64, 'Motor_signals', self.motor_signals_topic_callback, 10)
+        self.velocity_motor_signals_subscription  # prevent unused variable warning
+
+        self.position_control_data_publisher = self.create_subscription(UInt16, 'Manual_position_control_data', self.manual_position_control_data_callback, 10)
+        self.position_control_data_publisher
 
         # Initialising a publisher to the topic 'Feedback'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
@@ -114,6 +117,22 @@ class Serial_Communicator(Node, serial2arduino):
         #     # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
         #     self.feedback_publisher.publish(self.feedback_msg)
             
+
+    def manual_position_control_data_callback(self, msg):
+
+        # Log info
+        self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Recieved topic data: '{msg.data}'")
+
+        # Sending data to Arduino
+        self.send_data(self.arduino, msg.data, seperator= ",", state= "/")
+
+        time.sleep(2)
+
+        # Load feedback_msg with returned data 
+        data = int(self.receive_data(self.arduino))
+
+        self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Received serial data: '{data}'")
+
 
     def map_range(self, x, in_min, in_max, out_min, out_max):
         return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
