@@ -39,8 +39,6 @@ class variables:
         self.current_angle = 69
         self.length = 4
 
-        self.slider_state = "normal"
-
 
 class Gui(Node):
     """
