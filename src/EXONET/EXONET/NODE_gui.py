@@ -552,14 +552,14 @@ class PositionControl(CTkToplevel):
         gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
         
 
-        self.msg.data = data.current_angle
+        self.position_control_msg.data = data.current_angle
         
         try:
-            gui.manual_position_control_data_publisher.publish(self.msg)
-            self.logger.debug(f"Published data: '{self.msg.data}'")
+            gui.manual_position_control_data_publisher.publish(self.position_control_msg)
+            self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
 
         except Exception as e:
-            self.logger.warning(f"Failed to publish data: '{self.msg.data}' With error: {e}")
+            self.logger.warning(f"Failed to publish data: '{self.position_control_msg.data}' With error: {e}")
 
 
 

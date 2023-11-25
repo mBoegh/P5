@@ -78,12 +78,12 @@ class Server(Node, TCP_Server):
 
 
         elif value:
-            self.get_logger().debug(f"Tooggled EEG True")
+            self.get_logger().debug(f"Toggled EEG True")
 
             self.toggle_EEG_parameter = True
         
         elif not value:
-            self.get_logger().debug(f"Tooggled EEG False")
+            self.get_logger().debug(f"Toggled EEG False")
 
             self.toggle_EEG_parameter = False
         
