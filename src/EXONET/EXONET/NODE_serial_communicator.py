@@ -7,7 +7,7 @@ from EXONET.EXOLIB import JSON_Handler, serial2arduino
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, UInt16, Int64
+from std_msgs.msg import UInt16, Int64, Float32
 
 import time
 
@@ -38,8 +38,10 @@ class Serial_Communicator(Node, serial2arduino):
         self.time0 = None
         self.data0 = None
 
-        # Initialize a variable of datatype std_msgs.msg.Int8 imported as Int8
-        self.feedback_msg = String()
+        # Initialize feedback message objects of datatype std_msgs.msg.Float32 imported as Float32
+        self.feedback_joint_velocity_msg = Float32()
+        self.feedback_joint_angle_msg = Float32()
+
 
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'serial_communicator')
@@ -52,20 +54,30 @@ class Serial_Communicator(Node, serial2arduino):
         self.get_logger().fatal("Hello world!")
 
         # Initialising a subscriber to the topic 'Motor_signals'.
-        # On this topic is expected data of type std_msgs.msg.String which is imported as String.
+        # On this topic is expected data of type std_msgs.msg.Int64 which is imported as Int64.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.velocity_motor_signals_subscription = self.create_subscription(Int64, 'Motor_signals', self.motor_signals_topic_callback, 10)
         self.velocity_motor_signals_subscription  # prevent unused variable warning
 
+        # Initialising a subscriber to the topic 'Manual_position_control_data'.
+        # On this topic is expected data of type std_msgs.msg.UInt16 which is imported as UInt16.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
         self.manual_position_control_data_subscriber = self.create_subscription(UInt16, 'Manual_position_control_data', self.manual_position_control_data_callback, 10)
         self.manual_position_control_data_subscriber
 
-        # Initialising a publisher to the topic 'Feedback'.
-        # On this topic is expected data of type std_msgs.msg.String which is imported as String.
+        # Initialising a publisher to the topic 'Feedback_joint_velocity'.
+        # On this topic is expected data of type std_msgs.msg.FLoat32 which is imported as FLoat32.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_publisher = self.create_publisher(String, 'Feedback', 10)
-        self.feedback_publisher  # prevent unused variable warning
+        self.feedback_joint_velocity_publisher = self.create_publisher(Float32, 'Feedback_joint_velocity', 10)
+        self.feedback_joint_velocity_publisher  # prevent unused variable warning
+
+        # Initialising a publisher to the topic 'Feedback_joint_angle'.
+        # On this topic is expected data of type std_msgs.msg.FLoat32 which is imported as FLoat32.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.feedback_joint_angle_publisher = self.create_publisher(Float32, 'Feedback_joint_angle', 10)
+        self.feedback_joint_angle_publisher  # prevent unused variable warning
 
         # Establish a connection with the arduino
         self.arduino = self.establish_connection()
@@ -81,7 +93,10 @@ class Serial_Communicator(Node, serial2arduino):
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data, seperator=",")
 
+
         time.sleep(2)
+
+        self.get_logger().debug("post time.sleep")
 
         # Load feedback_msg with returned data 
         data = int(self.receive_data(self.arduino))
@@ -111,15 +126,14 @@ class Serial_Communicator(Node, serial2arduino):
 
             elbow_joint_angle = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
 
-            formatted_feedback_string = f"{j_vel},{elbow_joint_angle}"
+            self.feedback_joint_velocity_msg.data = float(j_vel)
+            self.feedback_joint_angle_msg.data = float(elbow_joint_angle)
 
-            self.feedback_msg.data = formatted_feedback_string
+            self.get_logger().debug(f"Computed 'j_vel' feedback data: '{j_vel}'")
+            self.get_logger().debug(f"Computed 'elbow_joint_angle' feedback data: '{elbow_joint_angle}'")
 
-            # Log info
-            self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Computed feedback data: '{self.feedback_msg.data}'")
-
-            # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
-            self.feedback_publisher.publish(self.feedback_msg)
+            self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
+            self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
             
 
     def manual_position_control_data_callback(self, msg):

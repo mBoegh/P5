@@ -7,7 +7,7 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Bool, Int8, Int16, UInt16
+from std_msgs.msg import String, Bool, Int8, Int16, UInt16, Float32
 
 from customtkinter import *
 from customtkinter import StringVar, CTkSwitch 
@@ -36,7 +36,7 @@ class variables:
 
         self.eeg_data = 0
 
-        self.current_angle = 69
+        self.current_angle = 90
         self.length = 4
 
 
@@ -82,12 +82,19 @@ class Gui(Node):
         self.motor_signals_subscription = self.create_subscription(String, 'Motor_signals', self.motor_signals_topic_callback, 10)
         self.motor_signals_subscription  # prevent unused variable warning
 
-        # Initialising a subscriber to the topic 'Feedback'.
-        # On this topic is expected data of type std_msgs.msg.Int8 which is imported as Int8.
+        # Initialising a subscriber to the topic 'Feedback_joint_velocity'.
+        # On this topic is expected data of type std_msgs.msg.Float32 which is imported as Float32.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_subscription = self.create_subscription(String, 'Feedback', self.feedback_topic_callback, 10)
-        self.feedback_subscription  # prevent unused variable warning
+        self.feedback_joint_velocity_subscription = self.create_subscription(Float32, 'Feedback_joint_velocity', self.feedback_joint_velocity_topic_callback, 10)
+        self.feedback_joint_velocity_subscription  # prevent unused variable warning
+
+        # Initialising a subscriber to the topic 'Feedback_joint_angle'.
+        # On this topic is expected data of type std_msgs.msg.Float32 which is imported as Float32.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.feedback_joint_angle_subscription = self.create_subscription(Float32, 'Feedback_joint_angle', self.feedback_joint_angle_topic_callback, 10)
+        self.feedback_joint_angle_subscription
 
         # Initialising a publisher to the topic 'EEG_toggle'.
         # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
@@ -164,9 +171,9 @@ class Gui(Node):
             self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
 
-    def feedback_topic_callback(self, msg):
+    def feedback_joint_velocity_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'feedback_subscription'
+        Callback function called whenever a message is recieved on the subscription 'feedback_joint_velocity_subscription'
         """
 
         # Log info
@@ -184,6 +191,14 @@ class Gui(Node):
         if self.app.position_control_window is not None:
             self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
+
+
+    def feedback_joint_angle_topic_callback(self, msg):
+        """
+        Callback function called whenever a message is recieved on the subscription 'feedback_joint_angle_subscription'
+        """
+        pass
+        
 
 
     def timer_callback(self):

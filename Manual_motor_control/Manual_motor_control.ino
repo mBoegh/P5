@@ -31,7 +31,7 @@ String encdir = "";     // Keeps track of encoder direction (CW or CCW)
 String data;            // Holds the latest recived data from the serial
 
 String mode = "velocity";
-char sepperator = ',';
+char sepperator = '\n';
 
 void setup() {
   // Set pinmodes for the rest

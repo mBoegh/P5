@@ -7,7 +7,7 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Int16, Bool, Int64
+from std_msgs.msg import String, Int16, Bool, Int64, Float32
 
 import numpy as np
 from simple_pid import PID
@@ -92,12 +92,19 @@ class Controller(Node):
         self.motor_signals_publisher = self.create_publisher(Int64, 'Motor_signals', 10)
         self.motor_signals_publisher  # prevent unused variable warning
 
-        # Initialising a subscriber to the topic 'Feedback'.
-        # On this topic is expected data of type std_msgs.msg.Int8 which is imported as Int8.
+        # Initialising a subscriber to the topic 'Feedback_joint_velocity'.
+        # On this topic is expected data of type std_msgs.msg.Float32 which is imported as Float32.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_subscription = self.create_subscription(String, 'Feedback', self.feedback_topic_callback, 10)
-        self.feedback_subscription  # prevent unused variable warning
+        self.feedback_joint_velocity_subscription = self.create_subscription(Float32, 'Feedback_joint_velocity', self.feedback_joint_velocity_topic_callback, 10)
+        self.feedback_joint_velocity_subscription  # prevent unused variable warning
+
+        # Initialising a subscriber to the topic 'Feedback_joint_angle'.
+        # On this topic is expected data of type std_msgs.msg.Float32 which is imported as Float32.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.feedback_joint_angle_subscription = self.create_subscription(Float32, 'Feedback_joint_angle', self.feedback_joint_angle_topic_callback, 10)
+        self.feedback_joint_angle_subscription
 
         # Create a timer which periodically calls the specified callback function at a defined interval.
         # Initialise timer_counter as zero. This is iterated on each node spin
@@ -164,24 +171,27 @@ class Controller(Node):
             self.get_logger().debug(f"Updated target joint velocity: {variables.t_vel}")
 
 
-    def feedback_topic_callback(self, msg):
+    def feedback_joint_velocity_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'feedback_subscription'
+        Callback function called whenever a message is recieved on the subscription 'feedback_joint_velocity_subscription'
         """
 
-        self.called_feedback_topic_callback = True
-
-        # Log info
         self.get_logger().debug(f"Recieved data '{msg.data}'")
 
-        data_string = msg.data
-
-       # if "," in data_string:
-        seperator_index = data_string.index(",")
-        variables.j_vel = float(data_string[:seperator_index])
-        variables.elbow_joint_angle = float(data_string[seperator_index+1:])
+        variables.j_vel = msg.data
 
         self.get_logger().debug(f"Updated current joint velocity with value: {variables.j_vel}")
+
+
+    def feedback_joint_angle_topic_callback(self, msg):
+        """
+        Callback function called whenever a message is recieved on the subscription 'feedback_joint_angle_subscription'
+        """
+
+        self.get_logger().debug(f"Recieved data '{msg.data}'")
+
+        variables.elbow_joint_angle = msg.data
+
         self.get_logger().debug(f"Updated current joint angle with value: {variables.elbow_joint_angle}")
 
 
