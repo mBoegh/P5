@@ -7,7 +7,7 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Bool, Int8, Int16, UInt8
+from std_msgs.msg import String, Bool, Int8, Int16, UInt16
 
 from customtkinter import *
 from customtkinter import StringVar, CTkSwitch 
@@ -98,7 +98,7 @@ class Gui(Node):
         # Initialising a publisher to the topic 'EEG_toggle'.
         # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_position_control_data_publisher = self.create_publisher(UInt8, 'Manual_position_control_data', 10)
+        self.manual_position_control_data_publisher = self.create_publisher(UInt16, 'Manual_position_control_data', 10)
         self.manual_position_control_data_publisher  # prevent unused variable warning
 
         # Initialising a publisher to the topic 'Manual_control'.
@@ -359,7 +359,7 @@ class ChildWindow_PositionControl(CTkToplevel):
 
         self.logger = logger
 
-        self.position_control_msg = UInt8()
+        self.position_control_msg = UInt16()
 
         # Initializes the label which shows the current angle of the exo skeleton
         self.current_angle_label = CTkLabel(self, text= str(data.current_angle))
@@ -411,7 +411,7 @@ class ChildWindow_PositionControl(CTkToplevel):
         data.current_angle += 1
         gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
 
-        self.position_control_msg.data = int(data.current_angle)
+        self.position_control_msg.data = data.current_angle
 
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
         
@@ -430,7 +430,7 @@ class ChildWindow_PositionControl(CTkToplevel):
         data.current_angle -= 1
         gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
         
-        self.position_control_msg.data = int(data.current_angle)
+        self.position_control_msg.data = data.current_angle
 
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
 

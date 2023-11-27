@@ -20,7 +20,7 @@ class Variables():
 
         # Variables that need to subscribe to the right stuff
         self.j_vel = 0 # Joint velocity
-        self.elbow_joint_angle = 0 # Joint angle 
+        self.elbow_joint_angle = 90 # Joint angle 
         
         # Constants for the controller (need updates)
         self.g_acceleration = 9.82 # Gravitational acceleration
@@ -28,7 +28,7 @@ class Variables():
         self.av_arm_weight = 1 # kg
         self.av_payload_weight = 0.5 # kg
         self.shoulder_joint_angle = 0 # kg, should always be 0 since we don't know what it is
-        self.cable_angle = 0 # The angle which the cable is attached to the exoskeleton
+        self.cable_angle = 45 # The angle which the cable is attached to the exoskeleton
         self.l2_lenght = 0.225 # meters
         self.lm2_length = 0.10 # meters 
         self.spool_radius  = 0.025 # meters 
@@ -43,12 +43,12 @@ class Controller(Node):
     def __init__(self, timer_period, log_debug):
 
         # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(1, 1, 0, setpoint=0) # setpoint=1
+        self.pi = PID(1, 0, 0, setpoint=0) # setpoint=1
 
         # Initialising variables
         self.TIMER_PERIOD = timer_period
         self.LOG_DEBUG = log_debug
-        self.toggle_EEG_parameter = True
+        self.toggle_EEG_parameter = False
 
         self.called_manual_control_data_topic_callback = False
         self.called_eeg_data_topic_callback = False
@@ -83,7 +83,7 @@ class Controller(Node):
         # On this topic is expected data of type std_msgs.msg.Int8 which is imported as Int8.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_velocity_control_data_subscription = self.create_subscription(Int16, 'Manual_velocity_control_data', self.manual_control_data_topic_callback, 10)
+        self.manual_velocity_control_data_subscription = self.create_subscription(Int16, 'Manual_velocity_control_data', self.manual_velocity_control_data_topic_callback, 10)
         self.manual_velocity_control_data_subscription  # prevent unused variable warning
 
         # Initialising a publisher to the topic 'Motor_signals'.
@@ -107,14 +107,14 @@ class Controller(Node):
 
     def eeg_toggle_topic_callback(self, msg):
         
-        value = msg.data
+        toggle = msg.data
 
-        if value:
+        if toggle == True:
             self.get_logger().debug(f"Toggled EEG True")
 
             self.toggle_EEG_parameter = True
         
-        elif not value:
+        elif toggle == False:
             self.get_logger().debug(f"Toggled EEG False")
 
             self.toggle_EEG_parameter = False
@@ -151,7 +151,7 @@ class Controller(Node):
 
         
 
-    def manual_control_data_topic_callback(self, msg):
+    def manual_velocity_control_data_topic_callback(self, msg):
         """
         Callback function called whenever a message is recieved on the subscription 'manual_control_subscription'
         """ 
@@ -160,6 +160,8 @@ class Controller(Node):
 
         if self.toggle_EEG_parameter == False:
             variables.t_vel = msg.data # Target velocity
+        
+            self.get_logger().debug(f"Updated target joint velocity: {variables.t_vel}")
 
 
     def feedback_topic_callback(self, msg):
@@ -179,12 +181,20 @@ class Controller(Node):
         variables.j_vel = float(data_string[:seperator_index])
         variables.elbow_joint_angle = float(data_string[seperator_index+1:])
 
+        self.get_logger().debug(f"Updated current joint velocity with value: {variables.j_vel}")
+        self.get_logger().debug(f"Updated current joint angle with value: {variables.elbow_joint_angle}")
+
+
     def timer_callback(self):
         
-        ## Closed loop control system ##
-        if self.called_feedback_topic_callback and ((self.called_manual_control_data_topic_callback and self.toggle_EEG_parameter) or (self.called_eeg_data_topic_callback and not self.toggle_EEG_parameter)):
+        self.get_logger().debug(f"Start of {self.timer_callback.__name__}")
 
-        # Log the variables used in the controller
+        ## Closed loop control system ##
+        if (self.called_manual_control_data_topic_callback and not self.toggle_EEG_parameter) or (self.called_eeg_data_topic_callback and self.toggle_EEG_parameter):
+
+            self.get_logger().debug(f"Beggining of closed loop control system")
+
+            # Log the variables used in the controller
             self.get_logger().debug(f"""VARIABLES USED IN CONTROLLER:
             - Target velocity: {variables.t_vel}
             - Joint velocity: {variables.j_vel}
@@ -285,6 +295,10 @@ class Controller(Node):
 
             # Iterate timer
             self.timer_counter += 1
+
+            self.get_logger().debug(f"End of closed loop control system")
+        
+        self.get_logger().debug(f"End of {self.timer_callback.__name__}")
 
 
 ####################

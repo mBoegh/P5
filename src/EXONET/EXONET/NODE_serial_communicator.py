@@ -50,7 +50,7 @@ class Serial_Communicator(Node, serial2arduino):
         self.get_logger().warning("Hello world!")
         self.get_logger().error("Hello world!")
         self.get_logger().fatal("Hello world!")
-        
+
         # Initialising a subscriber to the topic 'Motor_signals'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
         # The subscriber calls a defined callback function upon message recieval from the topic.
@@ -58,8 +58,8 @@ class Serial_Communicator(Node, serial2arduino):
         self.velocity_motor_signals_subscription = self.create_subscription(Int64, 'Motor_signals', self.motor_signals_topic_callback, 10)
         self.velocity_motor_signals_subscription  # prevent unused variable warning
 
-        self.position_control_data_publisher = self.create_subscription(UInt16, 'Manual_position_control_data', self.manual_position_control_data_callback, 10)
-        self.position_control_data_publisher
+        self.manual_position_control_data_subscriber = self.create_subscription(UInt16, 'Manual_position_control_data', self.manual_position_control_data_callback, 10)
+        self.manual_position_control_data_subscriber
 
         # Initialising a publisher to the topic 'Feedback'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
@@ -90,36 +90,36 @@ class Serial_Communicator(Node, serial2arduino):
         self.get_logger().debug(f"Received serial data: '{data}'")
 
 
-        # if self.first_feedback:
-        #     self.time0 = time.time()
-        #     self.data0 = data
+        if self.first_feedback:
+            self.time0 = time.time()
+            self.data0 = data
 
-        #     self.first_feedback = False
+            self.first_feedback = False
 
-        # else:
-        #     time_now = time.time()
+        else:
+            time_now = time.time()
         
-        #     time_diff = time_now - self.time0
+            time_diff = time_now - self.time0
 
-        #     self.time0 = time_now
+            self.time0 = time_now
         
-        #     data_diff = data - self.data0
+            data_diff = data - self.data0
 
-        #     self.data0 = data        
+            self.data0 = data        
             
-        #     j_vel = data_diff / time_diff  # Joint velocity
+            j_vel = data_diff / time_diff  # Joint velocity
 
-        #     elbow_joint_angle = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
+            elbow_joint_angle = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
 
-        #     formatted_feedback_string = f"{j_vel},{elbow_joint_angle}"
+            formatted_feedback_string = f"{j_vel},{elbow_joint_angle}"
 
-        #     self.feedback_msg.data = formatted_feedback_string
+            self.feedback_msg.data = formatted_feedback_string
 
-        #     # Log info
-        #     self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Computed feedback data: '{self.feedback_msg.data}'")
+            # Log info
+            self.get_logger().debug(f"@ Class 'Serial_Communicator' Function 'motor_signals_subscription_callback'; Computed feedback data: '{self.feedback_msg.data}'")
 
-        #     # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
-        #     self.feedback_publisher.publish(self.feedback_msg)
+            # Publish signal with 'motor_signals_publisher' to topic 'Motor_signals'
+            self.feedback_publisher.publish(self.feedback_msg)
             
 
     def manual_position_control_data_callback(self, msg):
