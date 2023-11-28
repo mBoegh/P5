@@ -21,7 +21,7 @@ class Serial_Communicator(Node, serial2arduino):
      - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
     """
 
-    def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, log_debug):
+    def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, delay_between_sending_and_receiving, log_debug):
 
         # Initialising variables
         self.SERIAL_PORT = serial_port
@@ -29,6 +29,7 @@ class Serial_Communicator(Node, serial2arduino):
         self.BYTESIZE = bytesize
         self.PARITY = parity
         self.STOPBITS = stopbits
+        self.DELAY_BETWEEN_SENDING_AND_RECEIVING = delay_between_sending_and_receiving
         self.LOG_DEBUG = log_debug
 
         # Flag for controlling what computations are done with the feedback signal.
@@ -93,8 +94,7 @@ class Serial_Communicator(Node, serial2arduino):
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data, seperator=",")
 
-
-        time.sleep(2)
+        time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
 
         self.get_logger().debug("post time.sleep")
 
@@ -144,7 +144,7 @@ class Serial_Communicator(Node, serial2arduino):
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data, seperator= ",", state= "/")
 
-        time.sleep(2)
+        time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
 
         # Load feedback_msg with returned data 
         data = int(self.receive_data(self.arduino))
@@ -174,6 +174,7 @@ def main():
     BYTESIZE = handler.get_subkey_value("serial_communicator", "BYTESIZE")
     PARITY = handler.get_subkey_value("serial_communicator", "PARITY")
     STOPBITS = handler.get_subkey_value("serial_communicator", "STOPBITS")
+    DELAY_BETWEEN_SENDING_AND_RECEIVING = handler.get_subkey_value("serial_communicator", "DELAY_BETWEEN_SENDING_AND_RECEIVING")
     LOG_DEBUG = handler.get_subkey_value("serial_communicator", "LOG_DEBUG")
     LOG_LEVEL = handler.get_subkey_value("serial_communicator", "LOG_LEVEL")
 
@@ -184,7 +185,7 @@ def main():
     rclpy.logging.set_logger_level("serial_communicator", eval(LOG_LEVEL))
 
     # Instance the serverTCP class
-    serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, LOG_DEBUG)
+    serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, LOG_DEBUG)
 
     # Begin looping the node
     rclpy.spin(serial_communicator)
