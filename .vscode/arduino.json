@@ -1,3 +1,4 @@
 {
-    "board": "arduino:avr:leonardo"
+    "board": "arduino:avr:leonardo",
+    "sketch": "arduino/EXO_arduino/EXO_arduino.ino"
 }

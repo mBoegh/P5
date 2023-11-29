@@ -9,6 +9,10 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import UInt16, Int64, Float32
 
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import butter
+
 import time
 
 class Serial_Communicator(Node, serial2arduino):
@@ -37,7 +41,16 @@ class Serial_Communicator(Node, serial2arduino):
         # If low then we compute
         self.first_feedback = True
         self.time0 = None
-        self.data0 = None
+        self.elbow_joint_angle_zero = None
+        self.previous_velocity = 0
+        self.running_average = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+        # plots
+        self.plot_data = []
+        self.plot_elbow_joint_angle = []
+        self.plot_j_vel = []
+        self.plot_mean_j_vel = []
+
 
         # Initialize feedback message objects of datatype std_msgs.msg.Float32 imported as Float32
         self.feedback_joint_velocity_msg = Float32()
@@ -92,11 +105,9 @@ class Serial_Communicator(Node, serial2arduino):
         self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
         # Sending data to Arduino
-        self.send_data(self.arduino, msg.data, seperator=",")
+        self.send_data(self.arduino, msg.data, seperator="\n")
 
         time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
-
-        self.get_logger().debug("post time.sleep")
 
         # Load feedback_msg with returned data 
         data = int(self.receive_data(self.arduino))
@@ -107,34 +118,63 @@ class Serial_Communicator(Node, serial2arduino):
 
         if self.first_feedback:
             self.time0 = time.time()
-            self.data0 = data
+            self.elbow_joint_angle_zero = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
 
             self.first_feedback = False
 
         else:
+
             time_now = time.time()
+
+            elbow_joint_angle_now = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
         
             time_diff = time_now - self.time0
 
             self.time0 = time_now
         
-            data_diff = data - self.data0
+            elbow_joint_angle_diff = elbow_joint_angle_now - self.elbow_joint_angle_zero
+
+            self.elbow_joint_angle_zero = elbow_joint_angle_now
 
             self.data0 = data        
             
-            j_vel = data_diff / time_diff  # Joint velocity
+            j_vel = elbow_joint_angle_diff / time_diff  # Joint velocity
 
-            elbow_joint_angle = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
 
-            self.feedback_joint_velocity_msg.data = float(j_vel)
-            self.feedback_joint_angle_msg.data = float(elbow_joint_angle)
+            self.running_average[9] = self.running_average[8]
+            self.running_average[8] = self.running_average[7]
+            self.running_average[7] = self.running_average[6]
+            self.running_average[6] = self.running_average[5]
+            self.running_average[5] = self.running_average[4]
+            self.running_average[4] = self.running_average[3]
+            self.running_average[3] = self.running_average[2]
+            self.running_average[2] = self.running_average[1]
+            self.running_average[1] = self.running_average[0]
+            self.running_average[0] = j_vel
 
-            self.get_logger().debug(f"Computed 'j_vel' feedback data: '{j_vel}'")
-            self.get_logger().debug(f"Computed 'elbow_joint_angle' feedback data: '{elbow_joint_angle}'")
+            mean_j_vel = np.mean(self.running_average)
 
-            self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
-            self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
-            
+            self.feedback_joint_velocity_msg.data = float(mean_j_vel)
+            self.feedback_joint_angle_msg.data = float(elbow_joint_angle_now)
+
+            self.get_logger().debug(f"Computed 'j_vel' feedback data: '{mean_j_vel}'")
+            self.get_logger().debug(f"Computed 'elbow_joint_angle' feedback data: '{elbow_joint_angle_now}'")
+
+            if not self.previous_velocity == 0 and mean_j_vel > 10:
+                self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
+                self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
+            else:
+                self.feedback_joint_velocity_msg.data = float(0)
+
+                self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
+                self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
+
+            self.previous_velocity = mean_j_vel
+
+            self.plot_data.append(data)
+            self.plot_elbow_joint_angle.append(elbow_joint_angle_now)
+            self.plot_j_vel.append(j_vel)
+            self.plot_mean_j_vel.append(mean_j_vel)
 
     def manual_position_control_data_callback(self, msg):
 
@@ -142,7 +182,7 @@ class Serial_Communicator(Node, serial2arduino):
         self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
         # Sending data to Arduino
-        self.send_data(self.arduino, msg.data, seperator= ",", state= "/")
+        self.send_data(self.arduino, msg.data, seperator= "\n", state= "/")
 
         time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
 
@@ -187,9 +227,30 @@ def main():
     # Instance the serverTCP class
     serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, LOG_DEBUG)
 
-    # Begin looping the node
-    rclpy.spin(serial_communicator)
-    
+    iter = 0
+    while iter != 1000:
+        # Begin looping the node
+        rclpy.spin_once(serial_communicator)
+        iter += 1
+
+    plt.plot(serial_communicator.plot_data)
+    plt.ylabel('Potentiometer data')
+    plt.ylim((0,1023))
+    plt.show()
+
+    plt.plot(serial_communicator.plot_elbow_joint_angle)
+    plt.ylabel('Elbow joint angle')
+    plt.ylim((40,170))
+    plt.show()
+
+    plt.plot(serial_communicator.plot_j_vel)
+    plt.ylabel('Computed joint velocity')
+    plt.show()
+
+
+    plt.plot(serial_communicator.plot_mean_j_vel)
+    plt.ylabel('Computed runnning average joint velocity')
+    plt.show()
 
 if __name__ == "__main__":
     main()

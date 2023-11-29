@@ -5,7 +5,7 @@
     {
         "HOST": "192.168.1.12",
         "PORT": 20000,
-        "TIMER_PERIOD": 0.5, 
+        "TIMER_PERIOD": 0.01, 
         "LOG_DEBUG": true,
         "LOG_LEVEL": "rclpy.logging.LoggingSeverity.INFO"
     },
@@ -13,7 +13,7 @@
 
     "gui": 
     {
-        "TIMER_PERIOD": 0.5,
+        "TIMER_PERIOD": 0.01,
         "LOG_DEBUG": true,
         "LOG_LEVEL": "rclpy.logging.LoggingSeverity.INFO"
     },
@@ -21,7 +21,7 @@
 
     "controller":
     {
-        "TIMER_PERIOD": 0.5,
+        "TIMER_PERIOD": 0.01,
         "LOG_DEBUG": true,
         "LOG_LEVEL": "rclpy.logging.LoggingSeverity.INFO"
 
@@ -35,7 +35,7 @@
         "BYTESIZE": "serial.SIXBITS",
         "PARITY": "serial.PARITY_NONE",
         "STOPBITS": "serial.STOPBITS_ONE",
-        "DELAY_BETWEEN_SENDING_AND_RECEIVING": 0.5,
+        "DELAY_BETWEEN_SENDING_AND_RECEIVING": 0,
         "LOG_DEBUG": true,
         "LOG_LEVEL": "rclpy.logging.LoggingSeverity.INFO"
 
