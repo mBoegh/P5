@@ -242,3 +242,42 @@ class serial2arduino:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; Variable 'received_data': {received_data}")
 
         return received_data
+    
+
+    class RunningAverage:
+        def __init__(self, buffersize):
+            """
+            Initialize the RunningAverage object.
+
+            Parameters:
+            - n (int): The size of the buffer for calculating the running average.
+            """
+            self.BUFFERSIZE = buffersize
+            self.buffer = []
+            self.sum = 0
+
+        def add_data_point(self, data_point):
+            """
+            Add a new data point to the buffer and update the running sum.
+
+            Parameters:
+            - data_point: The new data point to be added to the buffer.
+            """
+            self.buffer.append(data_point)
+            self.sum += data_point
+
+            # If the buffer size exceeds n, remove the oldest data point
+            if len(self.buffer) > self.BUFFERSIZE:
+                removed_data = self.buffer.pop(0)
+                self.sum -= removed_data
+
+        def get_average(self):
+            """
+            Calculate and return the current running average.
+
+            Returns:
+            - float: The running average of the data points in the buffer.
+            """
+            if not self.buffer:
+                return 0  # Return 0 if no data points are available to avoid division by zero
+            return self.sum / len(self.buffer)

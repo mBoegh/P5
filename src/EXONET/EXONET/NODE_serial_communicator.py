@@ -3,7 +3,7 @@ TO DO:
  - Test live with Emotiv Epoc X
 """
 
-from EXONET.EXOLIB import JSON_Handler, serial2arduino
+from EXONET.EXOLIB import JSON_Handler, serial2arduino, RunningAverage
 
 import rclpy
 from rclpy.node import Node
@@ -15,7 +15,7 @@ from scipy.signal import butter
 
 import time
 
-class Serial_Communicator(Node, serial2arduino):
+class Serial_Communicator(Node, serial2arduino, RunningAverage):
     """
     This is the Serial_Communicator node of the EXONET ROS2 network.
     Takes argument(s):
@@ -25,7 +25,7 @@ class Serial_Communicator(Node, serial2arduino):
      - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
     """
 
-    def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, delay_between_sending_and_receiving, log_debug):
+    def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, delay_between_sending_and_receiving, running_average_buffer_size, log_debug):
 
         # Initialising variables
         self.SERIAL_PORT = serial_port
@@ -34,6 +34,7 @@ class Serial_Communicator(Node, serial2arduino):
         self.PARITY = parity
         self.STOPBITS = stopbits
         self.DELAY_BETWEEN_SENDING_AND_RECEIVING = delay_between_sending_and_receiving
+        self.RUNNING_AVERAGE_BUFFER_SIZE = running_average_buffer_size
         self.LOG_DEBUG = log_debug
 
         # Flag for controlling what computations are done with the feedback signal.
@@ -43,7 +44,6 @@ class Serial_Communicator(Node, serial2arduino):
         self.time0 = None
         self.elbow_joint_angle_zero = None
         self.previous_velocity = 0
-        self.running_average = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
         # plots
         self.plot_data = []
@@ -60,6 +60,11 @@ class Serial_Communicator(Node, serial2arduino):
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'serial_communicator')
         serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
+        RunningAverage.__init__(self, self.RUNNING_AVERAGE_BUFFER_SIZE)
+
+        running_average_init_values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        for data_point in running_average_init_values:
+            self.add_data_point(data_point)
 
         self.get_logger().debug("Hello world!")
         self.get_logger().info("Hello world!")
@@ -140,19 +145,9 @@ class Serial_Communicator(Node, serial2arduino):
             
             j_vel = elbow_joint_angle_diff / time_diff  # Joint velocity
 
-
-            self.running_average[9] = self.running_average[8]
-            self.running_average[8] = self.running_average[7]
-            self.running_average[7] = self.running_average[6]
-            self.running_average[6] = self.running_average[5]
-            self.running_average[5] = self.running_average[4]
-            self.running_average[4] = self.running_average[3]
-            self.running_average[3] = self.running_average[2]
-            self.running_average[2] = self.running_average[1]
-            self.running_average[1] = self.running_average[0]
-            self.running_average[0] = j_vel
-
-            mean_j_vel = np.mean(self.running_average)
+            # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
+            self.add_data_point(j_vel)
+            mean_j_vel = self.get_average()
 
             self.feedback_joint_velocity_msg.data = float(mean_j_vel)
             self.feedback_joint_angle_msg.data = float(elbow_joint_angle_now)
@@ -215,6 +210,7 @@ def main():
     PARITY = handler.get_subkey_value("serial_communicator", "PARITY")
     STOPBITS = handler.get_subkey_value("serial_communicator", "STOPBITS")
     DELAY_BETWEEN_SENDING_AND_RECEIVING = handler.get_subkey_value("serial_communicator", "DELAY_BETWEEN_SENDING_AND_RECEIVING")
+    RUNNING_AVERAGE_BUFFER_SIZE = handler.get_subkey_value("serial_communicator", "RUNNING_AVERAGE_BUFFER_SIZE")
     LOG_DEBUG = handler.get_subkey_value("serial_communicator", "LOG_DEBUG")
     LOG_LEVEL = handler.get_subkey_value("serial_communicator", "LOG_LEVEL")
 
@@ -225,7 +221,7 @@ def main():
     rclpy.logging.set_logger_level("serial_communicator", eval(LOG_LEVEL))
 
     # Instance the serverTCP class
-    serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, LOG_DEBUG)
+    serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, LOG_DEBUG)
 
     iter = 0
     while iter != 1000:
