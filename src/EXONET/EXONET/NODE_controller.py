@@ -40,21 +40,25 @@ class Controller(Node):
      - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
     """
 
-    def __init__(self, timer_period, log_debug):
+    def __init__(self, timer_period, stepwise, log_debug):
 
         # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(1, 0, 0, setpoint=0) # setpoint=1
+        self.pi = PID(-0.005, 0, 0, setpoint=0) # setpoint=1
+
+        self.prev_duty_cycle = 0
 
         # Initialising variables
         self.TIMER_PERIOD = timer_period
+        self.STEPWISE = stepwise
         self.LOG_DEBUG = log_debug
+
         self.toggle_EEG_parameter = False
 
         self.called_manual_control_data_topic_callback = False
         self.called_eeg_data_topic_callback = False
         self.called_feedback_topic_callback = False
 
-        self.msg = Int64()
+        self.msg = String()
 
         # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
         super().__init__('controller')
@@ -89,8 +93,8 @@ class Controller(Node):
         # Initialising a publisher to the topic 'Motor_signals'.
         # On this topic is expected data of type std_msgs.msg.Int8 which is imported as Int8.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.motor_signals_publisher = self.create_publisher(Int64, 'Motor_signals', 10)
-        self.motor_signals_publisher  # prevent unused variable warning
+        self.velocity_motor_signals_publisher = self.create_publisher(String, 'Velocity_motor_signals', 10)
+        self.velocity_motor_signals_publisher  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Feedback_joint_velocity'.
         # On this topic is expected data of type std_msgs.msg.Float32 which is imported as Float32.
@@ -202,22 +206,19 @@ class Controller(Node):
         ## Closed loop control system ##
         if (self.called_manual_control_data_topic_callback and not self.toggle_EEG_parameter) or (self.called_eeg_data_topic_callback and self.toggle_EEG_parameter):
 
+           # if variables.elbow_joint_angle >= 120 and variables.t_vel > 0:
+           #     variables.t_vel = 0
+            
+           # if variables.elbow_joint_angle <= 50 and variables.t_vel < 0:
+           #     variables.t_vel = 0
+
             self.get_logger().debug(f"Beggining of closed loop control system")
 
             # Log the variables used in the controller
             self.get_logger().debug(f"""VARIABLES USED IN CONTROLLER:
             - Target velocity: {variables.t_vel}
             - Joint velocity: {variables.j_vel}
-            - Elbow joint angle: {variables.elbow_joint_angle}
-            - Gravitational acceleration: {variables.g_acceleration}
-            - Exoskeleton weight: {variables.exo_weight}
-            - Avatar arm weight: {variables.av_arm_weight}
-            - Avatar payload weight: {variables.av_payload_weight}
-            - Shoulder joint angle: {variables.shoulder_joint_angle}
-            - Cable angle: {variables.cable_angle}
-            - l2 length: {variables.l2_lenght}
-            - lm2 length: {variables.lm2_length}
-            - Spool radius: {variables.spool_radius}""")
+            - Elbow joint angle: {variables.elbow_joint_angle}""")
 
             # Dynamic calculations for gravity compensation
             fg2 = (variables.av_arm_weight + variables.exo_weight) * variables.g_acceleration
@@ -277,16 +278,24 @@ class Controller(Node):
 
             # The controller
             error = variables.t_vel - variables.j_vel
-            control = self.pi(error)
-            duty_cycle = compensation_duty_cycle + control
+            regulator = self.pi(error)
+            duty_cycle = regulator + self.prev_duty_cycle # + compensation_duty_cycle
+            
+            if duty_cycle > 100:
+                duty_cycle = 100
+            if duty_cycle < -100:
+                duty_cycle = -100
 
             # Log controller calculations
-            self.get_logger().debug(
+            self.get_logger().info(
                 f"Controller Calculations:"
                 f"\n- Error: {error}"
-                f"\n- Control: {control}"
+                f"\n- Control: {regulator}"
                 f"\n- Duty Cycle: {duty_cycle}"
+                f"\n- Previous duty cycle: {self.prev_duty_cycle}"
             )
+
+            self.prev_duty_cycle = duty_cycle
 
             # The alternative controller
             # error = j_vel-t_vel
@@ -295,18 +304,24 @@ class Controller(Node):
             # volt = 4.7714*1.02**rpm
             
             # Load msg with duty cycle data
-            self.msg.data = int(duty_cycle)
+            self.msg.data = str(int(duty_cycle))
 
-            # Publish msg using motor_signals_publisher on topic 'Motor_signals'
-            self.motor_signals_publisher.publish(self.msg)
+            self.get_logger().debug(f"Duty cycle message data: {self.msg.data}")
+
+            # Publish msg using velocity_motor_signals_publisher on topic 'Velocity_motor_signals'
+            self.velocity_motor_signals_publisher.publish(self.msg)
 
             # Log info
-            self.get_logger().debug(f"Published data: '{self.msg.data}'")
+            self.get_logger().info(f"Published data: '{self.msg.data}'")
 
             # Iterate timer
             self.timer_counter += 1
 
             self.get_logger().debug(f"End of closed loop control system")
+
+            if self.STEPWISE:
+                self.called_manual_control_data_topic_callback = False
+                self.called_eeg_data_topic_callback = False
         
         self.get_logger().debug(f"End of {self.timer_callback.__name__}")
 
@@ -325,6 +340,7 @@ handler = JSON_Handler(json_file_path)
 
 # Get settings from 'settings.json' file
 TIMER_PERIOD = handler.get_subkey_value("controller", "TIMER_PERIOD")
+STEPWISE = handler.get_subkey_value("controller", "STEPWISE")
 LOG_DEBUG = handler.get_subkey_value("controller", "LOG_DEBUG")
 LOG_LEVEL = handler.get_subkey_value("controller", "LOG_LEVEL")
 
@@ -337,7 +353,7 @@ rclpy.init()
 rclpy.logging.set_logger_level("controller", eval(LOG_LEVEL))
 
 # Instance the serverTCP class
-controller = Controller(TIMER_PERIOD, LOG_DEBUG)
+controller = Controller(TIMER_PERIOD, STEPWISE, LOG_DEBUG)
 
 # Begin looping the node
 rclpy.spin(controller)

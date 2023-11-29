@@ -33,6 +33,32 @@ String data;            // Holds the latest recived data from the serial
 
 String mode = "velocity";
 char sepperator = '\n';
+  // Serial.println("Enter velocity -100 to 100 followed by comma");
+}
+
+void loop() {
+  if(Serial.available()){                       // If a command is present in the terminal
+    data = Serial.readStringUntil(sepperator);         // Read until the sepparating comma
+    Serial.read();                            // Empty the remaining serial text
+
+    if (data[0] == '/'){
+      mode = "position";
+      data = data.substring(1);
+      tPos = data.toInt();                 // Convert the recieved command to an integer
+    } else {
+      mode = "velocity";
+      percent = data.toInt();                 // Convert the recieved command to an integer
+      percent = constrain(percent, -100, 100);     // Make sure it is within bounds
+
+      // if (data == "stop"){
+      //   brake();
+      //   // Serial.println("Braking");
+      // } else 
+      if (percent <= -10){
+        if (moving == CCW){
+          stop();
+          // Serial.println("Pausing... ");
+          delay(500);
 
 void setup() {
   // Set pinmodes for the rest
@@ -59,6 +85,7 @@ void loop() {
     } else {
       mode = "velocity";
       percent = data.toInt();                 // Convert the recieved command to an integer
+      percent = percent - 100;
       percent = constrain(percent, -100, 100);     // Make sure it is within bounds
 
       // if (data == "stop"){

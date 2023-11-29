@@ -26,16 +26,10 @@ class variables:
     """
     
     def __init__(self):
-        self.current_angle = 70
-
         self.PWM_data = 75
-        self.torque_data = 5
-        self.RPM_data = 200
-
-        self.current_angle = 44
-
+        self.torque_data = 0
+        self.RPM_data = 0
         self.eeg_data = 0
-
         self.current_angle = 90
         self.length = 4
 
@@ -47,11 +41,15 @@ class Gui(Node):
     and to aid in debugging and testing.
     """
 
-    def __init__(self, timer_period, log_debug):
+    def __init__(self, timer_period, slider_zero, deadzone_low, deadzone_high, log_debug):
 
         # Initialising variables
         self.TIMER_PERIOD = timer_period
+        self.SLIDER_ZERO = slider_zero
+        self.DEADZONE_LOW = deadzone_low
+        self.DEADZONE_HIGH = deadzone_high
         self.LOG_DEBUG = log_debug
+
         self.toggle_EEG_parameter = False
 
         # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
@@ -102,14 +100,20 @@ class Gui(Node):
         self.eeg_toggle_publisher = self.create_publisher(Bool, 'EEG_toggle', 10)
         self.eeg_toggle_publisher  # prevent unused variable warning
 
-        # Initialising a publisher to the topic 'EEG_toggle'.
-        # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
+        # Initialising a publisher to the topic 'Manual_position_control_data'.
+        # On this topic is published data of type std_msgs.msg.UInt16 which is imported as UInt16.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.manual_position_control_data_publisher = self.create_publisher(UInt16, 'Manual_position_control_data', 10)
         self.manual_position_control_data_publisher  # prevent unused variable warning
 
-        # Initialising a publisher to the topic 'Manual_control'.
-        # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
+        # Initialising a publisher to the topic 'Manual_input_position_control_data'.
+        # On this topic is published data of type std_msgs.msg.Int16 which is imported as Int16.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.manual_input_velocity_control_data_publisher = self.create_publisher(Int16, 'Manual_input_velocity_control_data', 10)
+        self.manual_input_velocity_control_data_publisher  # prevent unused variable warning
+
+        # Initialising a publisher to the topic 'Manual_velocity_control_data'.
+        # On this topic is published data of type std_msgs.msg.Int16 which is imported as Int16.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.manual_veloity_control_data_publisher = self.create_publisher(Int16, 'Manual_velocity_control_data', 10)
         self.manual_veloity_control_data_publisher  # prevent unused variable warning
@@ -315,6 +319,7 @@ class ChildWindow_VelocityControl(CTkToplevel):
         self.logger = logger
 
         self.velocity_control_msg = Int16()
+        self.input_velocity_control_msg = Int16()
 
         self.exit_button = CTkButton(self, text="Exit Button", command=self.exit_button_event)
         self.exit_button.grid(row=1, column=0, padx=10, pady=5)
@@ -322,9 +327,27 @@ class ChildWindow_VelocityControl(CTkToplevel):
         self.manual_stop_button = CTkButton(self, text="Stop", command=self.manual_stop_event)
         self.manual_stop_button.grid(row=3, column=0, padx=10, pady=5)
 
-        self.slider = CTkSlider(self, from_=-100, to=100, command=self.slider_event, width=400, number_of_steps=200)
+        self.slider = CTkSlider(self, from_=-20, to=20, command=self.slider_event, width=200, number_of_steps=40)
         self.slider.grid(row=3, column=2, padx=10, pady=5, columnspan=2)
 
+        self.entry = CTkEntry(self,
+            placeholder_text="Deg/sec",
+            height=50,
+            width=200,
+            font=("Helvetica", 18),
+            corner_radius=50,
+            text_color="black",
+            placeholder_text_color="grey",
+            fg_color=("system", "white"),  # outer, inner
+            state="normal",
+        )
+        self.entry.grid(row=4, column=1, padx=10, pady=5)
+
+        submit_button = CTkButton(self, text="Submit", command= self.submit)
+        submit_button.grid(row=5, column=1, padx=10, pady=5)
+
+        # Bind the Enter key to the submit method
+        self.entry.bind("<Return>", lambda event: self.submit())
 
     def exit_button_event(self):
         """
@@ -340,8 +363,9 @@ class ChildWindow_VelocityControl(CTkToplevel):
         'Manual_velocity_control_data'.
         """
 
-        if value > -15 and value < 15:
-            value = 0
+        # Slider deadzone
+        #if value > gui.DEADZONE_LOW and value < gui.DEADZONE_HIGH:
+        #    value = gui.SLIDER_ZERO
 
         self.velocity_control_msg.data = int(value)
 
@@ -356,10 +380,37 @@ class ChildWindow_VelocityControl(CTkToplevel):
         Sets the slider to 0, thereby stopping the motor.
         """
 
-        self.slider.set(0)
+        self.slider.set(gui.SLIDER_ZERO)
 
-        self.slider_event(0)
+        self.slider_event(gui.SLIDER_ZERO)
         self.logger.info("Stopped")
+
+
+    def clear(self):
+        """
+        Clears the entry field of any characters.
+        """
+
+        self.entry.delete(0, END)
+
+    def submit(self):
+        """
+        Publishes integer values in the entry field.
+        Can be triggered with 'RETURN' button.
+        """
+
+        value = int(self.entry.get())
+
+        self.input_velocity_control_msg.data = value
+        
+        try:
+            gui.manual_input_velocity_control_data_publisher.publish(self.input_velocity_control_msg)
+            self.logger.debug(f"Published data: '{self.input_velocity_control_msg.data}'")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to publish data: '{self.input_velocity_control_msg.data}' With error: {e}")
+
+        self.clear()
 
 
 class ChildWindow_PositionControl(CTkToplevel):
@@ -711,8 +762,11 @@ json_file_path = ".//src//EXONET//EXONET//settings.json"
 handler = JSON_Handler(json_file_path)
 
 # Get settings from 'settings.json' file
-LOG_DEBUG = handler.get_subkey_value("gui", "LOG_DEBUG")
 TIMER_PERIOD = handler.get_subkey_value("gui", "TIMER_PERIOD")
+SLIDER_ZERO = handler.get_subkey_value("gui", "SLIDER_ZERO")
+DEADZONE_LOW = handler.get_subkey_value("gui", "DEADZONE_LOW")
+DEADZONE_HIGH = handler.get_subkey_value("gui", "DEADZONE_HIGH")
+LOG_DEBUG = handler.get_subkey_value("gui", "LOG_DEBUG")
 LOG_LEVEL = handler.get_subkey_value("gui", "LOG_LEVEL")
 
 # Change appearance of the GUI
@@ -727,7 +781,7 @@ rclpy.init()
 rclpy.logging.set_logger_level("gui", eval(LOG_LEVEL))
 
 # Instance the node class
-gui = Gui(TIMER_PERIOD, LOG_DEBUG)
+gui = Gui(TIMER_PERIOD, SLIDER_ZERO, DEADZONE_LOW, DEADZONE_HIGH, LOG_DEBUG)
 
 
 while True:

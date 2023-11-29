@@ -214,7 +214,7 @@ class serial2arduino:
         if self.DEBUG:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'send_data'; VARIABLE 'data': {data}")
     
-        data = f"{state}{data}{seperator}"
+        data = f"{state}{str(data)}{seperator}"
 
         # Encode data as encoded_data
         encoded_data = data.encode()
@@ -232,52 +232,69 @@ class serial2arduino:
         Function for handling reception of data from the Arduino over the established serial connection.
         """
 
-        if self.DEBUG:
-            print("DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; SYSTEM MESSAGE: Receiving data from Arduino.")
+        # if self.DEBUG:
+        #     print("DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; SYSTEM MESSAGE: Receiving data from Arduino.")
 
-        # Read the data from the Arduino
-        received_data = arduino.readline().decode().strip()
+        # # Read the data from the Arduino
+        # received_data = arduino.readline()
+        
+        # if self.DEBUG:
+        #     print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'received_data': {received_data}")
+        
+        # decoded_data = received_data.decode()
+        
+        # if self.DEBUG:
+        #     print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'decoded_data': {decoded_data}")
+        
+        # stripped_data = decoded_data.strip()
 
-        if self.DEBUG:
-            print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; Variable 'received_data': {received_data}")
+        # if self.DEBUG:
+        #     print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'stripped_data': {stripped_data}")
 
-        return received_data
+        return 45 #stripped_data
     
 
-    class RunningAverage:
-        def __init__(self, buffersize):
-            """
-            Initialize the RunningAverage object.
+class RunningAverage:
+    def __init__(self, buffersize, init_values):
+        """
+        Initialize the RunningAverage object.
 
-            Parameters:
-            - n (int): The size of the buffer for calculating the running average.
-            """
-            self.BUFFERSIZE = buffersize
-            self.buffer = []
-            self.sum = 0
+        Parameters:
+        - n (int): The size of the buffer for calculating the running average.
+        """
+        self.BUFFERSIZE = buffersize
+        self.INIT_VALUES = init_values
+        self.buffer = []
+        self.sum = 0
 
-        def add_data_point(self, data_point):
-            """
-            Add a new data point to the buffer and update the running sum.
+        i = 0
+        while i < self.BUFFERSIZE:
+            self.add_data_point(self.INIT_VALUES)
+            i += 1
 
-            Parameters:
-            - data_point: The new data point to be added to the buffer.
-            """
-            self.buffer.append(data_point)
-            self.sum += data_point
 
-            # If the buffer size exceeds n, remove the oldest data point
-            if len(self.buffer) > self.BUFFERSIZE:
-                removed_data = self.buffer.pop(0)
-                self.sum -= removed_data
+    def add_data_point(self, data_point):
+        """
+        Add a new data point to the buffer and update the running sum.
 
-        def get_average(self):
-            """
-            Calculate and return the current running average.
+        Parameters:
+        - data_point: The new data point to be added to the buffer.
+        """
+        self.buffer.append(data_point)
+        self.sum += data_point
 
-            Returns:
-            - float: The running average of the data points in the buffer.
-            """
-            if not self.buffer:
-                return 0  # Return 0 if no data points are available to avoid division by zero
-            return self.sum / len(self.buffer)
+        # If the buffer size exceeds n, remove the oldest data point
+        if len(self.buffer) > self.BUFFERSIZE:
+            removed_data = self.buffer.pop(0)
+            self.sum -= removed_data
+
+    def get_average(self):
+        """
+        Calculate and return the current running average.
+
+        Returns:
+        - float: The running average of the data points in the buffer.
+        """
+        if not self.buffer:
+            return 0  # Return 0 if no data points are available to avoid division by zero
+        return self.sum / len(self.buffer)

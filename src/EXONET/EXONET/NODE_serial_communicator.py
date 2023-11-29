@@ -7,11 +7,11 @@ from EXONET.EXOLIB import JSON_Handler, serial2arduino, RunningAverage
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import UInt16, Int64, Float32
+from std_msgs.msg import UInt16, Int64, Float32, Int16, String
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import butter
+from scipy.signal import butter, lfilter, freqz
 
 import time
 
@@ -25,7 +25,7 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
      - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
     """
 
-    def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, delay_between_sending_and_receiving, running_average_buffer_size, log_debug):
+    def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, delay_between_sending_and_receiving, running_average_buffer_size, running_average_init_values, log_debug):
 
         # Initialising variables
         self.SERIAL_PORT = serial_port
@@ -35,6 +35,7 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         self.STOPBITS = stopbits
         self.DELAY_BETWEEN_SENDING_AND_RECEIVING = delay_between_sending_and_receiving
         self.RUNNING_AVERAGE_BUFFER_SIZE = running_average_buffer_size
+        self.RUNNING_AVERAGE_INIT_VALUES = running_average_init_values
         self.LOG_DEBUG = log_debug
 
         # Flag for controlling what computations are done with the feedback signal.
@@ -60,11 +61,7 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'serial_communicator')
         serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
-        RunningAverage.__init__(self, self.RUNNING_AVERAGE_BUFFER_SIZE)
-
-        running_average_init_values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        for data_point in running_average_init_values:
-            self.add_data_point(data_point)
+        RunningAverage.__init__(self, self.RUNNING_AVERAGE_BUFFER_SIZE, self.RUNNING_AVERAGE_INIT_VALUES)
 
         self.get_logger().debug("Hello world!")
         self.get_logger().info("Hello world!")
@@ -76,7 +73,7 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         # On this topic is expected data of type std_msgs.msg.Int64 which is imported as Int64.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.velocity_motor_signals_subscription = self.create_subscription(Int64, 'Motor_signals', self.motor_signals_topic_callback, 10)
+        self.velocity_motor_signals_subscription = self.create_subscription(String, 'Velocity_motor_signals', self.motor_signals_topic_callback, 10)
         self.velocity_motor_signals_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Manual_position_control_data'.
@@ -85,6 +82,13 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         # The '10' argument is some Quality of Service parameter (QoS).
         self.manual_position_control_data_subscriber = self.create_subscription(UInt16, 'Manual_position_control_data', self.manual_position_control_data_callback, 10)
         self.manual_position_control_data_subscriber
+
+        # Initialising a subscriber to the topic 'Manual_position_control_data'.
+        # On this topic is expected data of type std_msgs.msg.UInt16 which is imported as UInt16.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.manual_input_velocity_control_data_subscriber = self.create_subscription(Int16, 'Manual_input_velocity_control_data', self.motor_signals_topic_callback, 10)
+        self.manual_input_velocity_control_data_subscriber
 
         # Initialising a publisher to the topic 'Feedback_joint_velocity'.
         # On this topic is expected data of type std_msgs.msg.FLoat32 which is imported as FLoat32.
@@ -101,16 +105,19 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         # Establish a connection with the arduino
         self.arduino = self.establish_connection()
 
+
     def motor_signals_topic_callback(self, msg):
         """
         Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
         """
 
         # Log info
-        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
+        self.get_logger().info(f"Recieved topic data: '{msg.data}'")
+
+        test = str(msg.data)
 
         # Sending data to Arduino
-        self.send_data(self.arduino, msg.data, seperator="\n")
+        self.send_data(self.arduino, test, seperator="\n")
 
         time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
 
@@ -194,6 +201,75 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
 ######  MAIN  ######
 ####################
 
+def plot_signals_and_spectrum(time, signal, cutoff_frequency, filtered_signal, fs):
+    """
+    Plot the time-domain and frequency-domain representations of a signal.
+
+    Parameters:
+    - time: Time vector of the signal.
+    - signal: Original signal.
+    - filtered_signal: Signal after applying the lowpass filter.
+    - fs: Sampling frequency.
+    """
+    plt.figure(figsize=(12, 6))
+
+    # Plot the time-domain signal
+    plt.subplot(3, 1, 1)
+    plt.plot(time, signal, label='Original Signal')
+    plt.plot(time, filtered_signal, label='Filtered Signal', linewidth=2)
+    plt.title('Time Domain')
+    plt.xlabel('Time [s]')
+    plt.ylabel('Amplitude')
+    plt.legend()
+
+    # Plot the frequency-domain representation using FFT
+    plt.subplot(3, 1, 2)
+    fft_freq = np.fft.fftfreq(len(signal), 1/fs)
+    fft_signal = np.fft.fft(signal)
+    plt.plot(fft_freq, np.abs(fft_signal), label='Original Signal')
+    
+    fft_filtered_signal = np.fft.fft(filtered_signal)
+    plt.plot(fft_freq, np.abs(fft_filtered_signal), label='Filtered Signal', linewidth=2)
+    
+    plt.title('Frequency Domain (FFT)')
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Magnitude')
+    plt.legend()
+
+    # Plot the frequency response of the filter
+    plt.subplot(3, 1, 3)
+    b, a = butter_lowpass(cutoff_frequency, fs, order=4)
+    w, h = freqz(b, a, worN=8000)
+    plt.plot(0.5 * fs * w / np.pi, np.abs(h), 'b', label='Lowpass Filter')
+    plt.plot(cutoff_frequency, 0.5 * np.sqrt(2), 'ko')
+    plt.axvline(cutoff_frequency, color='k')
+    plt.xlim(0, 0.5 * fs)
+    plt.title('Lowpass Filter Frequency Response')
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Gain')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+def butter_lowpass(cutoff_freq, fs, order=4):
+    """
+    Design a lowpass Butterworth filter.
+
+    Parameters:
+    - cutoff_freq: Cutoff frequency of the filter.
+    - fs: Sampling frequency.
+    - order: Filter order (default is 4).
+
+    Returns:
+    - b: Numerator coefficients of the filter.
+    - a: Denominator coefficients of the filter.
+    """
+    nyquist = 0.5 * fs
+    normal_cutoff = cutoff_freq / nyquist
+    # Design the Butterworth filter
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
 
 def main():
     
@@ -211,6 +287,7 @@ def main():
     STOPBITS = handler.get_subkey_value("serial_communicator", "STOPBITS")
     DELAY_BETWEEN_SENDING_AND_RECEIVING = handler.get_subkey_value("serial_communicator", "DELAY_BETWEEN_SENDING_AND_RECEIVING")
     RUNNING_AVERAGE_BUFFER_SIZE = handler.get_subkey_value("serial_communicator", "RUNNING_AVERAGE_BUFFER_SIZE")
+    RUNNING_AVERAGE_INIT_VALUES = handler.get_subkey_value("serial_communicator", "RUNNING_AVERAGE_INIT_VALUES")
     LOG_DEBUG = handler.get_subkey_value("serial_communicator", "LOG_DEBUG")
     LOG_LEVEL = handler.get_subkey_value("serial_communicator", "LOG_LEVEL")
 
@@ -221,10 +298,10 @@ def main():
     rclpy.logging.set_logger_level("serial_communicator", eval(LOG_LEVEL))
 
     # Instance the serverTCP class
-    serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, LOG_DEBUG)
+    serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, RUNNING_AVERAGE_INIT_VALUES, LOG_DEBUG)
 
     iter = 0
-    while iter != 1000:
+    while iter < 1000:
         # Begin looping the node
         rclpy.spin_once(serial_communicator)
         iter += 1
@@ -236,7 +313,7 @@ def main():
 
     plt.plot(serial_communicator.plot_elbow_joint_angle)
     plt.ylabel('Elbow joint angle')
-    plt.ylim((40,170))
+    plt.ylim((130,300))
     plt.show()
 
     plt.plot(serial_communicator.plot_j_vel)
@@ -247,6 +324,23 @@ def main():
     plt.plot(serial_communicator.plot_mean_j_vel)
     plt.ylabel('Computed runnning average joint velocity')
     plt.show()
+
+    datas = [serial_communicator.plot_data, serial_communicator.plot_elbow_joint_angle, serial_communicator.plot_j_vel, serial_communicator.plot_mean_j_vel]
+
+    # Define cutoff frequency for the lowpass filter
+    cutoff_frequency = 50  # Adjust this based on your requirements
+
+    fs = 999  # Sample rate, change it to your actual sample rate
+    t = np.linspace(0, 1, fs, endpoint=False)  # Time vector
+
+    for data in datas:
+
+        # Apply the lowpass filter to the data
+        b, a = butter_lowpass(cutoff_frequency, fs)
+        filtered_data = lfilter(b, a, data)
+
+        # Plot the time-domain and frequency-domain representations
+        plot_signals_and_spectrum(t, data, cutoff_frequency, filtered_data, fs)
 
 if __name__ == "__main__":
     main()
