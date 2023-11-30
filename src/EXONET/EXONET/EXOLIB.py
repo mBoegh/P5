@@ -3,6 +3,8 @@ import socket
 import serial
 import serial.tools.list_ports
 import time
+from collections import deque
+import numpy as np
 
 
 
@@ -235,26 +237,26 @@ class serial2arduino:
         Function for handling reception of data from the Arduino over the established serial connection.
         """
 
-        # if self.DEBUG:
-        #     print("DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; SYSTEM MESSAGE: Receiving data from Arduino.")
+        if self.DEBUG:
+            print("DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; SYSTEM MESSAGE: Receiving data from Arduino.")
 
-        # # Read the data from the Arduino
-        # received_data = arduino.readline()
+        # Read the data from the Arduino
+        received_data = arduino.readline()
         
-        # if self.DEBUG:
-        #     print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'received_data': {received_data}")
+        if self.DEBUG:
+            print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'received_data': {received_data}")
         
-        # decoded_data = received_data.decode()
+        decoded_data = received_data.decode()
         
-        # if self.DEBUG:
-        #     print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'decoded_data': {decoded_data}")
+        if self.DEBUG:
+            print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'decoded_data': {decoded_data}")
         
-        # stripped_data = decoded_data.strip()
+        stripped_data = decoded_data.strip()
 
-        # if self.DEBUG:
-        #     print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'stripped_data': {stripped_data}")
+        if self.DEBUG:
+            print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'stripped_data': {stripped_data}")
 
-        return 45 #stripped_data
+        return stripped_data
     
 
 class RunningAverage:
@@ -301,3 +303,40 @@ class RunningAverage:
         if not self.buffer:
             return 0  # Return 0 if no data points are available to avoid division by zero
         return self.sum / len(self.buffer)
+
+
+class LiveLFilter:
+    def __init__(self, b, a):
+        """
+        Initialize live filter based on difference equation.
+
+        Args:
+            b (array-like): numerator coefficients obtained from scipy.
+            a (array-like): denominator coefficients obtained from scipy.
+        """
+        self.b = b
+        self.a = a
+        self._xs = deque([0] * len(b), maxlen=len(b))
+        self._ys = deque([0] * (len(a) - 1), maxlen=len(a)-1)
+
+    def __call__(self, x):
+        return self.process(x)
+
+    def process(self, x):
+        # do not process NaNs
+        if np.isnan(x):
+            return x
+
+        return self._process(x)
+
+    def _process(self, x):
+        """
+        Filter incoming data with standard difference equations.
+        """
+        self._xs.appendleft(x)
+        y = np.dot(self.b, self._xs) - np.dot(self.a[1:], self._ys)
+        y = y / self.a[0]
+        self._ys.appendleft(y)
+
+        return y
+

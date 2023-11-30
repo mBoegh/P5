@@ -3,7 +3,7 @@ TO DO:
  - Test live with Emotiv Epoc X
 """
 
-from EXONET.EXOLIB import JSON_Handler, serial2arduino, RunningAverage
+from EXONET.EXOLIB import JSON_Handler, serial2arduino, RunningAverage, LiveLFilter
 
 import rclpy
 from rclpy.node import Node
@@ -11,7 +11,8 @@ from std_msgs.msg import UInt16, Int64, Float32, Int16, String
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import butter, lfilter, freqz
+
+import scipy.signal
 
 import time
 
@@ -48,6 +49,7 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
 
         # plots
         self.plot_data = []
+        self.plot_filtered_data = []
         self.plot_elbow_joint_angle = []
         self.plot_j_vel = []
         self.plot_mean_j_vel = []
@@ -125,13 +127,13 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         # Load feedback_msg with returned data 
         data = int(self.receive_data(self.arduino))
 
-
         self.get_logger().debug(f"Received serial data: '{data}'")
 
+        filtered_data = livel_filter(data)
 
         if self.first_feedback:
             self.time0 = time.time()
-            self.elbow_joint_angle_zero = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
+            self.elbow_joint_angle_zero = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
 
             self.first_feedback = False
 
@@ -139,7 +141,7 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
 
             time_now = time.time()
 
-            elbow_joint_angle_now = self.map_range(1023-data, 0, 1023, -30, 210) # Joint angle 
+            elbow_joint_angle_now = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
         
             time_diff = time_now - self.time0
 
@@ -149,7 +151,7 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
 
             self.elbow_joint_angle_zero = elbow_joint_angle_now
 
-            self.data0 = data        
+            self.data0 = filtered_data        
             
             j_vel = elbow_joint_angle_diff / time_diff  # Joint velocity
 
@@ -175,6 +177,7 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
             self.previous_velocity = mean_j_vel
 
             self.plot_data.append(data)
+            self.plot_filtered_data.append(filtered_data)
             self.plot_elbow_joint_angle.append(elbow_joint_angle_now)
             self.plot_j_vel.append(j_vel)
             self.plot_mean_j_vel.append(mean_j_vel)
@@ -272,77 +275,92 @@ def butter_lowpass(cutoff_freq, fs, order=4):
     b, a = butter(order, normal_cutoff, btype='low', analog=False)
     return b, a
 
-def main():
-    
-    # Path for 'settings.json' file
-    json_file_path = ".//src//EXONET//EXONET//settings.json"
-
-    # Instance the 'JSON_Handler' class for interacting with the 'settings.json' file
-    handler = JSON_Handler(json_file_path)
-    
-    # Get settings from 'settings.json' file
-    SERIAL_PORT = handler.get_subkey_value("serial_communicator", "SERIAL_PORT")
-    BAUD_RATE = handler.get_subkey_value("serial_communicator", "BAUD_RATE")
-    BYTESIZE = handler.get_subkey_value("serial_communicator", "BYTESIZE")
-    PARITY = handler.get_subkey_value("serial_communicator", "PARITY")
-    STOPBITS = handler.get_subkey_value("serial_communicator", "STOPBITS")
-    DELAY_BETWEEN_SENDING_AND_RECEIVING = handler.get_subkey_value("serial_communicator", "DELAY_BETWEEN_SENDING_AND_RECEIVING")
-    RUNNING_AVERAGE_BUFFER_SIZE = handler.get_subkey_value("serial_communicator", "RUNNING_AVERAGE_BUFFER_SIZE")
-    RUNNING_AVERAGE_INIT_VALUES = handler.get_subkey_value("serial_communicator", "RUNNING_AVERAGE_INIT_VALUES")
-    LOG_DEBUG = handler.get_subkey_value("serial_communicator", "LOG_DEBUG")
-    LOG_LEVEL = handler.get_subkey_value("serial_communicator", "LOG_LEVEL")
 
 
-    # Initialize the rclpy library
-    rclpy.init()
+#########################
+########   MAIN   #######
+#########################
+        
 
-    rclpy.logging.set_logger_level("serial_communicator", eval(LOG_LEVEL))
+# Path for 'settings.json' file
+json_file_path = ".//src//EXONET//EXONET//settings.json"
 
-    # Instance the serverTCP class
-    serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, RUNNING_AVERAGE_INIT_VALUES, LOG_DEBUG)
+# Instance the 'JSON_Handler' class for interacting with the 'settings.json' file
+handler = JSON_Handler(json_file_path)
 
-    iter = 0
-    while iter < 1000:
-        # Begin looping the node
-        rclpy.spin_once(serial_communicator)
-        iter += 1
-
-    plt.plot(serial_communicator.plot_data)
-    plt.ylabel('Potentiometer data')
-    plt.ylim((0,1023))
-    plt.show()
-
-    plt.plot(serial_communicator.plot_elbow_joint_angle)
-    plt.ylabel('Elbow joint angle')
-    plt.ylim((130,300))
-    plt.show()
-
-    plt.plot(serial_communicator.plot_j_vel)
-    plt.ylabel('Computed joint velocity')
-    plt.show()
+# Get settings from 'settings.json' file
+SERIAL_PORT = handler.get_subkey_value("serial_communicator", "SERIAL_PORT")
+BAUD_RATE = handler.get_subkey_value("serial_communicator", "BAUD_RATE")
+BYTESIZE = handler.get_subkey_value("serial_communicator", "BYTESIZE")
+PARITY = handler.get_subkey_value("serial_communicator", "PARITY")
+STOPBITS = handler.get_subkey_value("serial_communicator", "STOPBITS")
+DELAY_BETWEEN_SENDING_AND_RECEIVING = handler.get_subkey_value("serial_communicator", "DELAY_BETWEEN_SENDING_AND_RECEIVING")
+RUNNING_AVERAGE_BUFFER_SIZE = handler.get_subkey_value("serial_communicator", "RUNNING_AVERAGE_BUFFER_SIZE")
+RUNNING_AVERAGE_INIT_VALUES = handler.get_subkey_value("serial_communicator", "RUNNING_AVERAGE_INIT_VALUES")
+LOG_DEBUG = handler.get_subkey_value("serial_communicator", "LOG_DEBUG")
+LOG_LEVEL = handler.get_subkey_value("serial_communicator", "LOG_LEVEL")
 
 
-    plt.plot(serial_communicator.plot_mean_j_vel)
-    plt.ylabel('Computed runnning average joint velocity')
-    plt.show()
+# Initialize the rclpy library
+rclpy.init()
 
-    datas = [serial_communicator.plot_data, serial_communicator.plot_elbow_joint_angle, serial_communicator.plot_j_vel, serial_communicator.plot_mean_j_vel]
+rclpy.logging.set_logger_level("serial_communicator", eval(LOG_LEVEL))
 
-    # Define cutoff frequency for the lowpass filter
-    cutoff_frequency = 50  # Adjust this based on your requirements
 
-    fs = 999  # Sample rate, change it to your actual sample rate
-    t = np.linspace(0, 1, fs, endpoint=False)  # Time vector
+# Butterworth low-pass filter with frequency cutoff at 125 Hz
+b, a = scipy.signal.iirfilter(4, Wn=49, fs=100, btype="low", ftype="butter")
 
-    for data in datas:
+livel_filter = LiveLFilter(b, a)
 
-        # Apply the lowpass filter to the data
-        b, a = butter_lowpass(cutoff_frequency, fs)
-        filtered_data = lfilter(b, a, data)
+# Instance the serverTCP class
+serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, RUNNING_AVERAGE_INIT_VALUES, LOG_DEBUG)
 
-        # Plot the time-domain and frequency-domain representations
-        plot_signals_and_spectrum(t, data, cutoff_frequency, filtered_data, fs)
+rclpy.spin(serial_communicator)
 
-if __name__ == "__main__":
-    main()
+# iter = 0
+# while iter < 300:
+#     # Begin looping the node
+#     rclpy.spin_once(serial_communicator)
+#     iter += 1
+
+# plt.plot(serial_communicator.plot_data)
+# plt.ylim((0,1023))
+# plt.show()
+
+# plt.plot(serial_communicator.plot_filtered_data)
+# plt.ylim((0,1023))
+# plt.show()
+
+# plt.plot(serial_communicator.plot_elbow_joint_angle)
+# plt.ylabel('Elbow joint angle')
+# plt.ylim((130,300))
+# plt.show()
+
+# plt.plot(serial_communicator.plot_j_vel)
+# plt.ylabel('Computed joint velocity')
+# plt.show()
+
+
+# plt.plot(serial_communicator.plot_mean_j_vel)
+# plt.ylabel('Computed runnning average joint velocity')
+# plt.show()
+
+# datas = [serial_communicator.plot_data, serial_communicator.plot_elbow_joint_angle, serial_communicator.plot_j_vel, serial_communicator.plot_mean_j_vel]
+
+# # Define cutoff frequency for the lowpass filter
+# cutoff_frequency = 50  # Adjust this based on your requirements
+
+# fs = 999  # Sample rate, change it to your actual sample rate
+# t = np.linspace(0, 1, fs, endpoint=False)  # Time vector
+
+# for data in datas:
+
+#     # Apply the lowpass filter to the data
+#     b, a = butter_lowpass(cutoff_frequency, fs)
+#     filtered_data = lfilter(b, a, data)
+
+#     # Plot the time-domain and frequency-domain representations
+#     plot_signals_and_spectrum(t, data, cutoff_frequency, filtered_data, fs)
+
+
     
