@@ -48,8 +48,8 @@ class Controller(Node):
         self.LOG_DEBUG = log_debug
 
         # D should always be 0, Don't change setpoint!!! 
-       # self.pi = PID(0.001, 0, 0, setpoint=variables.t_vel) # setpoint=1
-        self.pi = PID(-0.008, 0, 0, setpoint=0) # setpoint=1
+        self.pi = PID(0.005, 0, 0, setpoint=variables.t_vel) # setpoint=1
+        self.pi.output_limits = (-100, 100)
         self.prev_duty_cycle = 0
 
         self.toggle_EEG_parameter = False
@@ -171,7 +171,9 @@ class Controller(Node):
 
         if self.toggle_EEG_parameter == False:
             variables.t_vel = msg.data # Target velocity
-        
+
+            controller.pi.setpoint = variables.t_vel
+
             self.get_logger().debug(f"Updated target joint velocity: {variables.t_vel}")
 
 
@@ -192,11 +194,36 @@ class Controller(Node):
         Callback function called whenever a message is recieved on the subscription 'feedback_joint_angle_subscription'
         """
 
+        def edge_guard():
+            variables.t_vel = 0
+
+            self.get_logger().debug(f"Physical joint limits exceed. Target velocity: {variables.t_vel}")
+
+            self.pi.setpoint = variables.t_vel
+            
+            self.get_logger().debug(f"Updated controller setpoint: {self.pi.setpoint}")
+
+            self.prev_duty_cycle = 0
+
+            self.get_logger().debug(f"Reset previous dutycycle: {self.prev_duty_cycle}")
+
+            self.msg.data = 0
+
+            self.velocity_motor_signals_publisher.publish(self.msg)
+
+            self.get_logger().debug(f"Published dutycycle: {self.msg.data}")
+
         self.get_logger().debug(f"Recieved data '{msg.data}'")
 
         variables.elbow_joint_angle = msg.data
 
         self.get_logger().debug(f"Updated current joint angle with value: {variables.elbow_joint_angle}")
+
+        if variables.elbow_joint_angle >= 120 and variables.t_vel > 0:
+            edge_guard()
+
+        if variables.elbow_joint_angle <= 50 and variables.t_vel < 0: 
+            edge_guard()
 
 
     def timer_callback(self):
@@ -205,12 +232,6 @@ class Controller(Node):
 
         ## Closed loop control system ##
         if (self.called_manual_control_data_topic_callback and not self.toggle_EEG_parameter) or (self.called_eeg_data_topic_callback and self.toggle_EEG_parameter):
-
-           # if variables.elbow_joint_angle >= 120 and variables.t_vel > 0:
-           #     variables.t_vel = 0
-            
-           # if variables.elbow_joint_angle <= 50 and variables.t_vel < 0:
-           #     variables.t_vel = 0
 
             self.get_logger().debug(f"Beggining of closed loop control system")
 
@@ -277,9 +298,7 @@ class Controller(Node):
             #self.v0 = v 
 
             # The controller
-            error = variables.t_vel - variables.j_vel
-           # regulator = self.pi(variables.j_vel)
-            regulator = self.pi(error)
+            regulator = self.pi(variables.j_vel)
             duty_cycle = regulator + self.prev_duty_cycle # + compensation_duty_cycle
             
             if duty_cycle > 100:

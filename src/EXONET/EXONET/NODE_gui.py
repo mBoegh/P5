@@ -342,7 +342,7 @@ class ChildWindow_VelocityControl(CTkToplevel):
         self.manual_stop_button = CTkButton(self, text="Stop", command=self.manual_stop_event)
         self.manual_stop_button.grid(row=2, column=0, padx=10, pady=5)
 
-        self.slider = CTkSlider(self, from_=-20, to=20, command=self.slider_event, width=200, number_of_steps=40)
+        self.slider = CTkSlider(self, from_=-40, to=40, command=self.slider_event, width=240, number_of_steps=80)
         self.slider.grid(row=2, column=1, padx=10, pady=5, columnspan=2)
 
         self.entry = CTkEntry(self,
@@ -363,6 +363,8 @@ class ChildWindow_VelocityControl(CTkToplevel):
 
         # Bind the Enter key to the submit method
         self.entry.bind("<Return>", lambda event: self.submit())
+        self.manual_stop_button.bind("<Space>", lambda event: self.manual_stop_event())
+
 
     def exit_button_event(self):
         """
