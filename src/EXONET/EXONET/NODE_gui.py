@@ -77,8 +77,8 @@ class Gui(Node):
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.motor_signals_subscription = self.create_subscription(String, 'Motor_signals', self.motor_signals_topic_callback, 10)
-        self.motor_signals_subscription  # prevent unused variable warning
+        self.velocity_motor_signals_subscription = self.create_subscription(Int16, 'Velocity_motor_signals', self.motor_signals_topic_callback, 10)
+        self.velocity_motor_signals_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Feedback_joint_velocity'.
         # On this topic is expected data of type std_msgs.msg.Float32 which is imported as Float32.
@@ -201,7 +201,22 @@ class Gui(Node):
         """
         Callback function called whenever a message is recieved on the subscription 'feedback_joint_angle_subscription'
         """
-        pass
+        
+        # Log info
+        self.get_logger().debug(f"Recieved data '{msg.data}'")
+
+        if self.app.position_control_window is not None:
+            self.app.position_control_window.current_angle_label.configure(text=msg.data) # Update the content of the CurrentAngle Label
+
+        # The below functions are what actually does the updating of the window
+        # We do also have a function called "mainloop()", but the program will halt
+        # when it gets to "mainloop()", so only use it if you plan on destroying the window
+        # when updating it, by making a new window
+        self.app.update_idletasks()
+        self.app.update()
+        if self.app.position_control_window is not None:
+            self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+        self.app.EEG_frame.animate()
         
 
 
@@ -325,10 +340,10 @@ class ChildWindow_VelocityControl(CTkToplevel):
         self.exit_button.grid(row=1, column=0, padx=10, pady=5)
 
         self.manual_stop_button = CTkButton(self, text="Stop", command=self.manual_stop_event)
-        self.manual_stop_button.grid(row=3, column=0, padx=10, pady=5)
+        self.manual_stop_button.grid(row=2, column=0, padx=10, pady=5)
 
         self.slider = CTkSlider(self, from_=-20, to=20, command=self.slider_event, width=200, number_of_steps=40)
-        self.slider.grid(row=3, column=2, padx=10, pady=5, columnspan=2)
+        self.slider.grid(row=2, column=1, padx=10, pady=5, columnspan=2)
 
         self.entry = CTkEntry(self,
             placeholder_text="Deg/sec",

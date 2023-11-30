@@ -42,15 +42,15 @@ class Controller(Node):
 
     def __init__(self, timer_period, stepwise, log_debug):
 
-        # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(-0.005, 0, 0, setpoint=0) # setpoint=1
-
-        self.prev_duty_cycle = 0
-
         # Initialising variables
         self.TIMER_PERIOD = timer_period
         self.STEPWISE = stepwise
         self.LOG_DEBUG = log_debug
+
+        # D should always be 0, Don't change setpoint!!! 
+       # self.pi = PID(0.001, 0, 0, setpoint=variables.t_vel) # setpoint=1
+        self.pi = PID(-0.008, 0, 0, setpoint=0) # setpoint=1
+        self.prev_duty_cycle = 0
 
         self.toggle_EEG_parameter = False
 
@@ -58,7 +58,7 @@ class Controller(Node):
         self.called_eeg_data_topic_callback = False
         self.called_feedback_topic_callback = False
 
-        self.msg = String()
+        self.msg = Int16()
 
         # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
         super().__init__('controller')
@@ -93,7 +93,7 @@ class Controller(Node):
         # Initialising a publisher to the topic 'Motor_signals'.
         # On this topic is expected data of type std_msgs.msg.Int8 which is imported as Int8.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.velocity_motor_signals_publisher = self.create_publisher(String, 'Velocity_motor_signals', 10)
+        self.velocity_motor_signals_publisher = self.create_publisher(Int16, 'Velocity_motor_signals', 10)
         self.velocity_motor_signals_publisher  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Feedback_joint_velocity'.
@@ -278,6 +278,7 @@ class Controller(Node):
 
             # The controller
             error = variables.t_vel - variables.j_vel
+           # regulator = self.pi(variables.j_vel)
             regulator = self.pi(error)
             duty_cycle = regulator + self.prev_duty_cycle # + compensation_duty_cycle
             
@@ -289,7 +290,6 @@ class Controller(Node):
             # Log controller calculations
             self.get_logger().info(
                 f"Controller Calculations:"
-                f"\n- Error: {error}"
                 f"\n- Control: {regulator}"
                 f"\n- Duty Cycle: {duty_cycle}"
                 f"\n- Previous duty cycle: {self.prev_duty_cycle}"
@@ -304,7 +304,11 @@ class Controller(Node):
             # volt = 4.7714*1.02**rpm
             
             # Load msg with duty cycle data
-            self.msg.data = str(int(duty_cycle))
+            duty_cycle = int(duty_cycle)
+
+            self.get_logger().debug(f"Duty cycle rounded: {duty_cycle}")
+
+            self.msg.data = duty_cycle
 
             self.get_logger().debug(f"Duty cycle message data: {self.msg.data}")
 

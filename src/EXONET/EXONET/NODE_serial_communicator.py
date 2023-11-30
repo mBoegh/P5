@@ -57,7 +57,6 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         self.feedback_joint_velocity_msg = Float32()
         self.feedback_joint_angle_msg = Float32()
 
-
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'serial_communicator')
         serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
@@ -73,7 +72,7 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         # On this topic is expected data of type std_msgs.msg.Int64 which is imported as Int64.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.velocity_motor_signals_subscription = self.create_subscription(String, 'Velocity_motor_signals', self.motor_signals_topic_callback, 10)
+        self.velocity_motor_signals_subscription = self.create_subscription(Int16, 'Velocity_motor_signals', self.motor_signals_topic_callback, 10)
         self.velocity_motor_signals_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Manual_position_control_data'.
@@ -114,10 +113,12 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         # Log info
         self.get_logger().info(f"Recieved topic data: '{msg.data}'")
 
-        test = str(msg.data)
+        duty_cycle = msg.data
+
+        serial_message = duty_cycle + 11000
 
         # Sending data to Arduino
-        self.send_data(self.arduino, test, seperator="\n")
+        self.send_data(self.arduino, serial_message, seperator="\n")
 
         time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
 

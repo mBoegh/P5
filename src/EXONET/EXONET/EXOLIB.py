@@ -214,7 +214,7 @@ class serial2arduino:
         if self.DEBUG:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'send_data'; VARIABLE 'data': {data}")
     
-        data = f"{state}{str(data)}{seperator}"
+        data = f"{state}{data}{seperator}"
 
         # Encode data as encoded_data
         encoded_data = data.encode()
@@ -223,8 +223,11 @@ class serial2arduino:
         if self.DEBUG:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'send_data'; VARIABLE 'encoded_data': {encoded_data}")
 
-        # Send encoded_data Arduino
-        arduino.write(encoded_data)
+        try:
+            # Send encoded_data Arduino
+            arduino.write(encoded_data)
+        except Exception as e:
+            print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'send_data'; Failed to write encoded data with error: {e}")
 
 
     def receive_data(self, arduino):
