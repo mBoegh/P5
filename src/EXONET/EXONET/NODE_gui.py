@@ -421,8 +421,12 @@ class ChildWindow_VelocityControl(CTkToplevel):
         self.input_velocity_control_msg.data = value
         
         try:
-            gui.manual_input_velocity_control_data_publisher.publish(self.input_velocity_control_msg)
-            self.logger.debug(f"Published data: '{self.input_velocity_control_msg.data}'")
+            #gui.manual_input_velocity_control_data_publisher.publish(self.input_velocity_control_msg)
+            #self.logger.debug(f"Published data: '{self.input_velocity_control_msg.data}'")
+
+            self.velocity_control_msg.data = int(value)
+
+            gui.manual_veloity_control_data_publisher.publish(self.velocity_control_msg)
 
         except Exception as e:
             self.logger.warning(f"Failed to publish data: '{self.input_velocity_control_msg.data}' With error: {e}")

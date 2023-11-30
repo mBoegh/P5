@@ -51,8 +51,8 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         self.plot_data = []
         self.plot_filtered_data = []
         self.plot_elbow_joint_angle = []
+        self.plot_mean_elbow_joint_angle = []
         self.plot_j_vel = []
-        self.plot_mean_j_vel = []
 
 
         # Initialize feedback message objects of datatype std_msgs.msg.Float32 imported as Float32
@@ -122,14 +122,14 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         # Sending data to Arduino
         self.send_data(self.arduino, serial_message, seperator="\n")
 
-        time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
+       # time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
 
         # Load feedback_msg with returned data 
         data = int(self.receive_data(self.arduino))
 
         self.get_logger().debug(f"Received serial data: '{data}'")
 
-        filtered_data = livel_filter(data)
+        filtered_data = data # livel_filter(data)
 
         if self.first_feedback:
             self.time0 = time.time()
@@ -143,29 +143,33 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
 
             elbow_joint_angle_now = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
         
+            # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
+            self.add_data_point(elbow_joint_angle_now)
+            mean_elbow_joint_angle = self.get_average()
+        
             time_diff = time_now - self.time0
 
             self.time0 = time_now
         
-            elbow_joint_angle_diff = elbow_joint_angle_now - self.elbow_joint_angle_zero
+            elbow_joint_angle_diff = mean_elbow_joint_angle - self.elbow_joint_angle_zero
 
-            self.elbow_joint_angle_zero = elbow_joint_angle_now
+            self.elbow_joint_angle_zero = mean_elbow_joint_angle
 
             self.data0 = filtered_data        
             
             j_vel = elbow_joint_angle_diff / time_diff  # Joint velocity
 
-            # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
-            self.add_data_point(j_vel)
-            mean_j_vel = self.get_average()
+            # # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
+            # self.add_data_point(j_vel)
+            # mean_j_vel = self.get_average()
 
-            self.feedback_joint_velocity_msg.data = float(mean_j_vel)
-            self.feedback_joint_angle_msg.data = float(elbow_joint_angle_now)
+            self.feedback_joint_velocity_msg.data = float(j_vel)
+            self.feedback_joint_angle_msg.data = float(mean_elbow_joint_angle)
 
-            self.get_logger().debug(f"Computed 'j_vel' feedback data: '{mean_j_vel}'")
-            self.get_logger().debug(f"Computed 'elbow_joint_angle' feedback data: '{elbow_joint_angle_now}'")
+            self.get_logger().debug(f"Computed 'j_vel' feedback data: '{j_vel}'")
+            self.get_logger().debug(f"Computed 'elbow_joint_angle' feedback data: '{mean_elbow_joint_angle}'")
 
-            if not self.previous_velocity == 0 and mean_j_vel > 10:
+            if not self.previous_velocity == 0 and j_vel > 10:
                 self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
                 self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
             else:
@@ -174,13 +178,13 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
                 self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
                 self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
 
-            self.previous_velocity = mean_j_vel
+            self.previous_velocity = j_vel
 
             self.plot_data.append(data)
             self.plot_filtered_data.append(filtered_data)
             self.plot_elbow_joint_angle.append(elbow_joint_angle_now)
+            self.plot_mean_elbow_joint_angle.append(mean_elbow_joint_angle)
             self.plot_j_vel.append(j_vel)
-            self.plot_mean_j_vel.append(mean_j_vel)
 
     def manual_position_control_data_callback(self, msg):
 
@@ -190,7 +194,7 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         # Sending data to Arduino
         self.send_data(self.arduino, msg.data, seperator= "\n", state= "/")
 
-        time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
+       # time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
 
         # Load feedback_msg with returned data 
         data = int(self.receive_data(self.arduino))
@@ -315,13 +319,13 @@ livel_filter = LiveLFilter(b, a)
 # Instance the serverTCP class
 serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, RUNNING_AVERAGE_INIT_VALUES, LOG_DEBUG)
 
-rclpy.spin(serial_communicator)
+#rclpy.spin(serial_communicator)
 
-# iter = 0
-# while iter < 300:
-#     # Begin looping the node
-#     rclpy.spin_once(serial_communicator)
-#     iter += 1
+iter = 0
+while iter < 600:
+    # Begin looping the node
+    rclpy.spin_once(serial_communicator)
+    iter += 1
 
 # plt.plot(serial_communicator.plot_data)
 # plt.ylim((0,1023))
@@ -340,10 +344,10 @@ rclpy.spin(serial_communicator)
 # plt.ylabel('Computed joint velocity')
 # plt.show()
 
-
-# plt.plot(serial_communicator.plot_mean_j_vel)
-# plt.ylabel('Computed runnning average joint velocity')
-# plt.show()
+plt.plot(range(599), serial_communicator.plot_j_vel, range(599), serial_communicator.plot_mean_elbow_joint_angle)
+plt.ylabel('Computed runnning average joint velocity')
+plt.legend()
+plt.show()
 
 # datas = [serial_communicator.plot_data, serial_communicator.plot_elbow_joint_angle, serial_communicator.plot_j_vel, serial_communicator.plot_mean_j_vel]
 

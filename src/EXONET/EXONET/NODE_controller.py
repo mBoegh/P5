@@ -48,7 +48,7 @@ class Controller(Node):
         self.LOG_DEBUG = log_debug
 
         # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(0.005, 0, 0, setpoint=variables.t_vel) # setpoint=1
+        self.pi = PID(0.5, 0, 0, setpoint=variables.t_vel) # setpoint=1
         self.pi.output_limits = (-100, 100)
         self.prev_duty_cycle = 0
 
@@ -114,7 +114,11 @@ class Controller(Node):
         # Initialise timer_counter as zero. This is iterated on each node spin
         self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
         self.timer_counter = 0
-    
+
+
+    def map_range(self, x, in_min, in_max, out_min, out_max):
+        return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
+
 
     def eeg_toggle_topic_callback(self, msg):
         
@@ -149,13 +153,13 @@ class Controller(Node):
             
                 mental_command = data_string[:seperator_index]
                 
-                command_power = data_string[seperator_index:]
+                command_power = data_string[seperator_index+1:]
 
-            if command_power == "Lift":
-                variables.t_vel = command_power
+            if mental_command == "Lift":
+                variables.t_vel = self.map_range(command_power, 0, 100, 0, 40)
             
-            elif command_power == "Drop":
-                variables.t_vel = -command_power
+            elif mental_command == "Drop":
+                variables.t_vel = self.map_range(-command_power, -100, 0, -40, 0)
 
             else:
                 self.get_logger().warning(f"Unexpected mental command in recieved EEG data.")
@@ -299,7 +303,7 @@ class Controller(Node):
 
             # The controller
             regulator = self.pi(variables.j_vel)
-            duty_cycle = regulator + self.prev_duty_cycle # + compensation_duty_cycle
+            duty_cycle = regulator # + self.prev_duty_cycle # + compensation_duty_cycle
             
             if duty_cycle > 100:
                 duty_cycle = 100
@@ -328,6 +332,9 @@ class Controller(Node):
             self.get_logger().debug(f"Duty cycle rounded: {duty_cycle}")
 
             self.msg.data = duty_cycle
+
+            if self.pi.setpoint == 0:
+                self.msg.data = 0
 
             self.get_logger().debug(f"Duty cycle message data: {self.msg.data}")
 

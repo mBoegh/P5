@@ -242,6 +242,7 @@ class serial2arduino:
 
         # Read the data from the Arduino
         received_data = arduino.readline()
+        arduino.flushInput()
         
         if self.DEBUG:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'received_data': {received_data}")
