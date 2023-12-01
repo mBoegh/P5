@@ -303,7 +303,8 @@ class Controller(Node):
                 f"\n- Torque Motor: {torque_motor}"
             )
 
-            compensation_duty_cycle = 10.52 * torque_motor + 7.173  # function for converting torque to volt
+           # compensation_duty_cycle = 10.52 * torque_motor + 7.173  # function for converting torque to volt
+            compensation_duty_cycle = 3.301 *torque_motor + 10.24
 
             # Log duty cycle calculations
             self.get_logger().debug(
