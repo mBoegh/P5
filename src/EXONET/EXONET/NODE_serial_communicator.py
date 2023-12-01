@@ -36,7 +36,6 @@ class Serial_Communicator(Node, serial2arduino):
         self.STOPBITS = stopbits
         self.DELAY_BETWEEN_SENDING_AND_RECEIVING = delay_between_sending_and_receiving
         self.RUNNING_AVERAGE_BUFFER_SIZE = running_average_buffer_size
-        self.RUNNING_AVERAGE_INIT_VALUES = running_average_init_values
         self.LOG_DEBUG = log_debug
 
         # Flag for controlling what computations are done with the feedback signal.
