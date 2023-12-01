@@ -22,7 +22,7 @@ class Variables():
         self.j_vel = 0 # Joint velocity
         self.elbow_joint_angle = 90 # Joint angle 
         
-        # Constants for the controller (need updates)
+        # Constants for the gravity compensation (need updates)
         self.g_acceleration = 9.82 # Gravitational acceleration
         self.exo_weight = 1 #kg
         self.av_arm_weight = 1 # kg
@@ -32,6 +32,14 @@ class Variables():
         self.l2_lenght = 0.225 # meters
         self.lm2_length = 0.10 # meters 
         self.spool_radius  = 0.025 # meters 
+
+        # Constants for the spring compensation
+        self.relaxed_spring_length = 0.11 # m
+        self.spring_constant = 60 # N/m
+        self.spring_arm_length = 0.7 # m
+        self.spring_arm_bend_angle = 20 # deg
+        self.upper_arm_construction_length = 0.185 # m
+        
 
 class Controller(Node):
     """
@@ -262,12 +270,42 @@ class Controller(Node):
             - Joint velocity: {variables.j_vel}
             - Elbow joint angle: {variables.elbow_joint_angle}""")
 
+
+            # Dynamic calculations for spring compensation
+            spring_arm_angle = 180 - variables.elbow_joint_angle + variables.spring_arm_bend_angle # deg
+
+            tense_spring_length = np.sqrt(variables.spring_arm_length**2 + variables.upper_arm_construction_length**2 - 2 * variables.spring_arm_length*variables.upper_arm_construction_length * np.cos(np.deg2rad(spring_arm_angle))) # m
+
+            spring_angle = np.rad2deg(np.arccos((tense_spring_length**2 + variables.upper_arm_construction_length**2 + variables.spring_arm_length**2) / (2 * tense_spring_length * variables.spring_arm_length))) # deg
+            
+            spring_force_vector = (tense_spring_length - variables.relaxed_spring_length) * variables.spring_constant # N
+            
+            spring_tangential_force_component = np.sin(np.deg2rad(spring_force_vector)) * spring_force_vector # N
+            
+            spring_compensation_torque = spring_tangential_force_component * variables.spring_arm_length # Nm
+
+            spring_compensation_duty_cycle = 3.301 * spring_compensation_torque + 10.24 # PWM Duty cycle signal
+
+            self.get_logger().debug(
+                f"Spring Compensation Calculations:"
+                f"\n- spring_arm_angle: {spring_arm_angle}"
+                f"\n- tense_spring_length: {tense_spring_length}"
+                f"\n- spring_angle: {spring_angle}"
+                f"\n- spring_force_vector: {spring_force_vector}"
+                f"\n- spring_tangential_force_component: {spring_tangential_force_component}"
+                f"\n- spring_compensation_torque: {spring_compensation_torque}"
+                f"\n- spring_gravity_compensation_duty_cycle: {spring_compensation_duty_cycle}"
+            )
+
+
+
+
             # Dynamic calculations for gravity compensation
             fg2 = (variables.av_arm_weight + variables.exo_weight) * variables.g_acceleration
             fgp = variables.av_payload_weight * variables.g_acceleration
 
-            f2 = np.cos(variables.elbow_joint_angle - variables.shoulder_joint_angle) * (variables.l2_lenght / 2) * fg2
-            fp = np.cos(variables.elbow_joint_angle - variables.shoulder_joint_angle) * variables.l2_lenght * fgp
+            f2 = np.cos(np.deg2rad(variables.elbow_joint_angle - variables.shoulder_joint_angle)) * (variables.l2_lenght / 2) * fg2
+            fp = np.cos(np.deg2rad(variables.elbow_joint_angle - variables.shoulder_joint_angle)) * variables.l2_lenght * fgp
 
             torque_joint = f2 * (variables.l2_lenght / 2) + fp * variables.l2_lenght
 
@@ -283,7 +321,7 @@ class Controller(Node):
 
             # Force cable components 1 and 2
             fc1 = torque_joint / variables.lm2_length
-            fc2 = np.tan((np.pi / 2) - variables.cable_angle) * fc1
+            fc2 = np.tan(np.deg2rad((np.pi / 2) - variables.cable_angle)) * fc1
 
             # Log force cable calculations
             self.get_logger().debug(
@@ -303,13 +341,13 @@ class Controller(Node):
                 f"\n- Torque Motor: {torque_motor}"
             )
 
-           # compensation_duty_cycle = 10.52 * torque_motor + 7.173  # function for converting torque to volt
-            compensation_duty_cycle = 3.301 *torque_motor + 10.24
+           # gravity_compensation_duty_cycle = 10.52 * torque_motor + 7.173  # function for converting torque to volt
+            gravity_compensation_duty_cycle = 3.301 *torque_motor + 10.24
 
             # Log duty cycle calculations
             self.get_logger().debug(
                 f"Duty Cycle Calculations:"
-                f"\n- Compensation Duty Cycle: {compensation_duty_cycle}"
+                f"\n- Compensation Duty Cycle: {gravity_compensation_duty_cycle}"
             )
 
             #gravity_acc_compensation = fc * (av_arm_weight+av_payload_weight+exo_weight)
@@ -321,7 +359,7 @@ class Controller(Node):
 
             # The controller
             regulator = self.pi(variables.j_vel)
-            duty_cycle = regulator + compensation_duty_cycle # + self.prev_duty_cycle # 
+            duty_cycle = regulator + gravity_compensation_duty_cycle + spring_compensation_duty_cycle
             
             if duty_cycle > 100:
                 duty_cycle = 100
