@@ -157,9 +157,14 @@ class Controller(Node):
 
             if mental_command == "Lift":
                 variables.t_vel = self.map_range(command_power, 0, 100, 0, 40)
+
+                controller.pi.setpoint = variables.t_vel
+
             
             elif mental_command == "Drop":
                 variables.t_vel = self.map_range(-command_power, -100, 0, -40, 0)
+
+                controller.pi.setpoint = variables.t_vel
 
             else:
                 self.get_logger().warning(f"Unexpected mental command in recieved EEG data.")

@@ -196,6 +196,12 @@ class serial2arduino:
                 time.sleep(2)
 
                 if connection:
+                    
+                    connection.reset_input_buffer()
+                    connection.reset_output_buffer()
+
+                    print("DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'establish_connection'; SYSTEM MESSAGE: Reset buffers.")
+
                     return connection
             
             # Except all errors
