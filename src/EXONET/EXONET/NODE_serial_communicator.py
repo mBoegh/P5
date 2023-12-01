@@ -317,7 +317,7 @@ b, a = scipy.signal.iirfilter(4, Wn=49, fs=100, btype="low", ftype="butter")
 livel_filter = LiveLFilter(b, a)
 
 # Instance the serverTCP class
-serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, RUNNING_AVERAGE_INIT_VALUES, LOG_DEBUG)
+serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, LOG_DEBUG)
 
 #rclpy.spin(serial_communicator)
 
