@@ -26,7 +26,7 @@ class Serial_Communicator(Node, serial2arduino):
      - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
     """
 
-    def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, delay_between_sending_and_receiving, running_average_buffer_size, running_average_init_values, log_debug):
+    def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, delay_between_sending_and_receiving, running_average_buffer_size, log_debug):
 
         # Initialising variables
         self.SERIAL_PORT = serial_port
