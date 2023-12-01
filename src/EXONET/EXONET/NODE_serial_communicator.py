@@ -115,7 +115,7 @@ class Serial_Communicator(Node, serial2arduino):
 
         duty_cycle = msg.data
 
-        serial_message = duty_cycle + 11000
+        serial_message = f"0{duty_cycle + 1000}"
 
         # Sending data to Arduino
         self.send_data(self.arduino, serial_message, seperator="\n")
@@ -345,6 +345,7 @@ while iter < 600:
 
 plt.plot(range(599), serial_communicator.plot_j_vel, range(599), serial_communicator.plot_mean_elbow_joint_angle)
 plt.ylabel('Computed runnning average joint velocity')
+plt.grid(color='k', linestyle='-', linewidth=1)
 plt.legend()
 plt.show()
 

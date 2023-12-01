@@ -48,7 +48,7 @@ class Controller(Node):
         self.LOG_DEBUG = log_debug
 
         # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(0.5, 0, 0, setpoint=variables.t_vel) # setpoint=1
+        self.pi = PID(0.5, 0.5, 0, setpoint=variables.t_vel) # setpoint=1
         self.pi.output_limits = (-100, 100)
         self.prev_duty_cycle = 0
 
@@ -57,6 +57,8 @@ class Controller(Node):
         self.called_manual_control_data_topic_callback = False
         self.called_eeg_data_topic_callback = False
         self.called_feedback_topic_callback = False
+
+        self.pid_state = True
 
         self.msg = Int16()
 
@@ -206,6 +208,10 @@ class Controller(Node):
         def edge_guard():
             variables.t_vel = 0
 
+            # self.pid_state == False
+            # self.pi.auto_mode = False
+            # self.get_logger().debug(f"PI controller off")
+
             self.get_logger().debug(f"Physical joint limits exceed. Target velocity: {variables.t_vel}")
 
             self.pi.setpoint = variables.t_vel
@@ -231,8 +237,14 @@ class Controller(Node):
         if variables.elbow_joint_angle >= 120 and variables.t_vel > 0:
             edge_guard()
 
-        if variables.elbow_joint_angle <= 50 and variables.t_vel < 0: 
+        elif variables.elbow_joint_angle <= 50 and variables.t_vel < 0: 
             edge_guard()
+        
+        # elif self.pid_state == False:
+        #     self.pid_state == True
+        #     self.pi.set_auto_mode(True, last_output=0.0)
+        #     self.get_logger().debug(f"PI controller restarted")
+            
 
 
     def timer_callback(self):
@@ -308,7 +320,7 @@ class Controller(Node):
 
             # The controller
             regulator = self.pi(variables.j_vel)
-            duty_cycle = regulator # + self.prev_duty_cycle # + compensation_duty_cycle
+            duty_cycle = regulator + compensation_duty_cycle # + self.prev_duty_cycle # 
             
             if duty_cycle > 100:
                 duty_cycle = 100
