@@ -145,7 +145,7 @@ class Serial_Communicator(Node, serial2arduino):
             elbow_joint_angle_now = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
         
             # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
-            self.running_average(elbow_joint_angle_now)
+            self.running_average.add_data_point(elbow_joint_angle_now)
             mean_elbow_joint_angle = self.running_average.get_average()
         
             time_diff = time_now - self.time0
@@ -301,7 +301,6 @@ PARITY = handler.get_subkey_value("serial_communicator", "PARITY")
 STOPBITS = handler.get_subkey_value("serial_communicator", "STOPBITS")
 DELAY_BETWEEN_SENDING_AND_RECEIVING = handler.get_subkey_value("serial_communicator", "DELAY_BETWEEN_SENDING_AND_RECEIVING")
 RUNNING_AVERAGE_BUFFER_SIZE = handler.get_subkey_value("serial_communicator", "RUNNING_AVERAGE_BUFFER_SIZE")
-RUNNING_AVERAGE_INIT_VALUES = handler.get_subkey_value("serial_communicator", "RUNNING_AVERAGE_INIT_VALUES")
 LOG_DEBUG = handler.get_subkey_value("serial_communicator", "LOG_DEBUG")
 LOG_LEVEL = handler.get_subkey_value("serial_communicator", "LOG_LEVEL")
 
