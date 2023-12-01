@@ -363,7 +363,7 @@ class ChildWindow_VelocityControl(CTkToplevel):
 
         # Bind the Enter key to the submit method
         self.entry.bind("<Return>", lambda event: self.submit())
-        self.manual_stop_button.bind("<Space>", lambda event: self.manual_stop_event())
+        # self.manual_stop_button.bind("<Space>", lambda event: self.manual_stop_event())
 
 
     def exit_button_event(self):
