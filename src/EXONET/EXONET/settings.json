@@ -41,7 +41,6 @@
         "STOPBITS": "serial.STOPBITS_ONE",
         "DELAY_BETWEEN_SENDING_AND_RECEIVING": 0,
         "RUNNING_AVERAGE_BUFFER_SIZE": 20,
-        "RUNNING_AVERAGE_INIT_VALUES": 0,
         "LOG_DEBUG": true,
         "LOG_LEVEL": "rclpy.logging.LoggingSeverity.INFO"
 

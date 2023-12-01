@@ -16,7 +16,7 @@ import scipy.signal
 
 import time
 
-class Serial_Communicator(Node, serial2arduino, RunningAverage):
+class Serial_Communicator(Node, serial2arduino):
     """
     This is the Serial_Communicator node of the EXONET ROS2 network.
     Takes argument(s):
@@ -62,7 +62,6 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'serial_communicator')
         serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
-        RunningAverage.__init__(self, self.RUNNING_AVERAGE_BUFFER_SIZE, self.RUNNING_AVERAGE_INIT_VALUES)
 
         self.get_logger().debug("Hello world!")
         self.get_logger().info("Hello world!")
@@ -135,6 +134,8 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
             self.time0 = time.time()
             self.elbow_joint_angle_zero = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
 
+            self.running_average = RunningAverage(RUNNING_AVERAGE_BUFFER_SIZE, self.elbow_joint_angle_zero)
+
             self.first_feedback = False
 
         else:
@@ -144,8 +145,8 @@ class Serial_Communicator(Node, serial2arduino, RunningAverage):
             elbow_joint_angle_now = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
         
             # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
-            self.add_data_point(elbow_joint_angle_now)
-            mean_elbow_joint_angle = self.get_average()
+            self.running_average(elbow_joint_angle_now)
+            mean_elbow_joint_angle = self.running_average.get_average()
         
             time_diff = time_now - self.time0
 
