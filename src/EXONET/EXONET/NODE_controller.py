@@ -1,8 +1,3 @@
-"""
-TO DO:
- - Create controll system
-"""
-
 from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
