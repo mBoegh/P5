@@ -159,7 +159,7 @@ class serial2arduino:
 
     def __init__(self, serial_port, baud_rate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, Debug=False):
 
-         # init variables
+        # init variables
         self.SERIAL_PORT = serial_port
         self.BAUD_RATE = baud_rate
         self.BYTESIZE = eval(bytesize)
@@ -168,9 +168,10 @@ class serial2arduino:
         self.DEBUG = Debug
 
         if self.DEBUG:
-            # List available ports
+            # Find all possible open com ports
             ports = serial.tools.list_ports.comports()
 
+            # Lists all ports gotten from above
             for port, desc, hwid in sorted(ports):
                 print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function '__init__'; SYSTEM MESSAGE: List of avaible ports:\n{port}: {desc} [{hwid}]")
 
@@ -182,9 +183,7 @@ class serial2arduino:
         
         # Attempt establishing a connection with the arduino until success.
         while True:
-
             try:
-
                 # Open a serial connection with the Arduino
                 connection = serial.Serial(self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, timeout=2)
 
@@ -195,8 +194,9 @@ class serial2arduino:
                 # Wait for the Arduino to initialize
                 time.sleep(2)
 
-                if connection:
-                    
+                # If a connection has been made, the reset the input and output buffers
+                # and print to terminal that the buffers has been reset
+                if connection:    
                     connection.reset_input_buffer()
                     connection.reset_output_buffer()
 
@@ -224,15 +224,16 @@ class serial2arduino:
     
         data = f"{state}{data}{seperator}"
 
-        # Encode data as encoded_data
+        # Encodes the data string to UTF-8. The encoding can be changed by specifying which type should be used
         encoded_data = data.encode()
 
         # If the DEBUG flag is raised, we print data to terminal
         if self.DEBUG:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'send_data'; VARIABLE 'encoded_data': {encoded_data}")
 
+        # Attemps to send the "encoded_data" to the arduino
+        # If it fails, it will print the error to the terminal
         try:
-            # Send encoded_data Arduino
             connection.write(encoded_data)
         except Exception as e:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'send_data'; Failed to write encoded data with error: {e}")
@@ -246,18 +247,22 @@ class serial2arduino:
         if self.DEBUG:
             print("DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; SYSTEM MESSAGE: Receiving data from Arduino.")
 
-        # Read the data from the Arduino
+        # Read the data from the Arduino, and flush the input afterwards
+        # such that we are ready for the next data package
         received_data = connection.readline()
         connection.flushInput()
         
         if self.DEBUG:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'received_data': {received_data}")
         
+        # Decode the data using UTF-8, just as when we encoded the data
         decoded_data = received_data.decode()
         
         if self.DEBUG:
             print(f"DEBUG @ script 'EXOLIB.py' class 'serial2arduino' function 'receive_data'; VARIABLE: 'decoded_data': {decoded_data}")
         
+        # Strips the data, such that each section of the data becomes
+        # independent of each other
         stripped_data = decoded_data.strip()
 
         if self.DEBUG:
@@ -321,6 +326,7 @@ class LiveLFilter:
             b (array-like): numerator coefficients obtained from scipy.
             a (array-like): denominator coefficients obtained from scipy.
         """
+        # Implementation of a low pass filter, deserves further documentation - TO_DO!
         self.b = b
         self.a = a
         self._xs = deque([0] * len(b), maxlen=len(b))
@@ -336,6 +342,7 @@ class LiveLFilter:
 
         return self._process(x)
 
+    # This deserves further documentation as well - TO_DO!
     def _process(self, x):
         """
         Filter incoming data with standard difference equations.
