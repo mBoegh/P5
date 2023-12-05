@@ -145,7 +145,6 @@ class Gui(Node):
         
         # The duty cycle is divided by 100, since the CTkprogressbar has to be between 0 and 1
         self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100)
-
         self.app.exo_frame.PWMDataLabel.configure(text=msg.data) # Update the content of the PWMDataLabel
 
         # The below functions are what actually does the updating of the window
@@ -170,12 +169,7 @@ class Gui(Node):
         
         # The duty cycle is divided by 100, since the CTkprogressbar has to be between 0 and 1
         self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100) 
-
         self.app.exo_frame.PWMDataLabel.configure(text=msg.data) # Update the content of the PWMDataLabel
-
-       # self.app.exo_frame.PWM_data = msg.data[0]
-       # self.app.exo_frame.torque_data = msg.data[1]
-       # self.app.exo_frame.RPM_data = msg.data[2]
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -289,10 +283,8 @@ class ParentWindow_MainMenu(CTk):
         self.manual_frame.grid(row= 1, column= 0, pady= 20, padx= 60)
         self.EEG_frame.grid(row= 0, column= 1, pady=20, padx= 60)
 
-        # The only way I could get the Debug window button to work
-        # was by placing it here. Place it anywhere else,
-        # and it will kick your brain by asking for more args than needed
-        # for some reason. So leave it here
+        # Regarding the lines below, if these are placed anywhere else, then they will ask
+        # for more arguments than they should take, which is 0, so leave them here
         
         self.position_control_button = CTkButton(master=self.manual_frame, text="Position Control", command=self.open_position_control_menu)
         self.position_control_button.grid(row= 1, column= 1, padx= 10, pady= 5)
