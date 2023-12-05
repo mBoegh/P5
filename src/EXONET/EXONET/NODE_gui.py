@@ -143,9 +143,10 @@ class Gui(Node):
 
         data.duty_cycle = msg.data
         
-        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100) # Set the progress bar to be filled a certain amount, needs to be between 0-1
+        # The duty cycle is divided by 100, since the CTkprogressbar has to be between 0 and 1
+        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100)
 
-        self.app.exo_frame.PWMDataLabel.configure(text=msg.data) # Update the content of the CurrentAngle Label
+        self.app.exo_frame.PWMDataLabel.configure(text=msg.data) # Update the content of the PWMDataLabel
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -167,9 +168,10 @@ class Gui(Node):
 
         data.duty_cycle = msg.data
         
-        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100)
+        # The duty cycle is divided by 100, since the CTkprogressbar has to be between 0 and 1
+        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100) 
 
-        self.app.exo_frame.PWMLabel.configure(text=msg.data) # Update the content of the CurrentAngle Label
+        self.app.exo_frame.PWMDataLabel.configure(text=msg.data) # Update the content of the PWMDataLabel
 
        # self.app.exo_frame.PWM_data = msg.data[0]
        # self.app.exo_frame.torque_data = msg.data[1]
