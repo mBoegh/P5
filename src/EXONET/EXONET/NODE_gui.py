@@ -503,8 +503,8 @@ class ChildWindow_PositionControl(CTkToplevel):
         data.current_angle += 1
         gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
 
+        # Update the message data, and publish to topic
         self.position_control_msg.data = data.current_angle
-
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
         
         self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
@@ -522,8 +522,8 @@ class ChildWindow_PositionControl(CTkToplevel):
         data.current_angle -= 1
         gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
         
+        # Update the message data, and publish to topic
         self.position_control_msg.data = data.current_angle
-
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
 
         self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
@@ -567,11 +567,11 @@ class ChildWindow_PositionControl(CTkToplevel):
 
         self.position_control_msg.data = data.current_angle
         
-        try:
+        try: # Try to publish the data to the topic
             gui.manual_position_control_data_publisher.publish(self.position_control_msg)
             self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
 
-        except Exception as e:
+        except Exception as e: # If failure, print the error to the terminal
             self.logger.warning(f"Failed to publish data: '{self.position_control_msg.data}' With error: {e}")
 
         self.clear()
@@ -697,6 +697,7 @@ class Frame_VisualEegData(CTkFrame):
     def widgets(self, nb_points):
         # Define the graph, and configure the axes
         self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
+
         # format the x-axis to show the time
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
 
@@ -704,13 +705,13 @@ class Frame_VisualEegData(CTkFrame):
         date_time_obj = datetime.now() + timedelta(seconds=-nb_points)
         self.x_data = [date_time_obj + timedelta(seconds=i) for i in range(nb_points)]
         self.y_data = [0 for i in range(nb_points)]
+
         #create the first plot
         self.plot = self.ax.plot(self.x_data, self.y_data, label='EEG data')[0]
         self.ax.set_ylim(-100,100)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
 
-        FrameTopLabel = CTkLabel(self, text="EEG Data")
-        FrameTopLabel.pack(pady=10, padx=10, side='top')
+        FrameTopLabel = CTkLabel(self, text="EEG Data").pack(pady=10, padx=10, side='top')
         self.canvas = FigureCanvasTkAgg(self.figure, self)
         self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
 
