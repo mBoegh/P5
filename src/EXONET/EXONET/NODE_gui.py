@@ -26,7 +26,7 @@ class variables:
     """
 
     def __init__(self):
-        self.PWM_data = 75
+        self.PWM_data = 0
         self.torque_data = 0
         self.RPM_data = 0
         self.duty_cycle = 0
@@ -123,6 +123,8 @@ class Gui(Node):
         self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
         self.timer_counter = 0
 
+        self.app.exo_frame.PWMBar.set(0)
+
         self.app.EEG_frame.animate()
 
         # The below functions are what actually does the updating of the window
@@ -145,7 +147,7 @@ class Gui(Node):
         
         self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
-        self.app.exo_frame.PWMLabel.configure(text=msg.data) # Update the content of the CurrentAngle Label
+        self.app.exo_frame.PWMDataLabel.configure(text=data.duty_cycle) # Update the content of the CurrentAngle Label
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -169,7 +171,7 @@ class Gui(Node):
         
         self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100)
 
-        self.app.exo_frame.PWMLabel.configure(text=msg.data) # Update the content of the CurrentAngle Label
+        self.app.exo_frame.PWMDataLabel.configure(text=data.duty_cycle) # Update the content of the CurrentAngle Label
 
        # self.app.exo_frame.PWM_data = msg.data[0]
        # self.app.exo_frame.torque_data = msg.data[1]
@@ -576,7 +578,6 @@ class ChildWindow_PositionControl(CTkToplevel):
 
         gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
         
-
         self.position_control_msg.data = data.current_angle
         
         try:
@@ -717,11 +718,11 @@ class Frame_VisualEegData(CTkFrame):
         self.x_data = [date_time_obj + timedelta(seconds=i) for i in range(nb_points)]
         self.y_data = [0 for i in range(nb_points)]
         #create the first plot
-        self.plot = self.ax.plot(self.x_data, self.y_data, label='EEG data')[0]
+        self.plot = self.ax.plot(self.x_data, self.y_data, label='PWM')[0]
         self.ax.set_ylim(-100,100)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
 
-        FrameTopLabel = CTkLabel(self, text="EEG Data")
+        FrameTopLabel = CTkLabel(self, text="PWM")
         FrameTopLabel.pack(pady=10, padx=10, side='top')
         self.canvas = FigureCanvasTkAgg(self.figure, self)
         self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
@@ -737,6 +738,7 @@ class Frame_VisualEegData(CTkFrame):
         self.plot.set_xdata(self.x_data)
         self.plot.set_ydata(self.y_data)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+        self.ax.axhline(0) ####################################################
         self.canvas.draw_idle() #redraw plot
 
 
