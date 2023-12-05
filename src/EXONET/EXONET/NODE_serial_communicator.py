@@ -58,6 +58,8 @@ class Serial_Communicator(Node, serial2arduino):
         # Initialize feedback message objects of datatype std_msgs.msg.Float32 imported as Float32
         self.feedback_joint_velocity_msg = Float32()
         self.feedback_joint_angle_msg = Float32()
+        self.Feedback_raw_joint_data_msg = Float32()
+        
 
         # Initialising the classes, from which this class is inheriting.
         Node.__init__(self, 'serial_communicator')
@@ -101,6 +103,10 @@ class Serial_Communicator(Node, serial2arduino):
         # The '10' argument is some Quality of Service parameter (QoS).
         self.feedback_joint_angle_publisher = self.create_publisher(Float32, 'Feedback_joint_angle', 10)
         self.feedback_joint_angle_publisher  # prevent unused variable warning
+        
+        
+        self.Feedback_raw_joint_data = self.create_publisher(Int16, 'Feedback_raw_joint_data', 10)
+        
 
         # Establish a connection with the arduino
         self.arduino = self.establish_connection()
@@ -125,6 +131,10 @@ class Serial_Communicator(Node, serial2arduino):
 
         # Load feedback_msg with returned data 
         data = int(self.receive_data(self.arduino))
+
+
+        self.Feedback_raw_joint_data_msg.data = data
+        self.Feedback_raw_joint_data.publish(self.Feedback_raw_joint_data_msg)# send raw potentiometer data to topic
 
         self.get_logger().debug(f"Received serial data: '{data}'")
 
