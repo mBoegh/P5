@@ -1,8 +1,3 @@
-"""
-TO DO:
- - Test live with Emotiv Epoc X
-"""
-
 from EXONET.EXOLIB import JSON_Handler, serial2arduino, RunningAverage, LiveLFilter
 
 import rclpy
