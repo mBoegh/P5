@@ -56,7 +56,7 @@ class Controller(Node):
         self.LOG_DEBUG = log_debug
 
         # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(0.5, 0.5, 0, setpoint=variables.t_vel) # setpoint=1
+        self.pi = PID(1, 1, 0, setpoint=variables.t_vel) # setpoint=1
         self.pi.output_limits = (-100, 100)
         self.prev_duty_cycle = 0
 
@@ -359,7 +359,7 @@ class Controller(Node):
 
             # The controller
             regulator = self.pi(variables.j_vel)
-            duty_cycle = regulator + gravity_compensation_duty_cycle + spring_compensation_duty_cycle
+            duty_cycle = regulator # + gravity_compensation_duty_cycle + spring_compensation_duty_cycle
             
             if duty_cycle > 100:
                 duty_cycle = 100

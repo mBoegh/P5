@@ -29,7 +29,7 @@ class variables:
         self.PWM_data = 75
         self.torque_data = 0
         self.RPM_data = 0
-        self.eeg_data = 0
+        self.duty_cycle = 0
         self.current_angle = 90
         self.length = 4
 
@@ -141,7 +141,11 @@ class Gui(Node):
         # Log info
         self.get_logger().debug(f"Received data: '{msg.data}'")
 
-        self.app.exo_frame.PWMBar.set(msg[1]) # Set the progress bar to be filled a certain amount, needs to be between 0-1
+        data.duty_cycle = msg.data
+        
+        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100) # Set the progress bar to be filled a certain amount, needs to be between 0-1
+
+        self.app.exo_frame.PWMLabel.configure(text=msg.data) # Update the content of the CurrentAngle Label
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -160,6 +164,12 @@ class Gui(Node):
 
         # Log info
         self.get_logger().debug(f"Recieved data: '{msg.data}'")
+
+        data.duty_cycle = msg.data
+        
+        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100)
+
+        self.app.exo_frame.PWMLabel.configure(text=msg.data) # Update the content of the CurrentAngle Label
 
        # self.app.exo_frame.PWM_data = msg.data[0]
        # self.app.exo_frame.torque_data = msg.data[1]
@@ -701,7 +711,7 @@ class Frame_VisualEegData(CTkFrame):
         self.y_data = [0 for i in range(nb_points)]
         #create the first plot
         self.plot = self.ax.plot(self.x_data, self.y_data, label='EEG data')[0]
-        self.ax.set_ylim(0,100)
+        self.ax.set_ylim(-100,100)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
 
         FrameTopLabel = CTkLabel(self, text="EEG Data")
@@ -712,7 +722,7 @@ class Frame_VisualEegData(CTkFrame):
     def animate(self):
         #append new data point to x and y data
         self.x_data.append(datetime.now())
-        self.y_data.append(int(data.eeg_data))
+        self.y_data.append(int(data.duty_cycle))
         #remove oldest datapoint
         self.x_data = self.x_data[1:]
         self.y_data = self.y_data[1:]
@@ -808,8 +818,6 @@ gui = Gui(TIMER_PERIOD, SLIDER_ZERO, DEADZONE_LOW, DEADZONE_HIGH, LOG_DEBUG)
 while True:
     # Begin looping the node
     rclpy.spin_once(gui, timeout_sec=0.01)
-
-    gui.app.exo_frame.PWMBar.set(data.PWM_data) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
     if gui.app.position_control_window is not None:
         gui.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
