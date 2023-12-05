@@ -374,9 +374,8 @@ class ChildWindow_VelocityControl(CTkToplevel):
             state="normal",
         ).grid(row=4, column=1, padx=10, pady=5)
 
-
-        submit_button = CTkButton(self, text="Submit", command= self.submit)
-        submit_button.grid(row=5, column=1, padx=10, pady=5)
+        # Create the button and place it in the frame/window
+        submit_button = CTkButton(self, text="Submit", command= self.submit).grid(row=5, column=1, padx=10, pady=5)
 
         # Bind the Enter key to the submit method
         self.entry.bind("<Return>", lambda event: self.submit())
@@ -393,16 +392,11 @@ class ChildWindow_VelocityControl(CTkToplevel):
     def slider_event(self, value):
         """
         Function called whenever the slider is manipulated.
-        Handles deadzone, and publishes slider value to topic
+        Publishes slider value to topic
         'Manual_velocity_control_data'.
         """
 
-        # Slider deadzone
-        #if value > gui.DEADZONE_LOW and value < gui.DEADZONE_HIGH:
-        #    value = gui.SLIDER_ZERO
-
         self.velocity_control_msg.data = int(value)
-
         gui.manual_veloity_control_data_publisher.publish(self.velocity_control_msg)
 
         self.logger.debug(f"Target velocity: {value}")
@@ -433,19 +427,16 @@ class ChildWindow_VelocityControl(CTkToplevel):
         Can be triggered with 'RETURN' button.
         """
 
-        value = int(self.entry.get())
+        value = int(self.entry.get()) # Saves value from entry field
 
-        self.input_velocity_control_msg.data = value
+        self.input_velocity_control_msg.data = value # Saves the data in its respective position
         
-        try:
-            #gui.manual_input_velocity_control_data_publisher.publish(self.input_velocity_control_msg)
-            #self.logger.debug(f"Published data: '{self.input_velocity_control_msg.data}'")
-
+        try: # Attempts to publish the data to the topic
             self.velocity_control_msg.data = int(value)
 
             gui.manual_veloity_control_data_publisher.publish(self.velocity_control_msg)
 
-        except Exception as e:
+        except Exception as e: # If failure, then print the error to the terminal
             self.logger.warning(f"Failed to publish data: '{self.input_velocity_control_msg.data}' With error: {e}")
 
         self.clear()
@@ -479,21 +470,18 @@ class ChildWindow_PositionControl(CTkToplevel):
         self.exit_button = CTkButton(self, text="Exit Button", command= self.exit_button_event)
         self.exit_button.grid(row= 0, column= 0, padx= 10, pady= 5)
 
-    ##  label = CTkLabel(self, text="", font=("Helvetica", 24))
-    ##  label.grid(row=4, column=0, padx=10, pady=5)
-
+        # Create the input field, for position control, and place it in the frame/window
         self.entry = CTkEntry(self,
             placeholder_text="Angle (degrees)",
             height=50,
             width=200,
-            font=("Helvetica", 18),
+            font=("Helvetica", 18), # Font, font size
             corner_radius=50,
             text_color="black",
             placeholder_text_color="grey",
             fg_color=("system", "white"),  # outer, inner
             state="normal",
-        )
-        self.entry.grid(row=2, column=1, padx=10, pady=5)
+        ).grid(row=2, column=1, padx=10, pady=5)
 
         submit_button = CTkButton(self, text="Submit", command= self.submit)
         submit_button.grid(row=1, column=1, padx=10, pady=5)
