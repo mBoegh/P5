@@ -145,7 +145,7 @@ class Gui(Node):
         
         self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100) # Set the progress bar to be filled a certain amount, needs to be between 0-1
 
-        self.app.exo_frame.PWMLabel.configure(text=msg.data) # Update the content of the CurrentAngle Label
+        self.app.exo_frame.PWMDataLabel.configure(text=msg.data) # Update the content of the CurrentAngle Label
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
