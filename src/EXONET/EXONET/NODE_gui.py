@@ -347,15 +347,21 @@ class ChildWindow_VelocityControl(CTkToplevel):
         self.velocity_control_msg = Int16()
         self.input_velocity_control_msg = Int16()
 
+        # Create the exit button for this window, and place it in the frame/window
         self.exit_button = CTkButton(self, text="Exit Button", command=self.exit_button_event)
         self.exit_button.grid(row=1, column=0, padx=10, pady=5)
 
+        # Create the Stop button, and place it in the frame/window
         self.manual_stop_button = CTkButton(self, text="Stop", command=self.manual_stop_event)
         self.manual_stop_button.grid(row=2, column=0, padx=10, pady=5)
 
+        # Create the slider for velocity controls, and place it in the frame/window.
+        # Further the slider is in deg/s, such that the lower limit is -40 deg/s
+        # and upper is 40 deg/s
         self.slider = CTkSlider(self, from_=-40, to=40, command=self.slider_event, width=240, number_of_steps=80)
         self.slider.grid(row=2, column=1, padx=10, pady=5, columnspan=2)
 
+        # Create the input field, for velocity control, and place it in the frame/window
         self.entry = CTkEntry(self,
             placeholder_text="Deg/sec",
             height=50,
@@ -366,8 +372,8 @@ class ChildWindow_VelocityControl(CTkToplevel):
             placeholder_text_color="grey",
             fg_color=("system", "white"),  # outer, inner
             state="normal",
-        )
-        self.entry.grid(row=4, column=1, padx=10, pady=5)
+        ).grid(row=4, column=1, padx=10, pady=5)
+
 
         submit_button = CTkButton(self, text="Submit", command= self.submit)
         submit_button.grid(row=5, column=1, padx=10, pady=5)
