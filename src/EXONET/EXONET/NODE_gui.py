@@ -24,7 +24,7 @@ class variables:
     Class for initialising, setting and getting variables.
     When instanced in global space, then every other scope can access the variables.
     """
-    
+
     def __init__(self):
         self.PWM_data = 75
         self.torque_data = 0
@@ -259,13 +259,17 @@ class ParentWindow_MainMenu(CTk):
 
         self.logger = logger
 
+        # Settings for the created window
         self.geometry("1200x800")
         self.parent = parent
         self.title("P5 GUI")
+
+        # Call the main function containing the widgets, and set any sub window to None
+        # Such that they are ready to be checked if open later on, the variable content changes
+        # if a window is open
         self.mainWidgets()
         self.velocity_control_window = None
         self.position_control_window = None
-        self.debug_menu_window = None
 
     def mainWidgets(self):
         """
@@ -273,10 +277,12 @@ class ParentWindow_MainMenu(CTk):
         Also makes and positiones the buttons which create child windows.
         """
 
+        # Initialize the frames which contain data in the main window
         self.exo_frame = Frame_InfoExo(self, self.logger)
         self.manual_frame = Frame_MainMenu(self, self.logger)
         self.EEG_frame = Frame_VisualEegData(self, nb_points=100, logger=self.logger)
 
+        # Place the frames in the main window
         self.exo_frame.grid(row= 0, column= 0, pady= 20, padx= 60)
         self.manual_frame.grid(row= 1, column= 0, pady= 20, padx= 60)
         self.EEG_frame.grid(row= 0, column= 1, pady=20, padx= 60)
@@ -285,8 +291,7 @@ class ParentWindow_MainMenu(CTk):
         # was by placing it here. Place it anywhere else,
         # and it will kick your brain by asking for more args than needed
         # for some reason. So leave it here
-
-
+        
         self.position_control_button = CTkButton(master=self.manual_frame, text="Position Control", command=self.open_position_control_menu)
         self.position_control_button.grid(row= 1, column= 1, padx= 10, pady= 5)
 
@@ -296,9 +301,10 @@ class ParentWindow_MainMenu(CTk):
 
     def open_velocity_control_menu(self):
         """
-        First chekcs if the menu exists (is open), 
-        and if not then it creates the window. 
-        Otherwise it lifts the window and sets the focus to it.
+        First check if any other sub window exists and destroys them if they do,
+        then check if the desired window exists, if not create it
+        else it gets put into focus and lifts, such that it hopefully is on top
+        all other windows
         """
 
         if gui.app.position_control_window:
@@ -313,9 +319,10 @@ class ParentWindow_MainMenu(CTk):
 
     def open_position_control_menu(self):
         """
-        First chekcs if the menu exists (is open), 
-        and if not then it creates the window. 
-        Otherwise it lifts the window and sets the focus to it.
+        First check if any other sub window exists and destroys them if they do,
+        then check if the desired window exists, if not create it
+        else it gets put into focus and lifts, such that it hopefully is on top
+        all other windows
         """
         
         if gui.app.velocity_control_window: 
@@ -817,7 +824,7 @@ gui = Gui(TIMER_PERIOD, SLIDER_ZERO, DEADZONE_LOW, DEADZONE_HIGH, LOG_DEBUG)
 
 while True:
     # Begin looping the node
-    rclpy.spin_once(gui, timeout_sec=0.01)
+    rclpy.spin_once(gui, timeout_sec=0.01) # We spin once as to not get stuck
 
     if gui.app.position_control_window is not None:
         gui.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization

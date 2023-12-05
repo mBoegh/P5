@@ -13,9 +13,7 @@ import numpy as np
 from simple_pid import PID
 
 class Variables():
-
     def __init__(self):
-
         self.t_vel = 0 # Target velocity
 
         # Variables that need to subscribe to the right stuff
@@ -136,12 +134,10 @@ class Controller(Node):
 
         if toggle == True:
             self.get_logger().debug(f"Toggled EEG True")
-
             self.toggle_EEG_parameter = True
         
         elif toggle == False:
             self.get_logger().debug(f"Toggled EEG False")
-
             self.toggle_EEG_parameter = False
         
         else:
@@ -167,13 +163,11 @@ class Controller(Node):
 
             if mental_command == "Lift":
                 variables.t_vel = self.map_range(command_power, 0, 100, 0, 40)
-
                 controller.pi.setpoint = variables.t_vel
 
             
             elif mental_command == "Drop":
                 variables.t_vel = self.map_range(-command_power, -100, 0, -40, 0)
-
                 controller.pi.setpoint = variables.t_vel
 
             else:
@@ -190,21 +184,18 @@ class Controller(Node):
 
         if self.toggle_EEG_parameter == False:
             variables.t_vel = msg.data # Target velocity
+            self.get_logger().debug(f"Updated target joint velocity: {variables.t_vel}")
 
             controller.pi.setpoint = variables.t_vel
-
-            self.get_logger().debug(f"Updated target joint velocity: {variables.t_vel}")
 
 
     def feedback_joint_velocity_topic_callback(self, msg):
         """
         Callback function called whenever a message is recieved on the subscription 'feedback_joint_velocity_subscription'
         """
-
         self.get_logger().debug(f"Recieved data '{msg.data}'")
 
         variables.j_vel = msg.data
-
         self.get_logger().debug(f"Updated current joint velocity with value: {variables.j_vel}")
 
 
@@ -212,8 +203,10 @@ class Controller(Node):
         """
         Callback function called whenever a message is recieved on the subscription 'feedback_joint_angle_subscription'
         """
-
         def edge_guard():
+            """
+            Stops the motor if a movement will exceed the angular limits of the exoskeleton
+            """
             variables.t_vel = 0
 
             # self.pid_state == False
@@ -221,30 +214,26 @@ class Controller(Node):
             # self.get_logger().debug(f"PI controller off")
 
             self.get_logger().debug(f"Physical joint limits exceed. Target velocity: {variables.t_vel}")
-
             self.pi.setpoint = variables.t_vel
             
             self.get_logger().debug(f"Updated controller setpoint: {self.pi.setpoint}")
 
             self.prev_duty_cycle = 0
-
             self.get_logger().debug(f"Reset previous dutycycle: {self.prev_duty_cycle}")
 
             self.msg.data = 0
-
             self.velocity_motor_signals_publisher.publish(self.msg)
-
             self.get_logger().debug(f"Published dutycycle: {self.msg.data}")
-
-        self.get_logger().debug(f"Recieved data '{msg.data}'")
 
         variables.elbow_joint_angle = msg.data
 
+        self.get_logger().debug(f"Recieved data '{msg.data}'")
         self.get_logger().debug(f"Updated current joint angle with value: {variables.elbow_joint_angle}")
 
+        # Limits the motion of the arm, by calling the edgeguard() function
+        # if the arm angle becomes greater or smaller than the constants below
         if variables.elbow_joint_angle >= 120 and variables.t_vel > 0:
             edge_guard()
-
         elif variables.elbow_joint_angle <= 50 and variables.t_vel < 0: 
             edge_guard()
         
@@ -274,9 +263,11 @@ class Controller(Node):
             # Dynamic calculations for spring compensation
             spring_arm_angle = 180 - variables.elbow_joint_angle + variables.spring_arm_bend_angle # deg
 
-            tense_spring_length = np.sqrt(variables.spring_arm_length**2 + variables.upper_arm_construction_length**2 - 2 * variables.spring_arm_length*variables.upper_arm_construction_length * np.cos(np.deg2rad(spring_arm_angle))) # m
+            tense_spring_length = np.sqrt(variables.spring_arm_length**2 + variables.upper_arm_construction_length**2 
+                                          - 2 * variables.spring_arm_length*variables.upper_arm_construction_length * np.cos(np.deg2rad(spring_arm_angle))) # m
 
-            spring_angle = np.rad2deg(np.arccos((tense_spring_length**2 + variables.upper_arm_construction_length**2 + variables.spring_arm_length**2) / (2 * tense_spring_length * variables.spring_arm_length))) # deg
+            spring_angle = np.rad2deg(np.arccos((tense_spring_length**2 + variables.upper_arm_construction_length**2 
+                                                 + variables.spring_arm_length**2) / (2 * tense_spring_length * variables.spring_arm_length))) # deg
             
             spring_force_vector = (tense_spring_length - variables.relaxed_spring_length) * variables.spring_constant # N
             
@@ -284,8 +275,10 @@ class Controller(Node):
             
             spring_compensation_torque = spring_tangential_force_component * variables.spring_arm_length # Nm
 
+            # Constants in below code found through testing the motor, and making a regression over the test data
             spring_compensation_duty_cycle = 3.301 * spring_compensation_torque + 10.24 # PWM Duty cycle signal
 
+            # Log the results from dynamic calculations for spring compensation
             self.get_logger().debug(
                 f"Spring Compensation Calculations:"
                 f"\n- spring_arm_angle: {spring_arm_angle}"
@@ -296,9 +289,6 @@ class Controller(Node):
                 f"\n- spring_compensation_torque: {spring_compensation_torque}"
                 f"\n- spring_gravity_compensation_duty_cycle: {spring_compensation_duty_cycle}"
             )
-
-
-
 
             # Dynamic calculations for gravity compensation
             fg2 = (variables.av_arm_weight + variables.exo_weight) * variables.g_acceleration
@@ -330,18 +320,18 @@ class Controller(Node):
                 f"\n- fc2: {fc2}"
             )
 
-            # Force cable
+            # Find the cable force and calculate the motor torque
             fc = np.sqrt(fc1**2 + fc2**2)
-
             torque_motor = fc * variables.spool_radius
 
-            # Log torque motor calculation
+            # Log the above calculated torque
             self.get_logger().debug(
                 f"Torque Motor Calculation:"
                 f"\n- Torque Motor: {torque_motor}"
             )
 
-           # gravity_compensation_duty_cycle = 10.52 * torque_motor + 7.173  # function for converting torque to volt
+            # Below code used to convert motor torque into volts, the numbers 3.301 and 10.24
+            # was found by testing the motor, and then by making a regression over the resulting data 
             gravity_compensation_duty_cycle = 3.301 *torque_motor + 10.24
 
             # Log duty cycle calculations
