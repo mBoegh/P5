@@ -183,13 +183,9 @@ class Gui(Node):
 
         data.duty_cycle = msg.data
         
-        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100)
-
-        self.app.exo_frame.PWMLabel.configure(text=msg.data) # Update the content of the CurrentAngle Label
-
-       # self.app.exo_frame.PWM_data = msg.data[0]
-       # self.app.exo_frame.torque_data = msg.data[1]
-       # self.app.exo_frame.RPM_data = msg.data[2]
+        # The duty cycle is divided by 100, since the CTkprogressbar has to be between 0 and 1
+        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100) 
+        self.app.exo_frame.PWMDataLabel.configure(text=msg.data) # Update the content of the PWMDataLabel
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -303,10 +299,8 @@ class ParentWindow_MainMenu(CTk):
         self.manual_frame.grid(row= 1, column= 0, pady= 20, padx= 60)
         self.EEG_frame.grid(row= 0, column= 1, pady=20, padx= 60)
 
-        # The only way I could get the Debug window button to work
-        # was by placing it here. Place it anywhere else,
-        # and it will kick your brain by asking for more args than needed
-        # for some reason. So leave it here
+        # Regarding the lines below, if these are placed anywhere else, then they will ask
+        # for more arguments than they should take, which is 0, so leave them here
         
         self.position_control_button = CTkButton(master=self.manual_frame, text="Position Control", command=self.open_position_control_menu)
         self.position_control_button.grid(row= 1, column= 1, padx= 10, pady= 5)
@@ -369,15 +363,21 @@ class ChildWindow_VelocityControl(CTkToplevel):
         self.velocity_control_msg = Int16()
         self.input_velocity_control_msg = Int16()
 
+        # Create the exit button for this window, and place it in the frame/window
         self.exit_button = CTkButton(self, text="Exit Button", command=self.exit_button_event)
         self.exit_button.grid(row=1, column=0, padx=10, pady=5)
 
+        # Create the Stop button, and place it in the frame/window
         self.manual_stop_button = CTkButton(self, text="Stop", command=self.manual_stop_event)
         self.manual_stop_button.grid(row=2, column=0, padx=10, pady=5)
 
+        # Create the slider for velocity controls, and place it in the frame/window.
+        # Further the slider is in deg/s, such that the lower limit is -40 deg/s
+        # and upper is 40 deg/s
         self.slider = CTkSlider(self, from_=-40, to=40, command=self.slider_event, width=240, number_of_steps=80)
         self.slider.grid(row=2, column=1, padx=10, pady=5, columnspan=2)
 
+        # Create the input field, for velocity control, and place it in the frame/window
         self.entry = CTkEntry(self,
             placeholder_text="Deg/sec",
             height=50,
@@ -388,11 +388,10 @@ class ChildWindow_VelocityControl(CTkToplevel):
             placeholder_text_color="grey",
             fg_color=("system", "white"),  # outer, inner
             state="normal",
-        )
-        self.entry.grid(row=4, column=1, padx=10, pady=5)
+        ).grid(row=4, column=1, padx=10, pady=5)
 
-        submit_button = CTkButton(self, text="Submit", command= self.submit)
-        submit_button.grid(row=5, column=1, padx=10, pady=5)
+        # Create the button and place it in the frame/window
+        submit_button = CTkButton(self, text="Submit", command= self.submit).grid(row=5, column=1, padx=10, pady=5)
 
         # Bind the Enter key to the submit method
         self.entry.bind("<Return>", lambda event: self.submit())
@@ -409,16 +408,11 @@ class ChildWindow_VelocityControl(CTkToplevel):
     def slider_event(self, value):
         """
         Function called whenever the slider is manipulated.
-        Handles deadzone, and publishes slider value to topic
+        Publishes slider value to topic
         'Manual_velocity_control_data'.
         """
 
-        # Slider deadzone
-        #if value > gui.DEADZONE_LOW and value < gui.DEADZONE_HIGH:
-        #    value = gui.SLIDER_ZERO
-
         self.velocity_control_msg.data = int(value)
-
         gui.manual_veloity_control_data_publisher.publish(self.velocity_control_msg)
 
         self.logger.debug(f"Target velocity: {value}")
@@ -449,19 +443,16 @@ class ChildWindow_VelocityControl(CTkToplevel):
         Can be triggered with 'RETURN' button.
         """
 
-        value = int(self.entry.get())
+        value = int(self.entry.get()) # Saves value from entry field
 
-        self.input_velocity_control_msg.data = value
+        self.input_velocity_control_msg.data = value # Saves the data in its respective position
         
-        try:
-            #gui.manual_input_velocity_control_data_publisher.publish(self.input_velocity_control_msg)
-            #self.logger.debug(f"Published data: '{self.input_velocity_control_msg.data}'")
-
+        try: # Attempts to publish the data to the topic
             self.velocity_control_msg.data = int(value)
 
             gui.manual_veloity_control_data_publisher.publish(self.velocity_control_msg)
 
-        except Exception as e:
+        except Exception as e: # If failure, then print the error to the terminal
             self.logger.warning(f"Failed to publish data: '{self.input_velocity_control_msg.data}' With error: {e}")
 
         self.clear()
@@ -495,21 +486,18 @@ class ChildWindow_PositionControl(CTkToplevel):
         self.exit_button = CTkButton(self, text="Exit Button", command= self.exit_button_event)
         self.exit_button.grid(row= 0, column= 0, padx= 10, pady= 5)
 
-    ##  label = CTkLabel(self, text="", font=("Helvetica", 24))
-    ##  label.grid(row=4, column=0, padx=10, pady=5)
-
+        # Create the input field, for position control, and place it in the frame/window
         self.entry = CTkEntry(self,
             placeholder_text="Angle (degrees)",
             height=50,
             width=200,
-            font=("Helvetica", 18),
+            font=("Helvetica", 18), # Font, font size
             corner_radius=50,
             text_color="black",
             placeholder_text_color="grey",
             fg_color=("system", "white"),  # outer, inner
             state="normal",
-        )
-        self.entry.grid(row=2, column=1, padx=10, pady=5)
+        ).grid(row=2, column=1, padx=10, pady=5)
 
         submit_button = CTkButton(self, text="Submit", command= self.submit)
         submit_button.grid(row=1, column=1, padx=10, pady=5)
@@ -531,8 +519,8 @@ class ChildWindow_PositionControl(CTkToplevel):
         data.current_angle += 1
         gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
 
+        # Update the message data, and publish to topic
         self.position_control_msg.data = data.current_angle
-
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
         
         self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
@@ -550,8 +538,8 @@ class ChildWindow_PositionControl(CTkToplevel):
         data.current_angle -= 1
         gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
         
+        # Update the message data, and publish to topic
         self.position_control_msg.data = data.current_angle
-
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
 
         self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
@@ -595,11 +583,11 @@ class ChildWindow_PositionControl(CTkToplevel):
 
         self.position_control_msg.data = data.current_angle
         
-        try:
+        try: # Try to publish the data to the topic
             gui.manual_position_control_data_publisher.publish(self.position_control_msg)
             self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
 
-        except Exception as e:
+        except Exception as e: # If failure, print the error to the terminal
             self.logger.warning(f"Failed to publish data: '{self.position_control_msg.data}' With error: {e}")
 
         self.clear()
@@ -727,6 +715,7 @@ class Frame_VisualEegData(CTkFrame):
     def widgets(self, nb_points):
         # Define the graph, and configure the axes
         self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
+
         # format the x-axis to show the time
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
 
@@ -734,13 +723,13 @@ class Frame_VisualEegData(CTkFrame):
         date_time_obj = datetime.now() + timedelta(seconds=-nb_points)
         self.x_data = [date_time_obj + timedelta(seconds=i) for i in range(nb_points)]
         self.y_data = [0 for i in range(nb_points)]
+
         #create the first plot
         self.plot = self.ax.plot(self.x_data, self.y_data, label='EEG data')[0]
         self.ax.set_ylim(-100,100)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
 
-        FrameTopLabel = CTkLabel(self, text="EEG Data")
-        FrameTopLabel.pack(pady=10, padx=10, side='top')
+        FrameTopLabel = CTkLabel(self, text="EEG Data").pack(pady=10, padx=10, side='top')
         self.canvas = FigureCanvasTkAgg(self.figure, self)
         self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
 

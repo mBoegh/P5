@@ -1,8 +1,3 @@
-"""
-TO DO:
- - Test live with Emotiv Epoc X.
-"""
-
 from EXONET.EXOLIB import JSON_Handler, TCP_Server        
 import rclpy
 from rclpy.node import Node

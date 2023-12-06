@@ -1,8 +1,3 @@
-"""
-TO DO:
- - Test live with Emotiv Epoc X
-"""
-
 from EXONET.EXOLIB import JSON_Handler, serial2arduino, RunningAverage, LiveLFilter
 
 import rclpy
@@ -11,7 +6,6 @@ from std_msgs.msg import UInt16, Int64, Float32, Int16, String
 
 import numpy as np
 import matplotlib.pyplot as plt
-
 import scipy.signal
 
 import time
@@ -170,26 +164,13 @@ class Serial_Communicator(Node, serial2arduino):
             else:
                 self.running_average_vel.add_data_point(j_vel)
                 mean_elbow_joint_vel = self.running_average_vel.get_average()
-            
-
-            # # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
-            # self.add_data_point(j_vel)
-            # mean_j_vel = self.get_average()
+        
 
             self.feedback_joint_velocity_msg.data = float(mean_elbow_joint_vel)
             self.feedback_joint_angle_msg.data = float(mean_elbow_joint_angle)
 
             self.get_logger().debug(f"Computed 'j_vel' feedback data: '{mean_elbow_joint_vel}'")
             self.get_logger().debug(f"Computed 'elbow_joint_angle' feedback data: '{mean_elbow_joint_angle}'")
-
-            # if not self.previous_velocity == 0 and j_vel > 10:
-            #     self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
-            #     self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
-            # else:
-            #     self.feedback_joint_velocity_msg.data = float(0)
-
-            #     self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
-            #     self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
 
             self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
             self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
