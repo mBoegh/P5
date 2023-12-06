@@ -20,8 +20,9 @@ class Variables():
         self.exo_weight = 1 #kg
         self.av_arm_weight = 1 # kg
         self.av_payload_weight = 0.5 # kg
-        self.shoulder_joint_angle = 0 # kg, should always be 0 since we don't know what it is
+        self.shoulder_joint_angle = 0 # deg, should always be 0 since we don't know what it is
         self.cable_angle = 45 # The angle which the cable is attached to the exoskeleton
+        self.lm1_length = 0.10 # meters
         self.l2_lenght = 0.225 # meters
         self.lm2_length = 0.10 # meters 
         self.spool_radius  = 0.025 # meters 
@@ -29,7 +30,7 @@ class Variables():
         # Constants for the spring compensation
         self.relaxed_spring_length = 0.11 # m
         self.spring_constant = 60 # N/m
-        self.spring_arm_length = 0.7 # m
+        self.spring_arm_length = 0.07 # m
         self.spring_arm_bend_angle = 20 # deg
         self.upper_arm_construction_length = 0.185 # m
         
@@ -144,6 +145,8 @@ class Controller(Node):
         Callback function called whenever a message is recieved on the subscription 'manual_data_subscription'
         """
 
+        self.get_logger().info(f"Recieved topic data: {msg.data}")
+
         self.called_eeg_data_topic_callback = True
 
         if self.toggle_EEG_parameter == True:
@@ -154,15 +157,18 @@ class Controller(Node):
             
                 mental_command = data_string[:seperator_index]
                 
-                command_power = data_string[seperator_index+1:]
+                command_power = int(data_string[seperator_index+1:])
 
             if mental_command == "Lift":
                 variables.t_vel = self.map_range(command_power, 0, 100, 0, 40)
                 controller.pi.setpoint = variables.t_vel
 
-            
             elif mental_command == "Drop":
                 variables.t_vel = self.map_range(-command_power, -100, 0, -40, 0)
+                controller.pi.setpoint = variables.t_vel
+
+            elif mental_command == "Neutral":
+                variables.t_vel = 0
                 controller.pi.setpoint = variables.t_vel
 
             else:
@@ -204,10 +210,6 @@ class Controller(Node):
             """
             variables.t_vel = 0
 
-            # self.pid_state == False
-            # self.pi.auto_mode = False
-            # self.get_logger().debug(f"PI controller off")
-
             self.get_logger().debug(f"Physical joint limits exceed. Target velocity: {variables.t_vel}")
             self.pi.setpoint = variables.t_vel
             
@@ -231,13 +233,7 @@ class Controller(Node):
             edge_guard()
         elif variables.elbow_joint_angle <= 50 and variables.t_vel < 0: 
             edge_guard()
-        
-        # elif self.pid_state == False:
-        #     self.pid_state == True
-        #     self.pi.set_auto_mode(True, last_output=0.0)
-        #     self.get_logger().debug(f"PI controller restarted")
             
-
 
     def timer_callback(self):
         
@@ -254,9 +250,12 @@ class Controller(Node):
             - Joint velocity: {variables.j_vel}
             - Elbow joint angle: {variables.elbow_joint_angle}""")
 
+            if variables.t_vel == 0:
+                self.pi.auto_mode = False
+                self.pi.set_auto_mode(True, 0)
 
             # Dynamic calculations for spring compensation
-            spring_arm_angle = 180 - variables.elbow_joint_angle + variables.spring_arm_bend_angle # deg
+            spring_arm_angle =  variables.elbow_joint_angle + variables.spring_arm_bend_angle # deg
 
             tense_spring_length = np.sqrt(variables.spring_arm_length**2 + variables.upper_arm_construction_length**2 
                                           - 2 * variables.spring_arm_length*variables.upper_arm_construction_length * np.cos(np.deg2rad(spring_arm_angle))) # m
@@ -271,7 +270,7 @@ class Controller(Node):
             spring_compensation_torque = spring_tangential_force_component * variables.spring_arm_length # Nm
 
             # Constants in below code found through testing the motor, and making a regression over the test data
-            spring_compensation_duty_cycle = 3.301 * spring_compensation_torque + 10.24 # PWM Duty cycle signal
+            spring_compensation_duty_cycle = 1.65 * spring_compensation_torque + 10.24 #((1.65 * spring_compensation_torque + 10.24)/12)*100 # PWM Duty cycle signal
 
             # Log the results from dynamic calculations for spring compensation
             self.get_logger().debug(
@@ -289,8 +288,8 @@ class Controller(Node):
             fg2 = (variables.av_arm_weight + variables.exo_weight) * variables.g_acceleration
             fgp = variables.av_payload_weight * variables.g_acceleration
 
-            f2 = np.cos(np.deg2rad(variables.elbow_joint_angle - variables.shoulder_joint_angle)) * (variables.l2_lenght / 2) * fg2
-            fp = np.cos(np.deg2rad(variables.elbow_joint_angle - variables.shoulder_joint_angle)) * variables.l2_lenght * fgp
+            f2 = np.cos(np.deg2rad((variables.elbow_joint_angle+90) - variables.shoulder_joint_angle)) * (variables.l2_lenght / 2) * fg2
+            fp = np.cos(np.deg2rad((variables.elbow_joint_angle+90) - variables.shoulder_joint_angle)) * variables.l2_lenght * fgp
 
             torque_joint = f2 * (variables.l2_lenght / 2) + fp * variables.l2_lenght
 
@@ -303,6 +302,8 @@ class Controller(Node):
                 f"\n- fp: {fp}"
                 f"\n- Torque Joint: {torque_joint}"
             )
+            cable_length = np.sqrt(np.square(variables.lm1_length)+np.square(variables.lm2_length)-2*variables.lm1_length*variables.lm2_length*np.cos(np.deg2rad(variables.elbow_joint_angle)))
+            variables.cable_angle = np.rad2deg(np.arccos(np.divide((np.square(cable_length) + np.square(variables.lm2_length) - np.square(variables.lm1_length)), (2*cable_length*variables.lm2_length))))
 
             # Force cable components 1 and 2
             fc1 = torque_joint / variables.lm2_length
@@ -327,7 +328,7 @@ class Controller(Node):
 
             # Below code used to convert motor torque into volts, the numbers 3.301 and 10.24
             # was found by testing the motor, and then by making a regression over the resulting data 
-            gravity_compensation_duty_cycle = 3.301 *torque_motor + 10.24
+            gravity_compensation_duty_cycle = 1.65 *torque_motor + 10.24 #((1.65 *torque_motor + 10.24)/12)*100
 
             # Log duty cycle calculations
             self.get_logger().debug(
@@ -344,7 +345,7 @@ class Controller(Node):
 
             # The controller
             regulator = self.pi(variables.j_vel)
-            duty_cycle = regulator # + gravity_compensation_duty_cycle + spring_compensation_duty_cycle
+            duty_cycle = regulator + (torque_motor + spring_compensation_torque)*100
             
             if duty_cycle > 100:
                 duty_cycle = 100
@@ -356,7 +357,9 @@ class Controller(Node):
                 f"Controller Calculations:"
                 f"\n- Control: {regulator}"
                 f"\n- Duty Cycle: {duty_cycle}"
-                f"\n- Previous duty cycle: {self.prev_duty_cycle}"
+                #f"\n- Previous duty cycle: {self.prev_duty_cycle}"
+                f"\n- Compensation duty cycle: {(torque_motor + spring_compensation_torque)*50} <-----" # + spring_compensation_duty_cycle
+                # f"\n- Spri compensation duty cycle: {spring_compensation_torque} <-----"
             )
 
             self.prev_duty_cycle = duty_cycle

@@ -31,6 +31,9 @@ class Server(Node, TCP_Server):
         self.get_logger().error("Hello world!")
         self.get_logger().fatal("Hello world!")
 
+        # Initialise variable msg as being of data type 'std_msgs.msg.String' imported as String
+        self.msg = String()
+
         # Create a timer which periodically calls the specified callback function at a defined interval.
         # Initialise timer_counter as zero. This is iterated on each node spin
         self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
@@ -68,19 +71,25 @@ class Server(Node, TCP_Server):
 
                 self.get_logger().info(f"Successfully connected")
 
+                self.toggle_EEG_parameter = True
+
             except Exception as e:
                 self.get_logger().error(f"Failed connecting with error: {e}")
+                self.get_logger().debug(f"Tooggled EEG False")
+                self.toggle_EEG_parameter = False
+
 
 
         elif value:
-            self.get_logger().debug(f"Toggled EEG True")
-
             self.toggle_EEG_parameter = True
+
+            self.get_logger().debug(f"Toggled EEG True")
         
         elif not value:
+            self.toggle_EEG_parameter = False
+
             self.get_logger().debug(f"Toggled EEG False")
 
-            self.toggle_EEG_parameter = False
         
         else:
             self.get_logger().warning(f"Unexpected message data on topic.")
@@ -88,22 +97,35 @@ class Server(Node, TCP_Server):
 
     def timer_callback(self):
         
+        self.get_logger().debug(f"Beginning of timer_callback")
+
         if self.toggle_EEG_parameter:
-            # Initialise variable msg as being of data type 'std_msgs.msg.String' imported as String
-            msg = String()
+
+            self.get_logger().debug(f"self.toggle_EEG_parameter is True")
 
             # Load msg with EEG data recieved on the TCP server 
-            msg.data = self.recieve_data_loop()
+            self.msg.data = self.recieve_data_loop(self.connection)
 
-            # Publish msg using eeg_data_publisher on topic 'EEG_data'
-            self.eeg_data_publisher.publish(msg)
+            # If the data is empty, then the connection has been broken. Therefore no more data will arrive and the system shall attempt to reconnect.
+            if not self.msg.data == "":                
 
-            # Log info
-            self.get_logger().debug(f"Published data: '{msg.data}'")
+                self.get_logger().debug(f"self.msg.data is not empty")
 
-            # Iterate timer
-            self.timer_counter += 1
+                # Publish msg using eeg_data_publisher on topic 'EEG_data'
+                self.eeg_data_publisher.publish(self.msg)
 
+                # Log info
+                self.get_logger().debug(f"Published data: '{self.msg.data}'")
+
+                # Iterate timer
+                self.timer_counter += 1
+
+            else:
+                self.get_logger().debug(f"self.msg.data is empty")
+
+                self.connection = self.await_connection()
+        
+        self.get_logger().debug(f"End of timer_callback")
 
 ####################
 ######  MAIN  ######

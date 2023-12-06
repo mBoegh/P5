@@ -27,6 +27,7 @@ class variables:
 
     def __init__(self):
         self.PWM_data = 75
+        self.mental_command = "EEG off"
         self.torque_data = 0
         self.RPM_data = 0
         self.duty_cycle = 0
@@ -141,11 +142,26 @@ class Gui(Node):
         # Log info
         self.get_logger().debug(f"Received data: '{msg.data}'")
 
-        data.duty_cycle = msg.data
-        
-        # The duty cycle is divided by 100, since the CTkprogressbar has to be between 0 and 1
-        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100)
-        self.app.exo_frame.PWMDataLabel.configure(text=msg.data) # Update the content of the PWMDataLabel
+        data_string = msg.data
+
+        if "," in data_string:
+            seperator_index = data_string.index(",")
+            
+            data.mental_command = data_string[:seperator_index]
+                
+        if data.mental_command == "Lift":
+            self.app.exo_frame.PWMDirectionLabel.configure(text= data.mental_command) # Update the content of the CurrentAngle Label
+
+        elif data.mental_command == "Drop":
+            self.app.exo_frame.PWMDirectionLabel.configure(text= data.mental_command) # Update the content of the CurrentAngle Label
+            
+        elif data.mental_command == "Neutral":
+            self.app.exo_frame.PWMDirectionLabel.configure(text= data.mental_command) # Update the content of the CurrentAngle Label
+
+        else:
+            data.mental_command = "EEG off"
+            self.app.exo_frame.PWMDirectionLabel.configure(text= data.mental_command) # Update the content of the CurrentAngle Label
+            self.get_logger().warning(f"Unexpected mental command in recieved EEG data: {data.mental_command}")
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -667,6 +683,7 @@ class Frame_InfoExo(CTkFrame):
 
         # Data Labels
         self.PWMDataLabel = CTkLabel(self, text= str(data.PWM_data))
+        self.PWMDirectionLabel = CTkLabel(self, text= str(data.mental_command))
         self.TorqueDataLabel = CTkLabel(self, text= str(data.torque_data))
         self.RPMDataLabel = CTkLabel(self, text= str(data.RPM_data))
 
@@ -675,6 +692,7 @@ class Frame_InfoExo(CTkFrame):
         self.TorqueLabel.grid(row= 1, column= 0, padx= 10, pady= 5)
         self.RPMLabel.grid(row=2, column= 0, padx=10, pady=5)
         self.RPMDataLabel.grid(row= 2, column= 1, padx= 10, pady= 5)
+        self.PWMDirectionLabel.grid(row= 2, column= 2, padx= 5, pady= 5)
         self.PWMBar.grid(row= 0, column= 1, padx= 10, pady= 5)
         self.PWMDataLabel.grid(row= 0, column=2, padx= 10, pady= 5)
         self.PWMLabel.grid(row= 0, column= 0, padx= 10, pady= 5)

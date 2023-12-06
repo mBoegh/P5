@@ -6,7 +6,6 @@ from std_msgs.msg import UInt16, Int64, Float32, Int16, String
 
 import numpy as np
 import matplotlib.pyplot as plt
-
 import scipy.signal
 
 import time
@@ -39,6 +38,7 @@ class Serial_Communicator(Node, serial2arduino):
         self.first_feedback = True
         self.second_feedback = True
         self.time0 = None
+        self.program_start = None
         self.elbow_joint_angle_zero = None
         self.previous_velocity = 0
 
@@ -48,6 +48,7 @@ class Serial_Communicator(Node, serial2arduino):
         self.plot_elbow_joint_angle = []
         self.plot_mean_elbow_joint_angle = []
         self.plot_j_vel = []
+        self.plot_time = []
 
 
         # Initialize feedback message objects of datatype std_msgs.msg.Float32 imported as Float32
@@ -137,6 +138,7 @@ class Serial_Communicator(Node, serial2arduino):
 
         if self.first_feedback:
             self.time0 = time.time()
+            self.program_start = self.time0
             self.elbow_joint_angle_zero = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
 
             self.running_average = RunningAverage(RUNNING_AVERAGE_BUFFER_SIZE, self.elbow_joint_angle_zero)
@@ -172,26 +174,13 @@ class Serial_Communicator(Node, serial2arduino):
             else:
                 self.running_average_vel.add_data_point(j_vel)
                 mean_elbow_joint_vel = self.running_average_vel.get_average()
-            
-
-            # # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
-            # self.add_data_point(j_vel)
-            # mean_j_vel = self.get_average()
+        
 
             self.feedback_joint_velocity_msg.data = float(mean_elbow_joint_vel)
             self.feedback_joint_angle_msg.data = float(mean_elbow_joint_angle)
 
             self.get_logger().debug(f"Computed 'j_vel' feedback data: '{mean_elbow_joint_vel}'")
             self.get_logger().debug(f"Computed 'elbow_joint_angle' feedback data: '{mean_elbow_joint_angle}'")
-
-            # if not self.previous_velocity == 0 and j_vel > 10:
-            #     self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
-            #     self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
-            # else:
-            #     self.feedback_joint_velocity_msg.data = float(0)
-
-            #     self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
-            #     self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
 
             self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
             self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
@@ -203,6 +192,7 @@ class Serial_Communicator(Node, serial2arduino):
             self.plot_elbow_joint_angle.append(elbow_joint_angle_now)
             self.plot_mean_elbow_joint_angle.append(mean_elbow_joint_angle)
             self.plot_j_vel.append(mean_elbow_joint_vel)
+            self.plot_time.append(time_now-self.program_start)
 
     def manual_position_control_data_callback(self, msg):
 
@@ -336,14 +326,14 @@ livel_filter = LiveLFilter(b, a)
 # Instance the serverTCP class
 serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, LOG_DEBUG)
 
-#rclpy.spin(serial_communicator)
+rclpy.spin(serial_communicator)
 
-iter = 0
-n_data = 10000
-while iter < n_data:
-    # Begin looping the node
-    rclpy.spin_once(serial_communicator)
-    iter += 1
+# iter = 0
+# n_data = 10000
+# while iter < n_data:
+#     # Begin looping the node
+#     rclpy.spin_once(serial_communicator)
+#     iter += 1
 
 # plt.plot(serial_communicator.plot_data)
 # plt.ylim((0,1023))
@@ -362,11 +352,12 @@ while iter < n_data:
 # plt.ylabel('Computed joint velocity')
 # plt.show()
 
-plt.plot(range(n_data-1), serial_communicator.plot_j_vel, range(n_data-1), serial_communicator.plot_mean_elbow_joint_angle)
-plt.ylabel('Computed runnning average joint velocity')
-plt.grid(color='k', linestyle='-', linewidth=1)
-plt.legend()
-plt.show()
+# plt.plot(range(n_data-1), serial_communicator.plot_j_vel, range(n_data-1), serial_communicator.plot_mean_elbow_joint_angle)
+# plt.plot(serial_communicator.plot_time, serial_communicator.plot_j_vel, serial_communicator.plot_time, serial_communicator.plot_mean_elbow_joint_angle)
+# plt.ylabel('Computed runnning average joint velocity')
+# plt.grid(color='k', linestyle='-', linewidth=1)
+# plt.legend()
+# plt.show()
 
 # datas = [serial_communicator.plot_data, serial_communicator.plot_elbow_joint_angle, serial_communicator.plot_j_vel, serial_communicator.plot_mean_j_vel]
 
