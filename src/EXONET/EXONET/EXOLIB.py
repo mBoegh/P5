@@ -130,15 +130,14 @@ class TCP_Server:
         When the loop breaks, the flow returns to await_connection.
         """
 
+        if self.DEBUG:
+            print(f"DEBUG @ script 'EXOLIB.py' class 'serverTCP' function 'recieve_data_loop'; SYSTEM MESSAGE 'Beginning of recieve_data_loop'")
+
         # Receive data from the client
         data = connection.recv(1024)
 
         # Format the data as a string
         self.data_string = f"{str(data.decode())}"
-
-        # If the data is empty, then the connection has been broken. Therefore no more data will arrive and the system shall attempt to reconnect.
-        if self.data_string == "":
-            self.await_connection()
 
         # If the DEBUG flag is raised, we print data to terminal
         if self.DEBUG:
