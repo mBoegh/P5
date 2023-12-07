@@ -50,7 +50,7 @@ class Controller(Node):
         self.LOG_DEBUG = log_debug
 
         # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(1, 1, 0, setpoint=variables.t_vel) # setpoint=1
+        self.pi = PID(1, 1, 1, setpoint=variables.t_vel) # setpoint=1
         self.pi.output_limits = (-100, 100)
         self.prev_duty_cycle = 0
 
@@ -318,17 +318,17 @@ class Controller(Node):
 
             # Find the cable force and calculate the motor torque
             fc = np.sqrt(fc1**2 + fc2**2)
-            torque_motor = fc * variables.spool_radius
+            gravity_compensation_torque = fc * variables.spool_radius
 
             # Log the above calculated torque
             self.get_logger().debug(
                 f"Torque Motor Calculation:"
-                f"\n- Torque Motor: {torque_motor}"
+                f"\n- Torque Motor: {gravity_compensation_torque}"
             )
 
             # Below code used to convert motor torque into volts, the numbers 3.301 and 10.24
             # was found by testing the motor, and then by making a regression over the resulting data 
-            gravity_compensation_duty_cycle = 1.65 *torque_motor + 10.24 #((1.65 *torque_motor + 10.24)/12)*100
+            gravity_compensation_duty_cycle = 1.65 *gravity_compensation_torque + 10.24 #((1.65 *gravity_compensation_torque + 10.24)/12)*100
 
             # Log duty cycle calculations
             self.get_logger().debug(
@@ -345,7 +345,17 @@ class Controller(Node):
 
             # The controller
             regulator = self.pi(variables.j_vel)
-            duty_cycle = regulator + (torque_motor + spring_compensation_torque)*100
+
+            compensation = (gravity_compensation_torque + spring_compensation_torque)*100
+
+            if compensation > abs(regulator):
+                compensation = abs(regulator)
+
+            duty_cycle = regulator + compensation
+
+            # if 0 > regulator and duty_cycle > 0:
+            #     duty_cycle = 0
+
             
             if duty_cycle > 100:
                 duty_cycle = 100
@@ -358,7 +368,7 @@ class Controller(Node):
                 f"\n- Control: {regulator}"
                 f"\n- Duty Cycle: {duty_cycle}"
                 #f"\n- Previous duty cycle: {self.prev_duty_cycle}"
-                f"\n- Compensation duty cycle: {(torque_motor + spring_compensation_torque)*50} <-----" # + spring_compensation_duty_cycle
+                f"\n- Compensation duty cycle: {(gravity_compensation_torque + spring_compensation_torque)*50} <-----" # + spring_compensation_duty_cycle
                 # f"\n- Spri compensation duty cycle: {spring_compensation_torque} <-----"
             )
 

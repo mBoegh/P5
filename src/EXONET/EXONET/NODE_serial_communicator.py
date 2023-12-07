@@ -129,7 +129,7 @@ class Serial_Communicator(Node, serial2arduino):
         if self.first_feedback:
             self.time0 = time.time()
             self.program_start = self.time0
-            self.elbow_joint_angle_zero = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
+            self.elbow_joint_angle_zero = self.map_range(filtered_data, 0, 1023, -30, 210) # Joint angle 
 
             self.running_average = RunningAverage(RUNNING_AVERAGE_BUFFER_SIZE, self.elbow_joint_angle_zero)
 
@@ -139,7 +139,7 @@ class Serial_Communicator(Node, serial2arduino):
 
             time_now = time.time()
 
-            elbow_joint_angle_now = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
+            elbow_joint_angle_now = self.map_range(filtered_data, 0, 1023, -30, 210) # Joint angle 
         
             # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
             self.running_average.add_data_point(elbow_joint_angle_now)
@@ -316,38 +316,43 @@ livel_filter = LiveLFilter(b, a)
 # Instance the serverTCP class
 serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, LOG_DEBUG)
 
-rclpy.spin(serial_communicator)
+graph_please = True
 
-# iter = 0
-# n_data = 10000
-# while iter < n_data:
-#     # Begin looping the node
-#     rclpy.spin_once(serial_communicator)
-#     iter += 1
+if graph_please:
+    iter = 0
+    n_data = 10000
+    while iter < n_data:
+        # Begin looping the node
+        rclpy.spin_once(serial_communicator)
+        iter += 1
 
-# plt.plot(serial_communicator.plot_data)
-# plt.ylim((0,1023))
-# plt.show()
+    # plt.plot(serial_communicator.plot_data)
+    # plt.ylim((0,1023))
+    # plt.show()
 
-# plt.plot(serial_communicator.plot_filtered_data)
-# plt.ylim((0,1023))
-# plt.show()
+    # plt.plot(serial_communicator.plot_filtered_data)
+    # plt.ylim((0,1023))
+    # plt.show()
 
-# plt.plot(serial_communicator.plot_elbow_joint_angle)
-# plt.ylabel('Elbow joint angle')
-# plt.ylim((130,300))
-# plt.show()
+    # plt.plot(serial_communicator.plot_elbow_joint_angle)
+    # plt.ylabel('Elbow joint angle')
+    # plt.ylim((130,300))
+    # plt.show()
 
-# plt.plot(serial_communicator.plot_j_vel)
-# plt.ylabel('Computed joint velocity')
-# plt.show()
+    # plt.plot(serial_communicator.plot_j_vel)
+    # plt.ylabel('Computed joint velocity')
+    # plt.show()
 
-# plt.plot(range(n_data-1), serial_communicator.plot_j_vel, range(n_data-1), serial_communicator.plot_mean_elbow_joint_angle)
-# plt.plot(serial_communicator.plot_time, serial_communicator.plot_j_vel, serial_communicator.plot_time, serial_communicator.plot_mean_elbow_joint_angle)
-# plt.ylabel('Computed runnning average joint velocity')
-# plt.grid(color='k', linestyle='-', linewidth=1)
-# plt.legend()
-# plt.show()
+    # plt.plot(range(n_data-1), serial_communicator.plot_j_vel, range(n_data-1), serial_communicator.plot_mean_elbow_joint_angle)
+    plt.plot(serial_communicator.plot_time, serial_communicator.plot_j_vel, serial_communicator.plot_time, serial_communicator.plot_mean_elbow_joint_angle)
+    plt.ylabel('Computed runnning average joint velocity')
+    plt.grid(color='k', linestyle='-', linewidth=1)
+    plt.legend()
+    plt.show()
+else:
+    rclpy.spin(serial_communicator)
+
+
 
 # datas = [serial_communicator.plot_data, serial_communicator.plot_elbow_joint_angle, serial_communicator.plot_j_vel, serial_communicator.plot_mean_j_vel]
 
