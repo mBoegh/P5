@@ -414,10 +414,12 @@ class ChildWindow_VelocityControl(CTkToplevel):
             placeholder_text_color="grey",
             fg_color=("system", "white"),  # outer, inner
             state="normal",
-        ).grid(row=4, column=1, padx=10, pady=5)
+        )
+        self.entry.grid(row=4, column=1, padx=10, pady=5)
 
         # Create the button and place it in the frame/window
-        submit_button = CTkButton(self, text="Submit", command= self.submit).grid(row=5, column=1, padx=10, pady=5)
+        submit_button = CTkButton(self, text="Submit", command= self.submit)
+        submit_button.grid(row=5, column=1, padx=10, pady=5)
 
         # Bind the Enter key to the submit method
         self.entry.bind("<Return>", lambda event: self.submit())
@@ -523,7 +525,8 @@ class ChildWindow_PositionControl(CTkToplevel):
             placeholder_text_color="grey",
             fg_color=("system", "white"),  # outer, inner
             state="normal",
-        ).grid(row=2, column=1, padx=10, pady=5)
+        )
+        self.entry.grid(row=2, column=1, padx=10, pady=5)
 
         submit_button = CTkButton(self, text="Submit", command= self.submit)
         submit_button.grid(row=1, column=1, padx=10, pady=5)
