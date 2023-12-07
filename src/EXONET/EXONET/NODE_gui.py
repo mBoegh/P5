@@ -218,7 +218,7 @@ class Gui(Node):
 
         if self.app.velocity_control_window is not None:
             self.app.velocity_control_window.current_velocity_label.configure(text= data.current_velocity) # Update the content of the Current Velocity Label
-        self.app.current_velocity_label.configure(text= data.current_velocity) # Update the content of the CurrentAngle Label
+        self.app.exo_frame.current_velocity_data_label.configure(text= data.current_velocity) # Update the content of the CurrentAngle Label
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -242,7 +242,7 @@ class Gui(Node):
 
         if self.app.position_control_window is not None:
             self.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
-        self.app.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
+        self.app.exo_frame.current_angle_data_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -857,7 +857,7 @@ class Frame_VisualJointFeedback(CTkFrame):
         self.plot1, = self.ax.plot(self.x_data, self.y_data1, label='Velocity [deg/sec]')
         self.plot2, = self.ax.plot(self.x_data, self.y_data2, label='Angle [deg]')
 
-        self.ax.set_ylim(-100, 100)
+        self.ax.set_ylim(-50, 120)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
 
         FrameTopLabel = CTkLabel(self, text="Feedback")
@@ -906,7 +906,7 @@ class Frame_VisualCurrentExoAngle(CTkFrame):
         """
         
         endx = 2 + data.length * math.cos(math.radians((data.current_angle-90))) # Calculate the end point for the movable arm
-        endy = 5 + data.length * -math.sin(math.radians(data.current_angle-90))
+        endy = 5 + data.length * math.sin(math.radians(data.current_angle-90))
 
         self.figure, self.ax = plt.subplots(figsize=(3,3), dpi=50) # Create the figure without content
         self.ax.set_ylim(0,10) # Set the limits of the axes in the plot
@@ -923,7 +923,7 @@ class Frame_VisualCurrentExoAngle(CTkFrame):
         """
         
         endx = 2 + data.length * math.cos(math.radians((data.current_angle-90)))
-        endy = 5 + data.length * -math.sin(math.radians(data.current_angle-90))
+        endy = 5 + data.length * math.sin(math.radians(data.current_angle-90))
 
         self.ax.cla() # Clears all content on the plot, without removing the axes
         self.ax.set_ylim(0,10) # Redefine the limits of the plot
@@ -966,17 +966,33 @@ rclpy.logging.set_logger_level("gui", eval(LOG_LEVEL))
 # Instance the node class
 gui = Gui(TIMER_PERIOD, SLIDER_ZERO, DEADZONE_LOW, DEADZONE_HIGH, LOG_DEBUG)
 
+graph_update_count = 0
 
 while True:
     # Begin looping the node
     rclpy.spin_once(gui, timeout_sec=0.01) # We spin once as to not get stuck
 
-    gui.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
-    gui.app.EEG_frame.animate()
-    gui.app.duty_cycle_frame.animate()
-    gui.app.feedback_frame.animate()
+    if graph_update_count == 0:
+        gui.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+        graph_update_count += 1 
+
+    elif graph_update_count == 1:
+        gui.app.EEG_frame.animate()
+        graph_update_count += 1 
+
+    elif graph_update_count == 2:    
+        gui.app.duty_cycle_frame.animate()
+        graph_update_count += 1 
+
+    elif graph_update_count == 3:
+        gui.app.feedback_frame.animate()
+        graph_update_count += 1 
+
+    if graph_update_count == 4:
+        graph_update_count = 0
 
     gui.app.update_idletasks()
-    gui.app.update()     
+    gui.app.update()    
+
 
     

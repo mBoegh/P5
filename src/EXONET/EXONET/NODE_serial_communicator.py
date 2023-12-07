@@ -129,7 +129,7 @@ class Serial_Communicator(Node, serial2arduino):
         if self.first_feedback:
             self.time0 = time.time()
             self.program_start = self.time0
-            self.elbow_joint_angle_zero = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
+            self.elbow_joint_angle_zero = self.map_range(filtered_data, 0, 1023, -30, 210) # Joint angle 
 
             self.running_average = RunningAverage(RUNNING_AVERAGE_BUFFER_SIZE, self.elbow_joint_angle_zero)
 
@@ -139,7 +139,7 @@ class Serial_Communicator(Node, serial2arduino):
 
             time_now = time.time()
 
-            elbow_joint_angle_now = self.map_range(1023-filtered_data, 0, 1023, -30, 210) # Joint angle 
+            elbow_joint_angle_now = self.map_range(filtered_data, 0, 1023, -30, 210) # Joint angle 
         
             # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
             self.running_average.add_data_point(elbow_joint_angle_now)
