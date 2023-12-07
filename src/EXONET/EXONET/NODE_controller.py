@@ -363,7 +363,7 @@ class Controller(Node):
                 duty_cycle = -100
 
             # Log controller calculations
-            self.get_logger().info(
+            self.get_logger().debug(
                 f"Controller Calculations:"
                 f"\n- Control: {regulator}"
                 f"\n- Duty Cycle: {duty_cycle}"

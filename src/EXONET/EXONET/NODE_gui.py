@@ -32,6 +32,8 @@ class variables:
         self.RPM_data = 0
         self.duty_cycle = 0
         self.current_angle = 90
+        self.current_velocity = 0
+        self.eeg_data = 0
         self.length = 4
 
 
@@ -124,7 +126,12 @@ class Gui(Node):
         self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
         self.timer_counter = 0
 
+        self.app.exo_frame.PWMBar.set(0)
+
+        self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         self.app.EEG_frame.animate()
+        self.app.duty_cycle_frame.animate()
+        self.app.feedback_frame.animate()
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -169,8 +176,7 @@ class Gui(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
-        if self.app.position_control_window is not None:
-            self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
+
         self.app.EEG_frame.animate()
 
     def motor_signals_topic_callback(self, msg):
@@ -183,9 +189,13 @@ class Gui(Node):
 
         data.duty_cycle = msg.data
         
-        # The duty cycle is divided by 100, since the CTkprogressbar has to be between 0 and 1
-        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100) 
-        self.app.exo_frame.PWMDataLabel.configure(text=msg.data) # Update the content of the PWMDataLabel
+        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100)
+
+        self.app.exo_frame.PWMDataLabel.configure(text=data.duty_cycle) # Update the content of the CurrentAngle Label
+
+       # self.app.exo_frame.PWM_data = msg.data[0]
+       # self.app.exo_frame.torque_data = msg.data[1]
+       # self.app.exo_frame.RPM_data = msg.data[2]
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -193,9 +203,8 @@ class Gui(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
-        if self.app.position_control_window is not None:
-            self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
-        self.app.EEG_frame.animate()
+
+        self.app.duty_cycle_frame.animate()
 
     def feedback_joint_velocity_topic_callback(self, msg):
         """
@@ -205,8 +214,11 @@ class Gui(Node):
         # Log info
         self.get_logger().debug(f"Recieved data '{msg.data}'")
 
-        if self.app.position_control_window is not None:
-            self.app.position_control_window.current_angle_label.configure(text=msg.data) # Update the content of the CurrentAngle Label
+        data.current_velocity = msg.data
+
+        if self.app.velocity_control_window is not None:
+            self.app.velocity_control_window.current_velocity_label.configure(text= data.current_velocity) # Update the content of the Current Velocity Label
+        self.app.exo_frame.current_velocity_data_label.configure(text= data.current_velocity) # Update the content of the CurrentAngle Label
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -214,9 +226,8 @@ class Gui(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
-        if self.app.position_control_window is not None:
-            self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
-        self.app.EEG_frame.animate()
+
+        self.app.feedback_frame.animate()
 
 
     def feedback_joint_angle_topic_callback(self, msg):
@@ -227,8 +238,11 @@ class Gui(Node):
         # Log info
         self.get_logger().debug(f"Recieved data '{msg.data}'")
 
+        data.current_angle = msg.data
+
         if self.app.position_control_window is not None:
-            self.app.position_control_window.current_angle_label.configure(text=msg.data) # Update the content of the CurrentAngle Label
+            self.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
+        self.app.exo_frame.current_angle_data_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -236,9 +250,8 @@ class Gui(Node):
         # when updating it, by making a new window
         self.app.update_idletasks()
         self.app.update()
-        if self.app.position_control_window is not None:
-            self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
-        self.app.EEG_frame.animate()
+
+        self.app.feedback_frame.animate()
         
 
 
@@ -292,12 +305,25 @@ class ParentWindow_MainMenu(CTk):
         # Initialize the frames which contain data in the main window
         self.exo_frame = Frame_InfoExo(self, self.logger)
         self.manual_frame = Frame_MainMenu(self, self.logger)
-        self.EEG_frame = Frame_VisualEegData(self, nb_points=100, logger=self.logger)
+
+        # Initialize exo skeleton representation
+        self.visual_frame = Frame_VisualCurrentExoAngle(self, self.logger)
+
+        # Initialize plots
+        self.EEG_frame = Frame_VisualEegData(self, nb_points= 100, logger= self.logger)
+        self.duty_cycle_frame = Frame_VisualDutyCycle(self, nb_points= 100, logger= self.logger)
+        self.feedback_frame = Frame_VisualJointFeedback(self, nb_points= 100, logger= self.logger)
 
         # Place the frames in the main window
         self.exo_frame.grid(row= 0, column= 0, pady= 20, padx= 60)
         self.manual_frame.grid(row= 1, column= 0, pady= 20, padx= 60)
-        self.EEG_frame.grid(row= 0, column= 1, pady=20, padx= 60)
+
+        self.visual_frame.grid(row= 2, column= 0, pady= 10, padx= 5)
+
+        self.EEG_frame.grid(row= 2, column= 1, pady=10, padx= 5)
+        self.duty_cycle_frame.grid(row= 3, column= 0, pady=10, padx= 5)
+        self.feedback_frame.grid(row= 3, column= 1, pady=10, padx= 5)
+
 
         # Regarding the lines below, if these are placed anywhere else, then they will ask
         # for more arguments than they should take, which is 0, so leave them here
@@ -340,8 +366,6 @@ class ParentWindow_MainMenu(CTk):
     
         if self.position_control_window is None or not self.position_control_window.winfo_exists():
             self.position_control_window = ChildWindow_PositionControl(self.logger)
-            self.visual_frame = Frame_VisualCurrentExoAngle(self.position_control_window, self.logger)
-            self.visual_frame.grid(row= 4, column= 1, pady= 10, padx= 5)
 
         else:
             self.position_control_window.focus()
@@ -377,7 +401,9 @@ class ChildWindow_VelocityControl(CTkToplevel):
         self.slider = CTkSlider(self, from_=-40, to=40, command=self.slider_event, width=240, number_of_steps=80)
         self.slider.grid(row=2, column=1, padx=10, pady=5, columnspan=2)
 
-        # Create the input field, for velocity control, and place it in the frame/window
+        self.current_velocity_label = CTkLabel(self, text= str(data.current_velocity))
+        self.current_velocity_label.grid(row= 3, column= 1, padx= 10, pady= 5)
+
         self.entry = CTkEntry(self,
             placeholder_text="Deg/sec",
             height=50,
@@ -499,7 +525,8 @@ class ChildWindow_PositionControl(CTkToplevel):
             placeholder_text_color="grey",
             fg_color=("system", "white"),  # outer, inner
             state="normal",
-        ).grid(row=2, column=1, padx=10, pady=5)
+        )
+        self.entry.grid(row=2, column=1, padx=10, pady=5)
 
         submit_button = CTkButton(self, text="Submit", command= self.submit)
         submit_button.grid(row=1, column=1, padx=10, pady=5)
@@ -519,7 +546,6 @@ class ChildWindow_PositionControl(CTkToplevel):
         # If the upper limit is reached, exit function
         if (data.current_angle == 170): return
         data.current_angle += 1
-        gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
 
         # Update the message data, and publish to topic
         self.position_control_msg.data = data.current_angle
@@ -538,7 +564,6 @@ class ChildWindow_PositionControl(CTkToplevel):
         # If the lower limit is reached, exit function
         if (data.current_angle == 40): return 
         data.current_angle -= 1
-        gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
         
         # Update the message data, and publish to topic
         self.position_control_msg.data = data.current_angle
@@ -582,7 +607,6 @@ class ChildWindow_PositionControl(CTkToplevel):
 
         gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
         
-
         self.position_control_msg.data = data.current_angle
         
         try: # Try to publish the data to the topic
@@ -679,25 +703,26 @@ class Frame_InfoExo(CTkFrame):
         
         # Text Labels
         self.PWMLabel = CTkLabel(self, text="PWM: ")
-        self.TorqueLabel = CTkLabel(self, text="Torque: ")
-        self.RPMLabel = CTkLabel(self, text="Motor RPM: ")
         self.PWMBar = CTkProgressBar(self, orientation="horizontal")
+        self.current_velocity_label = CTkLabel(self, text= "Velocity: ")
+        self.current_angle_label = CTkLabel(self, text= "Angle: ")
+
 
         # Data Labels
-        self.PWMDataLabel = CTkLabel(self, text= str(data.PWM_data))
-        self.PWMDirectionLabel = CTkLabel(self, text= str(data.mental_command))
-        self.TorqueDataLabel = CTkLabel(self, text= str(data.torque_data))
-        self.RPMDataLabel = CTkLabel(self, text= str(data.RPM_data))
+        self.PWMDataLabel = CTkLabel(self, text= str(data.duty_cycle))
+        self.current_velocity_data_label = CTkLabel(self, text= str(data.current_velocity))
+        self.current_angle_data_label = CTkLabel(self, text= str(data.current_angle))
+
+
 
         # Placing the widgets on the grid in the ExoFrame frame
-        self.TorqueDataLabel.grid(row= 1, column=1, padx=10, pady=5)
-        self.TorqueLabel.grid(row= 1, column= 0, padx= 10, pady= 5)
-        self.RPMLabel.grid(row=2, column= 0, padx=10, pady=5)
-        self.RPMDataLabel.grid(row= 2, column= 1, padx= 10, pady= 5)
-        self.PWMDirectionLabel.grid(row= 2, column= 2, padx= 5, pady= 5)
         self.PWMBar.grid(row= 0, column= 1, padx= 10, pady= 5)
-        self.PWMDataLabel.grid(row= 0, column=2, padx= 10, pady= 5)
         self.PWMLabel.grid(row= 0, column= 0, padx= 10, pady= 5)
+        self.PWMDataLabel.grid(row= 0, column=2, padx= 10, pady= 5)
+        self.current_velocity_label.grid(row= 1, column= 0, padx= 10, pady= 5)
+        self.current_velocity_data_label.grid(row= 1, column= 1, padx= 10, pady= 5)
+        self.current_angle_label.grid(row= 2, column= 0, padx= 10, pady= 5)
+        self.current_angle_data_label.grid(row= 2, column= 1, padx= 10, pady= 5)
 
 
 class Frame_VisualEegData(CTkFrame):
@@ -731,7 +756,57 @@ class Frame_VisualEegData(CTkFrame):
         self.ax.set_ylim(-100,100)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
 
-        FrameTopLabel = CTkLabel(self, text="EEG Data").pack(pady=10, padx=10, side='top')
+        FrameTopLabel = CTkLabel(self, text="EEG data")
+        FrameTopLabel.pack(pady=10, padx=10, side='top')
+        self.canvas = FigureCanvasTkAgg(self.figure, self)
+        self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
+
+    def animate(self):
+        #append new data point to x and y data
+        self.x_data.append(datetime.now())
+        self.y_data.append(int(data.eeg_data))
+        #remove oldest datapoint
+        self.x_data = self.x_data[1:]
+        self.y_data = self.y_data[1:]
+        #update plot data
+        self.plot.set_xdata(self.x_data)
+        self.plot.set_ydata(self.y_data)
+        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+        self.ax.axhline(0) ####################################################
+        self.canvas.draw_idle() #redraw plot
+
+
+class Frame_VisualDutyCycle(CTkFrame):
+    """
+    Makes and displays the graph for the EEG data, the class will need to be given how many data mounts
+    which should be displayed on the graph.
+    """
+
+    def __init__(self, parent, nb_points, logger):
+        super().__init__(parent)
+
+        self.logger = logger
+
+        self.parent = parent
+        self.widgets(nb_points)
+
+    def widgets(self, nb_points):
+        # Define the graph, and configure the axes
+        self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
+        # format the x-axis to show the time
+        self.ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+
+        # initial x and y data
+        date_time_obj = datetime.now() + timedelta(seconds=-nb_points)
+        self.x_data = [date_time_obj + timedelta(seconds=i) for i in range(nb_points)]
+        self.y_data = [0 for i in range(nb_points)]
+        #create the first plot
+        self.plot = self.ax.plot(self.x_data, self.y_data, label='Duty cycle')[0]
+        self.ax.set_ylim(-100,100)
+        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+
+        FrameTopLabel = CTkLabel(self, text="Duty cycle")
+        FrameTopLabel.pack(pady=10, padx=10, side='top')
         self.canvas = FigureCanvasTkAgg(self.figure, self)
         self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
 
@@ -746,7 +821,68 @@ class Frame_VisualEegData(CTkFrame):
         self.plot.set_xdata(self.x_data)
         self.plot.set_ydata(self.y_data)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+        self.ax.axhline(0) ####################################################
         self.canvas.draw_idle() #redraw plot
+
+
+class Frame_VisualJointFeedback(CTkFrame):
+    """
+    Makes and displays the graph for the EEG data, the class will need to be given how many data mounts
+    which should be displayed on the graph.
+    """
+
+    def __init__(self, parent, nb_points, logger):
+        super().__init__(parent)
+
+        self.logger = logger
+
+        self.parent = parent
+        self.widgets(nb_points)
+
+    def widgets(self, nb_points):
+        # Define the graph, and configure the axes
+        self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
+        # format the x-axis to show the time
+        self.ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+
+        # initial x data
+        date_time_obj = datetime.now() + timedelta(seconds=-nb_points)
+        self.x_data = [date_time_obj + timedelta(seconds=i) for i in range(nb_points)]
+
+        # initial y data for two datasets
+        self.y_data1 = [0 for _ in range(nb_points)]
+        self.y_data2 = [0 for _ in range(nb_points)]
+
+        # create the first plot
+        self.plot1, = self.ax.plot(self.x_data, self.y_data1, label='Velocity [deg/sec]')
+        self.plot2, = self.ax.plot(self.x_data, self.y_data2, label='Angle [deg]')
+
+        self.ax.set_ylim(-50, 120)
+        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+
+        FrameTopLabel = CTkLabel(self, text="Feedback")
+        FrameTopLabel.pack(pady=10, padx=10, side='top')
+        self.canvas = FigureCanvasTkAgg(self.figure, self)
+        self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
+
+    def animate(self):
+        # append new data point to x and y data
+        self.x_data.append(datetime.now())
+        self.y_data1.append(int(data.current_velocity))
+        self.y_data2.append(int(data.current_angle))
+        # remove oldest datapoint
+        self.x_data = self.x_data[1:]
+        self.y_data1 = self.y_data1[1:]
+        self.y_data2 = self.y_data2[1:]
+        # update plot data
+        self.plot1.set_xdata(self.x_data)
+        self.plot1.set_ydata(self.y_data1)
+        self.plot2.set_xdata(self.x_data)
+        self.plot2.set_ydata(self.y_data2)
+        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+        self.ax.axhline(0) ####################################################
+        self.canvas.draw_idle()  # redraw plot
+
 
 
 class Frame_VisualCurrentExoAngle(CTkFrame):
@@ -770,7 +906,7 @@ class Frame_VisualCurrentExoAngle(CTkFrame):
         """
         
         endx = 2 + data.length * math.cos(math.radians((data.current_angle-90))) # Calculate the end point for the movable arm
-        endy = 5 + data.length * -math.sin(math.radians(data.current_angle-90))
+        endy = 5 + data.length * math.sin(math.radians(data.current_angle-90))
 
         self.figure, self.ax = plt.subplots(figsize=(3,3), dpi=50) # Create the figure without content
         self.ax.set_ylim(0,10) # Set the limits of the axes in the plot
@@ -787,9 +923,9 @@ class Frame_VisualCurrentExoAngle(CTkFrame):
         """
         
         endx = 2 + data.length * math.cos(math.radians((data.current_angle-90)))
-        endy = 5 + data.length * -math.sin(math.radians(data.current_angle-90))
+        endy = 5 + data.length * math.sin(math.radians(data.current_angle-90))
 
-        plt.cla() # Clears all content on the plot, without removing the axes
+        self.ax.cla() # Clears all content on the plot, without removing the axes
         self.ax.set_ylim(0,10) # Redefine the limits of the plot
         self.ax.set_xlim(0,10)
         #self.grap.remove()
@@ -830,16 +966,33 @@ rclpy.logging.set_logger_level("gui", eval(LOG_LEVEL))
 # Instance the node class
 gui = Gui(TIMER_PERIOD, SLIDER_ZERO, DEADZONE_LOW, DEADZONE_HIGH, LOG_DEBUG)
 
+graph_update_count = 0
 
 while True:
     # Begin looping the node
     rclpy.spin_once(gui, timeout_sec=0.01) # We spin once as to not get stuck
 
-    if gui.app.position_control_window is not None:
+    if graph_update_count == 0:
         gui.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
-    gui.app.EEG_frame.animate()
+        graph_update_count += 1 
+
+    elif graph_update_count == 1:
+        gui.app.EEG_frame.animate()
+        graph_update_count += 1 
+
+    elif graph_update_count == 2:    
+        gui.app.duty_cycle_frame.animate()
+        graph_update_count += 1 
+
+    elif graph_update_count == 3:
+        gui.app.feedback_frame.animate()
+        graph_update_count += 1 
+
+    if graph_update_count == 4:
+        graph_update_count = 0
 
     gui.app.update_idletasks()
-    gui.app.update()     
+    gui.app.update()    
+
 
     
