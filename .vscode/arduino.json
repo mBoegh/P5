@@ -1,4 +1,5 @@
 {
     "board": "arduino:avr:leonardo",
-    "sketch": "arduino/EXO_arduino/EXO_arduino.ino"
+    "sketch": "arduino/EXO_arduino/EXO_arduino.ino",
+    "port": "/dev/ttyACM0"
 }

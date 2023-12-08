@@ -28,7 +28,11 @@ setup(
                 'server = EXONET.NODE_server:main',
                 'gui = EXONET.NODE_gui:main',
                 'serial_communicator = EXONET.NODE_serial_communicator:main',
-                'controller = EXONET.NODE_controller:main'
+                'controller = EXONET.NODE_controller:main',
+                'angle_control = EXONET.NODE_position_control:main',
+                'sercon = EXONET.serial_connect:main',
+                'arrow_control = EXONET.desired_position:main'
+                
         ],
 
     },
