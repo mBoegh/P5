@@ -3,6 +3,8 @@ from EXONET.EXOLIB import JSON_Handler
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Int16, Bool, Int64, Float32
+import time
+from time import perf_counter
 
 import numpy as np
 from simple_pid import PID
@@ -10,10 +12,12 @@ from simple_pid import PID
 class Variables():
     def __init__(self):
         self.t_vel = 0 # Target velocity
+        self.t_pos = 0
 
         # Variables that need to subscribe to the right stuff
         self.j_vel = 0 # Joint velocity
         self.elbow_joint_angle = 90 # Joint angle 
+        self.prev_time = time.time()
         
         # Constants for the gravity compensation (need updates)
         self.g_acceleration = 9.82 # Gravitational acceleration
@@ -50,9 +54,10 @@ class Controller(Node):
         self.LOG_DEBUG = log_debug
 
         # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(1, 1, 1, setpoint=variables.t_vel) # setpoint=1
+        self.pi = PID(1, 1, 1, setpoint=variables.t_pos) # setpoint=1
         self.pi.output_limits = (-100, 100)
         self.prev_duty_cycle = 0
+        self.prev_vel = 0
 
         self.toggle_EEG_parameter = False
 
@@ -174,7 +179,7 @@ class Controller(Node):
             else:
                 self.get_logger().warning(f"Unexpected mental command in recieved EEG data.")
 
-        
+   
 
     def manual_velocity_control_data_topic_callback(self, msg):
         """
@@ -204,6 +209,9 @@ class Controller(Node):
         """
         Callback function called whenever a message is recieved on the subscription 'feedback_joint_angle_subscription'
         """
+        
+        variables.t_pos = msg
+        
         def edge_guard():
             """
             Stops the motor if a movement will exceed the angular limits of the exoskeleton
@@ -344,14 +352,21 @@ class Controller(Node):
             #self.v0 = v 
 
             # The controller
-            regulator = self.pi(variables.j_vel)
+            current_time = time.time()
+            current_pos = (variables.j_vel + self.prev_vel) * 0.5  * (current_time - variables.prev_time)
+            regulator = self.pi(current_pos)
+            
+            
+            
+            
+            #regulator = self.pi(variables.j_vel)
 
-            compensation = (gravity_compensation_torque + spring_compensation_torque)*100
+            #compensation = (gravity_compensation_torque + spring_compensation_torque)*100
 
-            if compensation > abs(regulator):
-                compensation = abs(regulator)
+            #if compensation > abs(regulator):
+                #compensation = abs(regulator)
 
-            duty_cycle = regulator + compensation
+            #duty_cycle = regulator + compensation
 
             # if 0 > regulator and duty_cycle > 0:
             #     duty_cycle = 0
