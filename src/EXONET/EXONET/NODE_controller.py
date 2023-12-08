@@ -13,6 +13,7 @@ class Variables():
     def __init__(self):
         self.t_vel = 0 # Target velocity
         self.t_pos = 0
+        self.current_pos = 0
 
         # Variables that need to subscribe to the right stuff
         self.j_vel = 0 # Joint velocity
@@ -54,7 +55,7 @@ class Controller(Node):
         self.LOG_DEBUG = log_debug
 
         # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(1, 1, 1, setpoint=variables.t_pos) # setpoint=1
+        self.pi = PID(100, 0, 0, setpoint=variables.t_pos) # setpoint=1
         self.pi.output_limits = (-100, 100)
         self.prev_duty_cycle = 0
         self.prev_vel = 0
@@ -209,9 +210,6 @@ class Controller(Node):
         """
         Callback function called whenever a message is recieved on the subscription 'feedback_joint_angle_subscription'
         """
-        
-        variables.t_pos = msg
-        
         def edge_guard():
             """
             Stops the motor if a movement will exceed the angular limits of the exoskeleton
@@ -263,33 +261,33 @@ class Controller(Node):
                 self.pi.set_auto_mode(True, 0)
 
             # Dynamic calculations for spring compensation
-            spring_arm_angle =  variables.elbow_joint_angle + variables.spring_arm_bend_angle # deg
+            #spring_arm_angle =  variables.elbow_joint_angle + variables.spring_arm_bend_angle # deg
 
-            tense_spring_length = np.sqrt(variables.spring_arm_length**2 + variables.upper_arm_construction_length**2 
-                                          - 2 * variables.spring_arm_length*variables.upper_arm_construction_length * np.cos(np.deg2rad(spring_arm_angle))) # m
+            #tense_spring_length = np.sqrt(variables.spring_arm_length**2 + variables.upper_arm_construction_length**2 
+            #                              - 2 * variables.spring_arm_length*variables.upper_arm_construction_length * np.cos(np.deg2rad(spring_arm_angle))) # m
 
-            spring_angle = np.rad2deg(np.arccos((tense_spring_length**2 + variables.upper_arm_construction_length**2 
-                                                 + variables.spring_arm_length**2) / (2 * tense_spring_length * variables.spring_arm_length))) # deg
+            #spring_angle = np.rad2deg(np.arccos((tense_spring_length**2 + variables.upper_arm_construction_length**2 
+            #                                     + variables.spring_arm_length**2) / (2 * tense_spring_length * variables.spring_arm_length))) # deg
             
-            spring_force_vector = (tense_spring_length - variables.relaxed_spring_length) * variables.spring_constant # N
+            #spring_force_vector = (tense_spring_length - variables.relaxed_spring_length) * variables.spring_constant # N
             
-            spring_tangential_force_component = np.sin(np.deg2rad(spring_force_vector)) * spring_force_vector # N
+            #spring_tangential_force_component = np.sin(np.deg2rad(spring_force_vector)) * spring_force_vector # N
             
-            spring_compensation_torque = spring_tangential_force_component * variables.spring_arm_length # Nm
+            #spring_compensation_torque = spring_tangential_force_component * variables.spring_arm_length # Nm
 
             # Constants in below code found through testing the motor, and making a regression over the test data
-            spring_compensation_duty_cycle = 1.65 * spring_compensation_torque + 10.24 #((1.65 * spring_compensation_torque + 10.24)/12)*100 # PWM Duty cycle signal
+            #spring_compensation_duty_cycle = 1.65 * spring_compensation_torque + 10.24 #((1.65 * spring_compensation_torque + 10.24)/12)*100 # PWM Duty cycle signal
 
             # Log the results from dynamic calculations for spring compensation
             self.get_logger().debug(
                 f"Spring Compensation Calculations:"
-                f"\n- spring_arm_angle: {spring_arm_angle}"
-                f"\n- tense_spring_length: {tense_spring_length}"
-                f"\n- spring_angle: {spring_angle}"
-                f"\n- spring_force_vector: {spring_force_vector}"
-                f"\n- spring_tangential_force_component: {spring_tangential_force_component}"
-                f"\n- spring_compensation_torque: {spring_compensation_torque}"
-                f"\n- spring_gravity_compensation_duty_cycle: {spring_compensation_duty_cycle}"
+               # f"\n- spring_arm_angle: {spring_arm_angle}"
+               # f"\n- tense_spring_length: {tense_spring_length}"
+               # f"\n- spring_angle: {spring_angle}"
+               # f"\n- spring_force_vector: {spring_force_vector}"
+               # f"\n- spring_tangential_force_component: {spring_tangential_force_component}"
+               # f"\n- spring_compensation_torque: {spring_compensation_torque}"
+               # f"\n- spring_gravity_compensation_duty_cycle: {spring_compensation_duty_cycle}"
             )
 
             # Dynamic calculations for gravity compensation
@@ -353,11 +351,13 @@ class Controller(Node):
 
             # The controller
             current_time = time.time()
-            current_pos = (variables.j_vel + self.prev_vel) * 0.5  * (current_time - variables.prev_time)
-            regulator = self.pi(current_pos)
+            variables.t_pos = variables.elbow_joint_angle+(variables.t_vel + self.prev_vel) * 0.5  * (current_time - variables.prev_time)
+            self.get_logger().info(f"Target Position: {variables.t_pos}")
+            self.get_logger().info(f"Current Position: {variables.elbow_joint_angle}")
+            controller.pi.setpoint = variables.t_pos
+            duty_cycle = self.pi(variables.elbow_joint_angle)
             
-            
-            
+            self.prev_vel = variables.t_vel
             
             #regulator = self.pi(variables.j_vel)
 
@@ -380,14 +380,15 @@ class Controller(Node):
             # Log controller calculations
             self.get_logger().debug(
                 f"Controller Calculations:"
-                f"\n- Control: {regulator}"
+                #f"\n- Control: {regulator}"
                 f"\n- Duty Cycle: {duty_cycle}"
                 #f"\n- Previous duty cycle: {self.prev_duty_cycle}"
-                f"\n- Compensation duty cycle: {(gravity_compensation_torque + spring_compensation_torque)*50} <-----" # + spring_compensation_duty_cycle
+                #f"\n- Compensation duty cycle: {(gravity_compensation_torque + spring_compensation_torque)*50} <-----" # + spring_compensation_duty_cycle
                 # f"\n- Spri compensation duty cycle: {spring_compensation_torque} <-----"
             )
 
             self.prev_duty_cycle = duty_cycle
+            variables.prev_time = current_time
 
             # The alternative controller
             # error = j_vel-t_vel
@@ -396,6 +397,8 @@ class Controller(Node):
             # volt = 4.7714*1.02**rpm
             
             # Load msg with duty cycle data
+            self.get_logger().info(f"Duty Cycle: {duty_cycle}")
+
             duty_cycle = int(duty_cycle)
 
             self.get_logger().debug(f"Duty cycle rounded: {duty_cycle}")
