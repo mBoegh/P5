@@ -320,7 +320,7 @@ graph_please = True
 
 if graph_please:
     iter = 0
-    n_data = 10000
+    n_data = 5000
     while iter < n_data:
         # Begin looping the node
         rclpy.spin_once(serial_communicator)

@@ -32,6 +32,9 @@ class Variables():
         self.lm2_length = 0.10 # meters 
         self.spool_radius  = 0.025 # meters 
 
+        self.upper_bound = 110-2 # deg
+        self.lower_bound = 70+2 # deg
+
         # Constants for the spring compensation
         self.relaxed_spring_length = 0.11 # m
         self.spring_constant = 60 # N/m
@@ -55,10 +58,16 @@ class Controller(Node):
         self.LOG_DEBUG = log_debug
 
         # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(100, 0, 0, setpoint=variables.t_pos) # setpoint=1
+        self.pi = PID(50, 20, 0, setpoint=variables.t_pos) # setpoint=1
         self.pi.output_limits = (-100, 100)
         self.prev_duty_cycle = 0
         self.prev_vel = 0
+
+        self.prev_spring_acc = 0
+        self.prev_gravity_acc = 0
+
+        self.lower_inertia = (1/3)*(variables.av_arm_weight+variables.exo_weight)*np.square(variables.l2_lenght) #kg*m2
+        self.payload_inertia = variables.av_payload_weight*np.square(variables.l2_lenght) #kg*m2
 
         self.toggle_EEG_parameter = False
 
@@ -235,9 +244,9 @@ class Controller(Node):
 
         # Limits the motion of the arm, by calling the edgeguard() function
         # if the arm angle becomes greater or smaller than the constants below
-        if variables.elbow_joint_angle >= 120 and variables.t_vel > 0:
+        if variables.elbow_joint_angle >= variables.upper_bound and variables.t_vel > 0:
             edge_guard()
-        elif variables.elbow_joint_angle <= 50 and variables.t_vel < 0: 
+        elif variables.elbow_joint_angle <= variables.lower_bound and variables.t_vel < 0: 
             edge_guard()
             
 
@@ -261,19 +270,26 @@ class Controller(Node):
                 self.pi.set_auto_mode(True, 0)
 
             # Dynamic calculations for spring compensation
-            #spring_arm_angle =  variables.elbow_joint_angle + variables.spring_arm_bend_angle # deg
+            spring_arm_angle =  variables.elbow_joint_angle + variables.spring_arm_bend_angle # deg
 
-            #tense_spring_length = np.sqrt(variables.spring_arm_length**2 + variables.upper_arm_construction_length**2 
-            #                              - 2 * variables.spring_arm_length*variables.upper_arm_construction_length * np.cos(np.deg2rad(spring_arm_angle))) # m
+            tense_spring_length = np.sqrt(variables.spring_arm_length**2 + variables.upper_arm_construction_length**2 
+                                         - 2 * variables.spring_arm_length*variables.upper_arm_construction_length * np.cos(np.deg2rad(spring_arm_angle))) # m
 
-            #spring_angle = np.rad2deg(np.arccos((tense_spring_length**2 + variables.upper_arm_construction_length**2 
-            #                                     + variables.spring_arm_length**2) / (2 * tense_spring_length * variables.spring_arm_length))) # deg
+            spring_angle = np.rad2deg(np.arccos((tense_spring_length**2 + variables.upper_arm_construction_length**2 
+                                                + variables.spring_arm_length**2) / (2 * tense_spring_length * variables.spring_arm_length))) # deg
             
-            #spring_force_vector = (tense_spring_length - variables.relaxed_spring_length) * variables.spring_constant # N
+            spring_force_vector = (tense_spring_length - variables.relaxed_spring_length) * variables.spring_constant # N
             
-            #spring_tangential_force_component = np.sin(np.deg2rad(spring_force_vector)) * spring_force_vector # N
+            spring_tangential_force_component = np.sin(np.deg2rad(spring_force_vector)) * spring_force_vector # N
             
-            #spring_compensation_torque = spring_tangential_force_component * variables.spring_arm_length # Nm
+            spring_compensation_torque = spring_tangential_force_component * variables.spring_arm_length # Nm
+            
+            current_time = time.time()
+            
+            spring_acc = spring_compensation_torque/(self.lower_inertia + self.payload_inertia) #((1.65 *gravity_compensation_torque + 10.24)/12)*100
+            spring_vel = (spring_acc + self.prev_spring_acc) * 0.5  * (current_time - variables.prev_time)
+
+            self.prev_spring_acc = spring_acc
 
             # Constants in below code found through testing the motor, and making a regression over the test data
             #spring_compensation_duty_cycle = 1.65 * spring_compensation_torque + 10.24 #((1.65 * spring_compensation_torque + 10.24)/12)*100 # PWM Duty cycle signal
@@ -334,12 +350,16 @@ class Controller(Node):
 
             # Below code used to convert motor torque into volts, the numbers 3.301 and 10.24
             # was found by testing the motor, and then by making a regression over the resulting data 
-            gravity_compensation_duty_cycle = 1.65 *gravity_compensation_torque + 10.24 #((1.65 *gravity_compensation_torque + 10.24)/12)*100
+            
+            gravity_acc = gravity_compensation_torque/(self.lower_inertia + self.payload_inertia) #((1.65 *gravity_compensation_torque + 10.24)/12)*100
+            gravity_vel = (gravity_acc + self.prev_gravity_acc) * 0.5  * (current_time - variables.prev_time)
+
+            self.prev_gravity_acc = gravity_acc
 
             # Log duty cycle calculations
             self.get_logger().debug(
                 f"Duty Cycle Calculations:"
-                f"\n- Compensation Duty Cycle: {gravity_compensation_duty_cycle}"
+                f"\n- Compensation Duty Cycle: {gravity_vel}"
             )
 
             #gravity_acc_compensation = fc * (av_arm_weight+av_payload_weight+exo_weight)
@@ -350,8 +370,15 @@ class Controller(Node):
             #self.v0 = v 
 
             # The controller
-            current_time = time.time()
-            variables.t_pos = variables.elbow_joint_angle+(variables.t_vel + self.prev_vel) * 0.5  * (current_time - variables.prev_time)
+            angle_comp = 0
+            if variables.t_vel < 0:
+                angle_comp = (variables.elbow_joint_angle-45)/2
+            elif variables.t_vel > 0:
+                angle_comp = (180-variables.elbow_joint_angle-110)/4
+            
+            #- angle_comp
+            variables.t_pos = variables.elbow_joint_angle+(variables.t_vel + (spring_vel + gravity_vel) + self.prev_vel - angle_comp) * 0.5  * (current_time - variables.prev_time)
+
             self.get_logger().info(f"Target Position: {variables.t_pos}")
             self.get_logger().info(f"Current Position: {variables.elbow_joint_angle}")
             controller.pi.setpoint = variables.t_pos

@@ -38,8 +38,9 @@ prev_time = start_time #s
 upper_mass = 2 #kg
 lower_mass = 2 #kg
 payload_mass = 1 #kg cite: EXOTIC
-upper_inertia = (1/3)*upper_mass*np.square(upper_length) #kg*mm2
-lower_inertia = (1/3)*lower_mass*np.square(lower_length) #kg*mm2
+upper_inertia = (1/3)*upper_mass*np.square(upper_length) #kg*m2
+lower_inertia = (1/3)*lower_mass*np.square(lower_length) #kg*m2
+payload_inertia = payload_mass*np.square(lower_length) #kg*m2
 grav = 9.82 #m/s^2
 
 upper_gravity = [0,upper_mass*grav] #N
