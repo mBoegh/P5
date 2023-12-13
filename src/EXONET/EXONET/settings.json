@@ -5,7 +5,7 @@
     {
         "HOST": "192.168.132.28",
         "PORT": 20000,
-        "TIMER_PERIOD": 1, 
+        "TIMER_PERIOD": 0.01, 
         "LOG_DEBUG": true,
         "LOG_LEVEL": "rclpy.logging.LoggingSeverity.DEBUG"
     },

@@ -49,6 +49,8 @@ class Serial_Communicator(Node, serial2arduino):
         self.plot_mean_elbow_joint_angle = []
         self.plot_j_vel = []
         self.plot_time = []
+        self.plot_t_vel = []
+        self.t_vel = 0
 
 
         # Initialize feedback message objects of datatype std_msgs.msg.Float32 imported as Float32
@@ -98,8 +100,22 @@ class Serial_Communicator(Node, serial2arduino):
         self.feedback_joint_angle_publisher = self.create_publisher(Float32, 'Feedback_joint_angle', 10)
         self.feedback_joint_angle_publisher  # prevent unused variable warning
 
+        # Initialising a subscriber to the topic 'EEG_data'.
+        # On this topic is expected data of type std_msgs.msg.String which is imported as String.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.target_velocity_topic_subscription = self.create_subscription(Int16, 'Target_velocity', self.target_velocity_topic_callback, 10)
+        self.target_velocity_topic_subscription  # prevent unused variable warning
+
         # Establish a connection with the arduino
         self.arduino = self.establish_connection()
+
+
+
+
+    def target_velocity_topic_callback(self, msg):
+        self.t_vel = msg.data
+
 
 
     def motor_signals_topic_callback(self, msg):
@@ -183,6 +199,8 @@ class Serial_Communicator(Node, serial2arduino):
             self.plot_mean_elbow_joint_angle.append(mean_elbow_joint_angle)
             self.plot_j_vel.append(mean_elbow_joint_vel)
             self.plot_time.append(time_now-self.program_start)
+            self.plot_t_vel.append(self.t_vel)
+
 
     def manual_position_control_data_callback(self, msg):
 
@@ -316,11 +334,11 @@ livel_filter = LiveLFilter(b, a)
 # Instance the serverTCP class
 serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, LOG_DEBUG)
 
-graph_please = True
+graph_please = False
 
 if graph_please:
     iter = 0
-    n_data = 5000
+    n_data = 10000
     while iter < n_data:
         # Begin looping the node
         rclpy.spin_once(serial_communicator)
@@ -344,7 +362,7 @@ if graph_please:
     # plt.show()
 
     # plt.plot(range(n_data-1), serial_communicator.plot_j_vel, range(n_data-1), serial_communicator.plot_mean_elbow_joint_angle)
-    plt.plot(serial_communicator.plot_time, serial_communicator.plot_j_vel, serial_communicator.plot_time, serial_communicator.plot_mean_elbow_joint_angle)
+    plt.plot(serial_communicator.plot_time, serial_communicator.plot_j_vel, serial_communicator.plot_time, serial_communicator.plot_t_vel) #serial_communicator.plot_time, serial_communicator.plot_mean_elbow_joint_angle, 
     plt.ylabel('Computed runnning average joint velocity')
     plt.grid(color='k', linestyle='-', linewidth=1)
     plt.legend()

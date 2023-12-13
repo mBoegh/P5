@@ -706,7 +706,7 @@ class Frame_InfoExo(CTkFrame):
         self.PWMBar = CTkProgressBar(self, orientation="horizontal")
         self.current_velocity_label = CTkLabel(self, text= "Velocity: ")
         self.current_angle_label = CTkLabel(self, text= "Angle: ")
-
+        self.PWMDirectionLabel = CTkLabel(self, text= "Neutral")
 
         # Data Labels
         self.PWMDataLabel = CTkLabel(self, text= str(data.duty_cycle))
@@ -714,16 +714,15 @@ class Frame_InfoExo(CTkFrame):
         self.current_angle_data_label = CTkLabel(self, text= str(data.current_angle))
 
 
-
         # Placing the widgets on the grid in the ExoFrame frame
         self.PWMBar.grid(row= 0, column= 1, padx= 10, pady= 5)
         self.PWMLabel.grid(row= 0, column= 0, padx= 10, pady= 5)
         self.PWMDataLabel.grid(row= 0, column=2, padx= 10, pady= 5)
+        self.PWMDirectionLabel.grid(row= 0, column= 3, padx= 10, pady= 5)
         self.current_velocity_label.grid(row= 1, column= 0, padx= 10, pady= 5)
         self.current_velocity_data_label.grid(row= 1, column= 1, padx= 10, pady= 5)
         self.current_angle_label.grid(row= 2, column= 0, padx= 10, pady= 5)
         self.current_angle_data_label.grid(row= 2, column= 1, padx= 10, pady= 5)
-
 
 class Frame_VisualEegData(CTkFrame):
     """
