@@ -155,61 +155,61 @@ class Gui(Node):
 
     def eeg_data_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'
+        Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'.
         """
 
-        # Log received message data as debug level of importance
+        # Log received message data as debug level of importance.
         self.get_logger().debug(f"Received data: '{msg.data}'")
 
-        # Unpack the recieved message data
+        # Unpack the recieved message data.
         # The expected data is formatted as a string f"{mental_command},{command_power}/" where comma is seperating the two values and forward slashs depicts the end of a value set.
         data_string = msg.data
 
-        # try / except statement used for catching errors, logging them and continuing with program execution
+        # try / except statement used for catching errors, logging them and continuing with program execution.
         try:
 
-            # This is true if the toggle button labled 'EEG' in the main window is toggled True
+            # This is true if the toggle button labled 'EEG' in the main window is toggled True.
             if self.toggle_EEG_parameter == True:
 
                 # This is true if both ',' and '/' are present in the string.
-                # This is checked to make sure that the recieved data follows the formatting standard the developer chose in Node-Red
+                # This is checked to make sure that the recieved data follows the formatting standard the developer chose in Node-Red.
                 if "," in data_string and "/" in data_string:
 
-                    # Find the index of the first forward slash in the string
+                    # Find the index of the first forward slash in the string.
                     breaker_index = data_string.index("/")
 
-                    # Reinitialize data_string with the string until and without the forward slash to seperate the first message from any other messages there might be in recieved
+                    # Reinitialize data_string with the string until and without the forward slash to seperate the first message from any other messages there might be in recieved.
                     data_string = data_string[:breaker_index]
 
-                    # Find the index of the first comma in the string
+                    # Find the index of the first comma in the string.
                     seperator_index = data_string.index(",")
 
-                    # Reinitialize variable mental_command in the Variables class with the string data of index up until the comma disregarding the comma
+                    # Reinitialize variable mental_command in the Variables class with the string data of index up until the comma disregarding the comma.
                     data.mental_command = data_string[:seperator_index]
                     
-                    # Reinitialize variable command_power in the Variables class with the string data of index from from but without comma until the end of the string
+                    # Reinitialize variable command_power in the Variables class with the string data of index from from but without comma until the end of the string.
                     data.command_power = int(data_string[seperator_index+1:])
 
-                    # Update the direction_label which shows the current mental command recieved, meaning the direction of movement
+                    # Update the direction_label which shows the current mental command recieved, meaning the direction of movement.
                     self.app.exo_frame.direction_label.configure(text= data.mental_command)
 
                 else:
-                    # Log warning of unexpected message format
+                    # Log warning of unexpected message format.
                     self.get_logger().warning(f"Unexpected EEG data: {msg.data} \nIsolated message as: {data_string}")
 
         except Exception as e:
-            # Log error message as error level of importance
+            # Log error message as error level of importance.
             self.get_logger().error(f"Unexpected EEG data with error: {e}")
         
-            # Update the direction_label which shows the current mental command recieved, meaning the direction of movement, to display "Error"
+            # Update the direction_label which shows the current mental command recieved, meaning the direction of movement, to display "Error".
             data.mental_command = "Error"
             self.app.exo_frame.direction_label.configure(text= data.mental_command)
 
 
-        # The below functions are what actually does the updating of the window
+        # The below functions are what actually does the updating of the window.
         # We do also have a function called "mainloop()", but the program will halt
         # when it gets to "mainloop()", so only use it if you plan on destroying the window
-        # when updating it, by making a new window
+        # when updating it, by making a new window.
         self.app.update_idletasks()
         self.app.update()
         self.app.eeg_frame.animate()
@@ -227,32 +227,32 @@ class Gui(Node):
         data.duty_cycle = msg.data
         
         # This statement is true when the current duty cycle is greater than zero.
-        # If true then the direction_label label in the Frame_InfoExo is updated with the direction of movement being "Lift"
+        # If true then the direction_label label in the Frame_InfoExo is updated with the direction of movement being "Lift".
         if data.duty_cycle > 0:
-            # Update the direction_label which shows the current direction of movement to display "Lift"
+            # Update the direction_label which shows the current direction of movement to display "Lift".
             self.app.exo_frame.direction_label.configure(text= "Lift")
         
         # This statement is true when the current duty cycle is less than zero.
-        # If true then the direction_label label in the Frame_InfoExo is updated with the direction of movement being "Drop"
+        # If true then the direction_label label in the Frame_InfoExo is updated with the direction of movement being "Drop".
         elif data.duty_cycle < 0:
-            # Update the direction_label which shows the current direction of movement to display "Drop"
+            # Update the direction_label which shows the current direction of movement to display "Drop".
             self.app.exo_frame.direction_label.configure(text= "Drop")
         
-        # If none of the above statements are true, then the direction_label label in the Frame_InfoExo is updated with the direction of movement being "Neutral"
+        # If none of the above statements are true, then the direction_label label in the Frame_InfoExo is updated with the direction of movement being "Neutral".
         else:
-            # Update the direction_label which shows the current direction of movement to display "Neutral"
+            # Update the direction_label which shows the current direction of movement to display "Neutral".
             self.app.exo_frame.direction_label.configure(text= "Neutral")
 
         # Set the PWM / duty cycle bar to the current duty cycle. The PWM / duty cycle bar takes a value 0-1 so the duty cycle is made absolute and divided by 100.
         self.app.exo_frame.duty_cycle_bar.set(abs(data.duty_cycle) / 100)
 
-        # Set the duty_cycle_data_label to display the current value duty cycle
-        self.app.exo_frame.duty_cycle_data_label.configure(text=data.duty_cycle) # Update the content of the CurrentAngle Label
+        # Set the duty_cycle_data_label to display the current value duty cycle.
+        self.app.exo_frame.duty_cycle_data_label.configure(text=data.duty_cycle) # Update the content of the CurrentAngle Label.
 
-        # The below functions are what actually does the updating of the window
+        # The below functions are what actually does the updating of the window.
         # We do also have a function called "mainloop()", but the program will halt
         # when it gets to "mainloop()", so only use it if you plan on destroying the window
-        # when updating it, by making a new window
+        # when updating it, by making a new window.
         self.app.update_idletasks()
         self.app.update()
         self.app.duty_cycle_frame.animate()
@@ -262,11 +262,11 @@ class Gui(Node):
         Callback function called whenever a message is recieved on the subscription 'feedback_joint_velocity_subscription'
         """
 
-        # Log received message data as debug level of importance
+        # Log received message data as debug level of importance.
         self.get_logger().debug(f"Recieved data '{msg.data}'")
 
-        # Unpack the recieved message data
-        # The expected data is formatted as a signed float value 
+        # Unpack the recieved message data.
+        # The expected data is formatted as a signed float value.
         data.current_velocity = msg.data
 
         # # This statement is true if the velocity_control_window is open.
@@ -277,10 +277,10 @@ class Gui(Node):
         # The current_velocity_label of the exoskeleton info frame in the main window is set to display the current velocity measured on the exoskeleton
         self.app.exo_frame.current_velocity_data_label.configure(text= data.current_velocity)
 
-        # The below functions are what actually does the updating of the window
+        # The below functions are what actually does the updating of the window.
         # We do also have a function called "mainloop()", but the program will halt
         # when it gets to "mainloop()", so only use it if you plan on destroying the window
-        # when updating it, by making a new window
+        # when updating it, by making a new window.
         self.app.update_idletasks()
         self.app.update()
         self.app.feedback_frame.animate()
@@ -291,11 +291,11 @@ class Gui(Node):
         Callback function called whenever a message is recieved on the subscription 'feedback_joint_angle_subscription'
         """
         
-        # Log received message data as debug level of importance
+        # Log received message data as debug level of importance.
         self.get_logger().debug(f"Recieved data '{msg.data}'")
 
-        # Unpack the recieved message data
-        # The expected data is formatted as a signed float value 
+        # Unpack the recieved message data.
+        # The expected data is formatted as a signed float value.
         data.current_angle = msg.data
 
         # # This statement is true if the position_control_window is open.
@@ -306,10 +306,10 @@ class Gui(Node):
         # The current_angle_label of the exoskeleton info frame in the main window is set to display the current angle measured on the exoskeleton
         self.app.exo_frame.current_angle_data_label.configure(text= data.current_angle)
 
-        # The below functions are what actually does the updating of the window
+        # The below functions are what actually does the updating of the window.
         # We do also have a function called "mainloop()", but the program will halt
         # when it gets to "mainloop()", so only use it if you plan on destroying the window
-        # when updating it, by making a new window
+        # when updating it, by making a new window.
         self.app.update_idletasks()
         self.app.update()
         self.app.feedback_frame.animate()
@@ -342,21 +342,21 @@ class ParentWindow_MainMenu(CTk):
     def __init__(self, parent, logger):
         super().__init__(parent)
 
-        # Instance the ROS2 Humble logger from the parsed argument
+        # Instance the ROS2 Humble logger from the parsed argument.
         self.logger = logger
 
-        # Set window size in pixels
+        # Set window size in pixels.
         self.geometry("1200x800")
         
         # self.parent = parent ############################################################# Potentially deprecated. Needs test without
 
-        # Set window title
+        # Set window title.
         self.title("P5 GUI - Main Menu")
 
-        # Main function call
+        # Main function call.
         self.mainWidgets()
 
-        # Initializing Variables used in keeping track of any open child windows
+        # Initializing Variables used in keeping track of any open child windows.
         self.velocity_control_window = None
         self.position_control_window = None
 
@@ -367,21 +367,21 @@ class ParentWindow_MainMenu(CTk):
         Also makes and positiones the buttons which create child windows.
         """
 
-        # Initialize the information frame of the main window
+        # Initialize the information frame of the main window.
         self.exo_frame = Frame_InfoExo(self, self.logger)
 
-        # Initialize the frame with all the buttons of the main window
+        # Initialize the frame with all the buttons of the main window.
         self.manual_frame = Frame_MainMenu(self, self.logger)
 
-        # Initialize exoskeleton visual representation plot
+        # Initialize exoskeleton visual representation plot.
         self.visual_frame = Frame_VisualCurrentExoAngle(self, self.logger)
 
-        # Initialize the system data plots
+        # Initialize the system data plots.
         self.eeg_frame = Frame_VisualEegData(self, nb_points= 100, logger= self.logger)
         self.duty_cycle_frame = Frame_VisualDutyCycle(self, nb_points= 100, logger= self.logger)
         self.feedback_frame = Frame_VisualJointFeedback(self, nb_points= 100, logger= self.logger)
 
-        # Poistion all the frames in the main windows grid
+        # Poistion all the frames in the main windows grid.
         self.exo_frame.grid(row= 0, column= 0, pady= 20, padx= 60)
         self.manual_frame.grid(row= 1, column= 0, pady= 20, padx= 60)
         self.visual_frame.grid(row= 2, column= 0, pady= 10, padx= 5)
@@ -453,29 +453,29 @@ class ChildWindow_VelocityControl(CTkToplevel):
         # Initialize the parent class which this class is inheriting from.
         CTkToplevel.__init__(self)
 
-        # Set window size in pixels
+        # Set window size in pixels.
         self.geometry("400x300")
 
-        # Set window title
+        # Set window title.
         self.title("P5 GUI - Velocity Control")
 
-        # Instance the ROS2 Humble logger from the parsed argument
+        # Instance the ROS2 Humble logger from the parsed argument.
         self.logger = logger
 
-        # Instance the target velocity
+        # Instance the target velocity.
         self.target_velocity = 0
 
-        # Instance message Variables as Int16 datatype from ROS2 Humble
+        # Instance message Variables as Int16 datatype from ROS2 Humble.
         self.velocity_control_msg = Int16()
        
        # self.input_velocity_control_msg = Int16() ######################################################### potentially deprecated, need test without
 
-        # Create the 'Exit' button for this window, and place it in the window
+        # Create the 'Exit' button for this window, and place it in the window.
         # This button closes the window.
         self.exit_button = CTkButton(self, text= "Exit", command= self.exit_button_event)
         self.exit_button.grid(row=1, column=0, padx=10, pady=5)
 
-        # Create the 'Stop' button, and place it in the window
+        # Create the 'Stop' button, and place it in the window.
         # This button sets target velocity to zero and resets the slider to zero.
         self.manual_stop_button = CTkButton(self, text= "Stop", command= self.manual_stop_event)
         self.manual_stop_button.grid(row=2, column=0, padx=10, pady=5)
@@ -531,16 +531,16 @@ class ChildWindow_VelocityControl(CTkToplevel):
         'Manual_velocity_control_data'.
         """
 
-        # Loads the velocity_control_msg with the current value in the entry field
+        # Loads the velocity_control_msg with the current value in the entry field.
         self.velocity_control_msg.data = int(value)
 
         # Set the target_velocity_label to display the slider value.
         self.target_velocity_label.configure(text= f"Target velocity:    {str(self.velocity_control_msg.data)}")
 
-        # Publishes the velocity_control_msg using the manual_velocity_control_data_publisher to the topic /Manual_velocity_control_data
+        # Publishes the velocity_control_msg using the manual_velocity_control_data_publisher to the topic /Manual_velocity_control_data.
         gui.manual_velocity_control_data_publisher.publish(self.velocity_control_msg)
 
-        # Logs the published target velocity as Debug level of importance
+        # Logs the published target velocity as Debug level of importance.
         self.logger.debug(f"Target velocity: {value}")
 
 
@@ -1210,13 +1210,13 @@ class Frame_VisualCurrentExoAngle(CTkFrame):
 ####    MAIN    ####
 ####################
 
-# Path for 'settings.json' file
+# Path for 'settings.json' file.
 json_file_path = ".//src//EXONET//EXONET//settings.json"
 
-# Instance the 'JSON_Handler' class for interacting with the 'settings.json' file
+# Instance the 'JSON_Handler' class for interacting with the 'settings.json' file.
 handler = JSON_Handler(json_file_path)
 
-# Get settings from 'settings.json' file
+# Get settings from 'settings.json' file.
 TIMER_PERIOD = handler.get_subkey_value("gui", "TIMER_PERIOD")
 UPPER_JOINT_ANGLE_LIMIT = handler.get_subkey_value("gui", "UPPER_JOINT_ANGLE_LIMIT")
 LOWER_JOINT_ANGLE_LIMIT = handler.get_subkey_value("gui", "LOWER_JOINT_ANGLE_LIMIT")
@@ -1228,19 +1228,19 @@ SLIDER_LOWER_LIMIT = handler.get_subkey_value("gui", "SLIDER_LOWER_LIMIT")
 LOG_DEBUG = handler.get_subkey_value("gui", "LOG_DEBUG")
 LOG_LEVEL = handler.get_subkey_value("gui", "LOG_LEVEL")
 
-# Change appearance of the GUI
+# Change appearance of the GUI.
 set_appearance_mode('system')
 set_default_color_theme("blue")
 
 # Instance the 'Variables' class in global scope, so every subscope can see, get and set variables.
 data = Variables()
 
-# Initialize the rclpy library
+# Initialize the rclpy library.
 rclpy.init()
 
 # Sets the logging level of importance. 
 # When setting, one is setting the lowest level of importance one is interested in logging.
-# Logging level is defined in settings.json
+# Logging level is defined in settings.json.
 # Logging levels:
 # - DEBUG
 # - INFO
@@ -1250,7 +1250,7 @@ rclpy.init()
 # The eval method interprets a string as a command.
 rclpy.logging.set_logger_level("gui", eval(LOG_LEVEL))
 
-# Instance the node class
+# Instance the node class.
 gui = Gui(TIMER_PERIOD, UPPER_JOINT_ANGLE_LIMIT, LOWER_JOINT_ANGLE_LIMIT, INCREMENT_BUTTON_VALUE, DECREMENT_BUTTON_VALUE, SLIDER_ZERO, SLIDER_LOWER_LIMIT, SLIDER_UPPER_LIMIT, LOG_DEBUG)
 
 # Counter for updating the graphs one at a time. 
