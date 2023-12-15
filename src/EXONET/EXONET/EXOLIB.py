@@ -146,9 +146,9 @@ class TCP_Server:
         return self.data_string
     
 
-class serial2arduino:
+class Serial_to_microcontroller:
     """
-    Class for establishing serial communication between Python script and an Arduino. 
+    Class for establishing serial communication between Python script and a microcontroller. 
     Takes parameters:
        serial_port - the COM port connection with USB)
        baud_rate - defaults 9600

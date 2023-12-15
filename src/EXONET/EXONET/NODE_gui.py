@@ -58,7 +58,7 @@ class Gui(Node):
         self.LOG_DEBUG = log_debug
 
         # Initialising class Variables
-        self.toggle_EEG_parameter = False
+        self.toggle_EEG_parameter = False  # Bool determining if the system reacts to the EEG datastream.
 
         # Initialising variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
         # The message is loaded with data and published to a topic
@@ -75,10 +75,6 @@ class Gui(Node):
         self.get_logger().warning("Hello world!")
         self.get_logger().error("Hello world!")
         self.get_logger().fatal("Hello world!")
-
-        # Instancing the main gui window. It has None parent and meaning that it does not belong to any other CTK object.
-        # The ROS2 Humble logger is parsed so that it may be used in the instance, even tho the instance itself is not inheriting from the Node class.
-        self.app = ParentWindow_MainMenu(None, self.get_logger())
 
         # Initialising a subscriber to the topic 'EEG_data'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
@@ -134,6 +130,10 @@ class Gui(Node):
 
         # Create a timer which periodically calls the specified callback function at a defined interval. ########################################### Potentially deprecated. Needs test without
         #self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
+
+        # Instancing the main gui window. It has None parent and meaning that it does not belong to any other CTK object.
+        # The ROS2 Humble logger is parsed so that it may be used in the instance, even tho the instance itself is not inheriting from the Node class.
+        self.app = ParentWindow_MainMenu(None, self.get_logger())
 
         # Set the PWM / Duty Cycle indicator bar of the class Frame_InfoExo to 0.
         # This bar shows the current PWM / Duty Cycle visually in a *progress bar* esque manner.
@@ -219,11 +219,11 @@ class Gui(Node):
         Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
         """
 
-        # Log received message data as debug level of importance
+        # Log received message data as debug level of importance.
         self.get_logger().debug(f"Recieved data: '{msg.data}'")
 
-        # Unpack the recieved message data
-        # The expected data is formatted as an integer from -100 to 100
+        # Unpack the recieved message data.
+        # The expected data is formatted as an integer from -100 to 100.
         data.duty_cycle = msg.data
         
         # This statement is true when the current duty cycle is greater than zero.
@@ -693,11 +693,11 @@ class ChildWindow_PositionControl(CTkToplevel):
         # Publishes the target angle position to the topic /Manual_position_control_data
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
 
-        # Set the target_angle_label to display the submitted value.
-        self.target_angle_label.configure(text= f"Target angle:    {str(self.position_control_msg.data)}")
-
         # Logs the published data with Debug level of importance
         self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
+
+        # Set the target_angle_label to display the submitted value.
+        self.target_angle_label.configure(text= f"Target angle:    {str(self.position_control_msg.data)}")
 
 
     def manual_down_event(self):
@@ -721,11 +721,11 @@ class ChildWindow_PositionControl(CTkToplevel):
         # Publishes the target angle position to the topic /Manual_position_control_data
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
         
-        # Set the target_angle_label to display the submitted value.
-        self.target_angle_label.configure(text= f"Target angle:    {str(self.position_control_msg.data)}")
-
         # Logs the published data with Debug level of importance
         self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
+
+        # Set the target_angle_label to display the submitted value.
+        self.target_angle_label.configure(text= f"Target angle:    {str(self.position_control_msg.data)}")
 
 
     def exit_button_event(self): 

@@ -1,4 +1,4 @@
-from EXONET.EXOLIB import JSON_Handler, serial2arduino, RunningAverage, LiveLFilter
+from EXONET.EXOLIB import JSON_Handler, Serial_to_microcontroller, RunningAverage
 
 import rclpy
 from rclpy.node import Node
@@ -10,19 +10,16 @@ import scipy.signal
 
 import time
 
-class Serial_Communicator(Node, serial2arduino):
+class Serial_Communicator(Node, Serial_to_microcontroller):
     """
     This is the Serial_Communicator node of the EXONET ROS2 network.
-    Takes argument(s):
-     - serial_port (EG. COM3)
-     - baud_rate (default 9600)
-     - timeout (time (seconds) before connection attempt is aborted)
-     - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
+    The purpose of the Serial_Communicator is establishing a serial communication
+    with a micro controller and sending & receiving data.
     """
 
     def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, delay_between_sending_and_receiving, running_average_buffer_size, log_debug):
 
-        # Initialising variables
+        # Initialising parsed Variables
         self.SERIAL_PORT = serial_port
         self.BAUD_RATE = baud_rate
         self.BYTESIZE = bytesize
@@ -32,61 +29,62 @@ class Serial_Communicator(Node, serial2arduino):
         self.RUNNING_AVERAGE_BUFFER_SIZE = running_average_buffer_size
         self.LOG_DEBUG = log_debug
 
-        # Flag for controlling what computations are done with the feedback signal.
-        # If high then we get a time0 value
-        # If low then we compute
-        self.first_feedback = True
-        self.second_feedback = True
-        self.time0 = None
-        self.program_start = None
-        self.elbow_joint_angle_zero = None
-        self.previous_velocity = 0
 
-        # plots
-        self.plot_data = []
-        self.plot_filtered_data = []
-        self.plot_elbow_joint_angle = []
-        self.plot_mean_elbow_joint_angle = []
-        self.plot_j_vel = []
-        self.plot_time = []
-        self.plot_t_vel = []
-        self.t_vel = 0
+        # Initialising class Variables
+        self.first_feedback = True  # Flag is lowered after first feedback message
+        self.second_feedback = True  # Flag is lowered after second feedback message
+        self.program_start_time = None  # Contains the time stamp of the program start.
+        self.time_zero = None  # Acts as a previous time stamp. Used in computing time difference since last received serial message.
+        self.elbow_joint_angle_zero = None  # Acts as a previous data point. Used in computing velocity, by measuring angle difference over time difference.
+        self.previous_velocity = 0  # Acts as a previous data point. Used in computing velocity, by measuring angle difference over time difference.
+        self.t_vel = 0  # Contains the current target velocity. Only used in plotting.
 
+        # Initialising the data lists for plotting using MatPlotLib
+        self.plot_time = []  # Contains the time axis.
+        self.plot_mean_elbow_joint_angle = []  # Contains the smoothed elbow joint angle.
+        self.plot_j_vel = []  # Contains the smoothed joint velocity.
+        self.plot_t_vel = []  # Contains the target velocity.
 
-        # Initialize feedback message objects of datatype std_msgs.msg.Float32 imported as Float32
+        # Initialising variable feedback_joint_velocity_msg and feedback_joint_angle_msg as being of data type 'std_msgs.msg.Float32' imported as Float32.
+        # The messages is loaded with data and published to a topic.
         self.feedback_joint_velocity_msg = Float32()
         self.feedback_joint_angle_msg = Float32()
 
-        # Initialising the classes, from which this class is inheriting.
+        # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
         Node.__init__(self, 'serial_communicator')
-        serial2arduino.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
 
+        # Initialising the 'Serial_to_microcontroller' class, from which this class is inheriting.
+        Serial_to_microcontroller.__init__(self, self.SERIAL_PORT, self.BAUD_RATE, self.BYTESIZE, self.PARITY, self.STOPBITS, self.LOG_DEBUG)
+        
+        # This is the ROS2 Humble logging system, which is build on the Logging module for Python.
+        # It displays messages with developer specified importance.
+        # Here all the levels of importance are used to indicate that the script is running.
         self.get_logger().debug("Hello world!")
         self.get_logger().info("Hello world!")
         self.get_logger().warning("Hello world!")
         self.get_logger().error("Hello world!")
         self.get_logger().fatal("Hello world!")
 
-        # Initialising a subscriber to the topic 'Motor_signals'.
-        # On this topic is expected data of type std_msgs.msg.Int64 which is imported as Int64.
+        # Initialising a subscriber to the topic 'Velocity_motor_signals'.
+        # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.velocity_motor_signals_subscription = self.create_subscription(Int16, 'Velocity_motor_signals', self.motor_signals_topic_callback, 10)
         self.velocity_motor_signals_subscription  # prevent unused variable warning
+
+        # Initialising a subscriber to the topic 'Manual_velocity_control_data'.
+        # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.manual_input_velocity_control_data_subscriber = self.create_subscription(Int16, 'Manual_velocity_control_data', self.motor_signals_topic_callback, 10)
+        self.manual_input_velocity_control_data_subscriber  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Manual_position_control_data'.
         # On this topic is expected data of type std_msgs.msg.UInt16 which is imported as UInt16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.manual_position_control_data_subscriber = self.create_subscription(UInt16, 'Manual_position_control_data', self.manual_position_control_data_callback, 10)
-        self.manual_position_control_data_subscriber
-
-        # Initialising a subscriber to the topic 'Manual_position_control_data'.
-        # On this topic is expected data of type std_msgs.msg.UInt16 which is imported as UInt16.
-        # The subscriber calls a defined callback function upon message recieval from the topic.
-        # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_input_velocity_control_data_subscriber = self.create_subscription(Int16, 'Manual_input_velocity_control_data', self.motor_signals_topic_callback, 10)
-        self.manual_input_velocity_control_data_subscriber
+        self.manual_position_control_data_subscriber  # prevent unused variable warning
 
         # Initialising a publisher to the topic 'Feedback_joint_velocity'.
         # On this topic is expected data of type std_msgs.msg.FLoat32 which is imported as FLoat32.
@@ -100,201 +98,217 @@ class Serial_Communicator(Node, serial2arduino):
         self.feedback_joint_angle_publisher = self.create_publisher(Float32, 'Feedback_joint_angle', 10)
         self.feedback_joint_angle_publisher  # prevent unused variable warning
 
-        # Initialising a subscriber to the topic 'EEG_data'.
-        # On this topic is expected data of type std_msgs.msg.String which is imported as String.
+        # Initialising a subscriber to the topic 'Target_velocity'.
+        # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.target_velocity_topic_subscription = self.create_subscription(Int16, 'Target_velocity', self.target_velocity_topic_callback, 10)
         self.target_velocity_topic_subscription  # prevent unused variable warning
 
-        # Establish a connection with the arduino
-        self.arduino = self.establish_connection()
-
-
+        # Establish a connection with the microcontroller
+        self.microcontroller = self.establish_connection()
 
 
     def target_velocity_topic_callback(self, msg):
-        self.t_vel = msg.data
+        """
+        Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
+        """
+        
+       # Log received message data as debug level of importance.
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
+        # Unpack the recieved message data by reinitializing t_vel.
+        # The expected data is formatted as a signed integer with limits set by the method of generating the target velocity.
+        self.t_vel = msg.data
 
 
     def motor_signals_topic_callback(self, msg):
         """
         Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
         """
+        
+        # Log received message data as debug level of importance.
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
-        # Log info
-        self.get_logger().info(f"Recieved topic data: '{msg.data}'")
-
+        # Unpack the recieved message data.
+        # The expected data is formatted as an integer from -100 to 100.
         duty_cycle = msg.data
 
+        # Format the data as a message to be sent over serial to the microcontroller,
+        # such that it follows the established encoding convention of the system.
+        # The duty cycle is increased by 1000, which will be retracted again on the microcontroller.
+        # This is to handle the value as uint in transit to the microcontroller, and int in use on the microcontroller.
+        # Furthermore the message is formatted as a string with a zero padded at the front.
+        # This is due to the current microcontroller, an Arduino Leonardo, removing the first scipher of every message,
+        # when it recieves messages at a high frequency.
         serial_message = f"0{duty_cycle + 1000}"
 
-        # Sending data to Arduino
-        self.send_data(self.arduino, serial_message, seperator="\n")
+        # Sending data to microcontroller.
+        self.send_data(self.microcontroller, serial_message, seperator="\n")
 
-       # time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
+        # This is an optional wait time between the system sends a message over serial
+        # and recieves a message over serial.
+        # The value DELAY_BETWEEN_SENDING_AND_RECEIVING is set in settings.json.
+        time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
 
-        # Load feedback_msg with returned data 
-        data = int(self.receive_data(self.arduino))
+        # Recieve serial data and cast it as integer.
+        data = int(self.receive_data(self.microcontroller))
 
+        # Log received serial data as debug level of importance.
         self.get_logger().debug(f"Received serial data: '{data}'")
 
-        filtered_data = data # livel_filter(data)
-
+        # This statement is true when the first_feedback flag is true, which it is at init.
+        # If true then a time_zero time reading is stamped, and the program start time is stamped as time_zero.
+        # The first current exoskeleton joint angle is measured, initialized as elbow_joint_angle_zero,
+        # and the RunningAverage class is instanced with init values being the current exoskeleton elbow joint angle.
+        # Then the first_feedback is lowered, so that this section does not run again.
         if self.first_feedback:
-            self.time0 = time.time()
-            self.program_start = self.time0
-            self.elbow_joint_angle_zero = self.map_range(filtered_data, 0, 1023, -30, 210) # Joint angle 
 
+            # First time stamp.
+            self.time_zero = time.time()
+
+            # Saving the first time stamp.
+            self.program_start_time = self.time_zero
+
+            # Computing the current exoskeleton elbow joint angle by mapping the potentiometer 
+            # reading recieved from the microcontroller to be in the range of the exoskeleton joint.
+            # This computation acts as the previous reading when computing exoskeleton elbow joint velocity,
+            # by comparing the difference in joint angle over the difference in time.
+            self.elbow_joint_angle_zero = self.map_range(data, 0, 1023, -30, 210)  # Joint angle
+
+            # Instancing the RunningAverage class. Buffer size is determined in settings.json as RUNNING_AVERAGE_BUFFER_SIZE.
+            # The class is initialised by filling the entire buffer with the first exoskeleton elbow joint angle computation. 
             self.running_average = RunningAverage(RUNNING_AVERAGE_BUFFER_SIZE, self.elbow_joint_angle_zero)
 
+            # Lower the first_feedback flag, so that this section does not run again.
             self.first_feedback = False
         
         else:
 
+            # Time stamping the current time.
             time_now = time.time()
 
-            elbow_joint_angle_now = self.map_range(filtered_data, 0, 1023, -30, 210) # Joint angle 
+            # Computing the current exoskeleton elbow joint angle by mapping the potentiometer 
+            # reading recieved from the microcontroller to be in the range of the exoskeleton joint.
+            elbow_joint_angle_now = self.map_range(data, 0, 1023, -30, 210)
         
-            # Compute running average using the RunningAverage object of the EXOLIB library with buffersize n defined in settings.json
-            self.running_average.add_data_point(elbow_joint_angle_now)
-            mean_elbow_joint_angle = self.running_average.get_average()
-        
-            time_diff = time_now - self.time0
+            # Adding new datapoint to the buffer of the running average for the exoskeleton elbow joint angle and removing the oldest data point.
+            self.running_average.add_data_point(elbow_joint_angle_now)  # Joint angle
 
-            self.time0 = time_now
+            # Computing the running average with the new buffer.
+            mean_elbow_joint_angle = self.running_average.get_average()
+
+            # Logs the computed exoskeleton mean elbow joint angle as debug level of importance.
+            self.get_logger().debug(f"Computed 'mean_elbow_joint_angle' feedback data: '{mean_elbow_joint_angle}'")
         
+            # Computing the time difference between the current time stamp and the previous time stamp.
+            time_diff = time_now - self.time_zero
+
+            # Resetting the previous time stamp to be the time of the current time stamp.
+            self.time_zero = time_now
+        
+            # Computing the difference in exoskeleton elbow joint angle between the current angle and the previous angle.
             elbow_joint_angle_diff = mean_elbow_joint_angle - self.elbow_joint_angle_zero
 
+            # Resetting the previous angle to be the angle of the current angle.
             self.elbow_joint_angle_zero = mean_elbow_joint_angle
-
-            self.data0 = filtered_data        
             
+            # Computing exoskeleton elbow joint velocity by dividing the difference in angle with the difference in time.
             j_vel = elbow_joint_angle_diff / time_diff  # Joint velocity
 
+            # This statement is true when the second_feedback flag is true, which it is at init.
+            # If true then instance the RunningAverage class with init values being the 
+            # the current exoskeleton elbow joint velocity.
+            # Then the mean exoskeleton elbow joint velocity is initialized as the value of the first joint velocity computation.
+            # Then the second_feedback is lowered, so that this section does not run again.
             if self.second_feedback:
+                
+                # Instancing the RunningAverage class. Buffer size is determined in settings.json as RUNNING_AVERAGE_BUFFER_SIZE.
+                # The class is initialised by filling the entire buffer with the first exoskeleton elbow joint velocity computation. 
                 self.running_average_vel = RunningAverage(RUNNING_AVERAGE_BUFFER_SIZE, j_vel)
-                self.second_feedback = False
+                
+                # The mean exoskeleton elbow joint velocity is initialized as the value of the first joint velocity computation.
                 mean_elbow_joint_vel = j_vel
-            else:
-                self.running_average_vel.add_data_point(j_vel)
-                mean_elbow_joint_vel = self.running_average_vel.get_average()
-        
+            
+                # Lower the second_feedback flag, so that this section does not run again.
+                self.second_feedback = False
 
+            else:
+
+                # Adding new datapoint to the buffer of the running average for the exoskeleton elbow joint velocity and removing the oldest data point.
+                self.running_average_vel.add_data_point(j_vel)
+                
+                # Computing the running average with the new buffer.
+                mean_elbow_joint_vel = self.running_average_vel.get_average()
+
+                # Logs the computed exoskeleton mean elbow joint velocity as debug level of importance.
+                self.get_logger().debug(f"Computed 'mean_elbow_joint_vel' feedback data: '{mean_elbow_joint_vel}'")
+        
+            # Loads the feedback_joint_velocity_msg with the computed mean joint velocity.
             self.feedback_joint_velocity_msg.data = float(mean_elbow_joint_vel)
+
+            # Loads the feedback_joint_angle_msg with the computed mean joint angle.
             self.feedback_joint_angle_msg.data = float(mean_elbow_joint_angle)
 
-            self.get_logger().debug(f"Computed 'j_vel' feedback data: '{mean_elbow_joint_vel}'")
-            self.get_logger().debug(f"Computed 'elbow_joint_angle' feedback data: '{mean_elbow_joint_angle}'")
-
+            # Publishes the computed feedback joint angle to the topic /Feedback_joint_angle.
             self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
+
+            # Logs the published feedback_joint_angle_msg data with Debug level of importance.
+            self.logger.debug(f"Published 'feedback_joint_angle_msg' data: '{self.feedback_joint_angle_msg.data}'")
+
+            # Publishes the computed feedback joint velocity to the topic /Feedback_joint_velocity.
             self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
 
+            # Logs the published feedback_joint_velocity_msg data with Debug level of importance.
+            self.logger.debug(f"Published 'feedback_joint_velocity_msg' data: '{self.feedback_joint_velocity_msg.data}'")
+
+            # Reinitializes previous_velocity to have the value of the current mean exoskeleton elbow joint velocity.
             self.previous_velocity = mean_elbow_joint_vel
 
-            self.plot_data.append(data)
-            self.plot_filtered_data.append(filtered_data)
-            self.plot_elbow_joint_angle.append(elbow_joint_angle_now)
+            # Append data to respective lists.
+            self.plot_time.append(time_now-self.program_start_time)
             self.plot_mean_elbow_joint_angle.append(mean_elbow_joint_angle)
             self.plot_j_vel.append(mean_elbow_joint_vel)
-            self.plot_time.append(time_now-self.program_start)
             self.plot_t_vel.append(self.t_vel)
 
 
     def manual_position_control_data_callback(self, msg):
+        """
+        Callback function called whenever a message is recieved on the subscription 'manual_position_control_data_subscriber'
+        """
 
-        # Log info
+        # Log received message data as debug level of importance.
         self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
-        # Sending data to Arduino
-        self.send_data(self.arduino, msg.data, seperator= "\n", state= "/")
+        # Sending data to microcontroller, with state set to be '/'.
+        # This is part of the established encoding convention of the system.
+        # When state is '/' the data is enterpreted as being a
+        # target exoskeleton elbow joint angle by the microcontroller.
+        # Currently the entirety of the position control system is running on the microcontroller.
+        self.send_data(self.microcontroller, msg.data, seperator= "\n", state= "/")
 
-       # time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
+        # This is an optional wait time between the system sends a message over serial
+        # and recieves a message over serial.
+        # The value DELAY_BETWEEN_SENDING_AND_RECEIVING is set in settings.json.
+        time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
 
-        # Load feedback_msg with returned data 
-        data = int(self.receive_data(self.arduino))
+        # Recieve serial data and cast it as integer.
+        data = int(self.receive_data(self.microcontroller))
 
+        # Log received serial data as debug level of importance.
         self.get_logger().debug(f"Received serial data: '{data}'")
 
 
     def map_range(self, x, in_min, in_max, out_min, out_max):
-        return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
+        """
+        Function emulation the functionality of the Arduino IDE map() method.
+        Maps a value x from one range [in_min:in_max] to another range [out_min:out_max].
+        """
 
-####################
-######  MAIN  ######
-####################
+        # Mapping x from range [in_min:in_max] to range [out_min:out_max]
+        output = (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
 
-def plot_signals_and_spectrum(time, signal, cutoff_frequency, filtered_signal, fs):
-    """
-    Plot the time-domain and frequency-domain representations of a signal.
-
-    Parameters:
-    - time: Time vector of the signal.
-    - signal: Original signal.
-    - filtered_signal: Signal after applying the lowpass filter.
-    - fs: Sampling frequency.
-    """
-    plt.figure(figsize=(12, 6))
-
-    # Plot the time-domain signal
-    plt.subplot(3, 1, 1)
-    plt.plot(time, signal, label='Original Signal')
-    plt.plot(time, filtered_signal, label='Filtered Signal', linewidth=2)
-    plt.title('Time Domain')
-    plt.xlabel('Time [s]')
-    plt.ylabel('Amplitude')
-    plt.legend()
-
-    # Plot the frequency-domain representation using FFT
-    plt.subplot(3, 1, 2)
-    fft_freq = np.fft.fftfreq(len(signal), 1/fs)
-    fft_signal = np.fft.fft(signal)
-    plt.plot(fft_freq, np.abs(fft_signal), label='Original Signal')
-    
-    fft_filtered_signal = np.fft.fft(filtered_signal)
-    plt.plot(fft_freq, np.abs(fft_filtered_signal), label='Filtered Signal', linewidth=2)
-    
-    plt.title('Frequency Domain (FFT)')
-    plt.xlabel('Frequency [Hz]')
-    plt.ylabel('Magnitude')
-    plt.legend()
-
-    # Plot the frequency response of the filter
-    plt.subplot(3, 1, 3)
-    b, a = butter_lowpass(cutoff_frequency, fs, order=4)
-    w, h = freqz(b, a, worN=8000)
-    plt.plot(0.5 * fs * w / np.pi, np.abs(h), 'b', label='Lowpass Filter')
-    plt.plot(cutoff_frequency, 0.5 * np.sqrt(2), 'ko')
-    plt.axvline(cutoff_frequency, color='k')
-    plt.xlim(0, 0.5 * fs)
-    plt.title('Lowpass Filter Frequency Response')
-    plt.xlabel('Frequency [Hz]')
-    plt.ylabel('Gain')
-    plt.legend()
-
-    plt.tight_layout()
-    plt.show()
-
-def butter_lowpass(cutoff_freq, fs, order=4):
-    """
-    Design a lowpass Butterworth filter.
-
-    Parameters:
-    - cutoff_freq: Cutoff frequency of the filter.
-    - fs: Sampling frequency.
-    - order: Filter order (default is 4).
-
-    Returns:
-    - b: Numerator coefficients of the filter.
-    - a: Denominator coefficients of the filter.
-    """
-    nyquist = 0.5 * fs
-    normal_cutoff = cutoff_freq / nyquist
-    # Design the Butterworth filter
-    b, a = butter(order, normal_cutoff, btype='low', analog=False)
-    return b, a
-
+        return output
 
 
 #########################
@@ -316,78 +330,57 @@ PARITY = handler.get_subkey_value("serial_communicator", "PARITY")
 STOPBITS = handler.get_subkey_value("serial_communicator", "STOPBITS")
 DELAY_BETWEEN_SENDING_AND_RECEIVING = handler.get_subkey_value("serial_communicator", "DELAY_BETWEEN_SENDING_AND_RECEIVING")
 RUNNING_AVERAGE_BUFFER_SIZE = handler.get_subkey_value("serial_communicator", "RUNNING_AVERAGE_BUFFER_SIZE")
+GRAPH = handler.get_subkey_value("serial_communicator", "GRAPH")
+AMOUNT_DATAPOINTS = handler.get_subkey_value("serial_communicator", "AMOUNT_DATAPOINTS")
 LOG_DEBUG = handler.get_subkey_value("serial_communicator", "LOG_DEBUG")
 LOG_LEVEL = handler.get_subkey_value("serial_communicator", "LOG_LEVEL")
 
 
-# Initialize the rclpy library
+# Initialize the rclpy library.
 rclpy.init()
 
+# Sets the logging level of importance. 
+# When setting, one is setting the lowest level of importance one is interested in logging.
+# Logging level is defined in settings.json
+# Logging levels:
+# - DEBUG
+# - INFO
+# - WARNING
+# - ERROR
+# - FATAL
+# The eval method interprets a string as a command.
 rclpy.logging.set_logger_level("serial_communicator", eval(LOG_LEVEL))
 
-
-# Butterworth low-pass filter with frequency cutoff at 125 Hz
-b, a = scipy.signal.iirfilter(4, Wn=49, fs=100, btype="low", ftype="butter")
-
-livel_filter = LiveLFilter(b, a)
-
-# Instance the serverTCP class
+# Instance the Serial_Communicator node class.
 serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, LOG_DEBUG)
 
-graph_please = False
+# This statement is true if the value GRAPH is true. This can be set in settings.json
+# If true then a plot is made of the mean exoskeleton elbow joint velocity and angle, as well as the target velocity, over time.
+if GRAPH:
 
-if graph_please:
+    # Iteration counter
     iter = 0
-    n_data = 10000
-    while iter < n_data:
-        # Begin looping the node
+
+    # This statement is true while the iteration counter is less than the value of AMOUNT_DATAPOINTS, which is set in settings.json.
+    while iter < AMOUNT_DATAPOINTS:
+
+        # Spinning the node once, so that the amount of node spins can be controlled.
         rclpy.spin_once(serial_communicator)
+
+        # Incrementing the iteration counter by one.
         iter += 1
 
-    # plt.plot(serial_communicator.plot_data)
-    # plt.ylim((0,1023))
-    # plt.show()
-
-    # plt.plot(serial_communicator.plot_filtered_data)
-    # plt.ylim((0,1023))
-    # plt.show()
-
-    # plt.plot(serial_communicator.plot_elbow_joint_angle)
-    # plt.ylabel('Elbow joint angle')
-    # plt.ylim((130,300))
-    # plt.show()
-
-    # plt.plot(serial_communicator.plot_j_vel)
-    # plt.ylabel('Computed joint velocity')
-    # plt.show()
-
-    # plt.plot(range(n_data-1), serial_communicator.plot_j_vel, range(n_data-1), serial_communicator.plot_mean_elbow_joint_angle)
-    plt.plot(serial_communicator.plot_time, serial_communicator.plot_j_vel, serial_communicator.plot_time, serial_communicator.plot_t_vel) #serial_communicator.plot_time, serial_communicator.plot_mean_elbow_joint_angle, 
-    plt.ylabel('Computed runnning average joint velocity')
+    # Plotting the mean exoskeleton elbow joint velocity and angle, as well as the target velocity, over time. 
+    plt.plot(serial_communicator.plot_time, serial_communicator.plot_j_vel, serial_communicator.plot_time, serial_communicator.plot_mean_elbow_joint_angle, serial_communicator.plot_time, serial_communicator.plot_t_vel)
+    plt.ylabel('Target velocity and computed runnning average joint velocity & joint angle')
     plt.grid(color='k', linestyle='-', linewidth=1)
     plt.legend()
     plt.show()
+
 else:
+
+    # Spin the node as normal.
     rclpy.spin(serial_communicator)
-
-
-
-# datas = [serial_communicator.plot_data, serial_communicator.plot_elbow_joint_angle, serial_communicator.plot_j_vel, serial_communicator.plot_mean_j_vel]
-
-# # Define cutoff frequency for the lowpass filter
-# cutoff_frequency = 50  # Adjust this based on your requirements
-
-# fs = 999  # Sample rate, change it to your actual sample rate
-# t = np.linspace(0, 1, fs, endpoint=False)  # Time vector
-
-# for data in datas:
-
-#     # Apply the lowpass filter to the data
-#     b, a = butter_lowpass(cutoff_frequency, fs)
-#     filtered_data = lfilter(b, a, data)
-
-#     # Plot the time-domain and frequency-domain representations
-#     plot_signals_and_spectrum(t, data, cutoff_frequency, filtered_data, fs)
 
 
     
