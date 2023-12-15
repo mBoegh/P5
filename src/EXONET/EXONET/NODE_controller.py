@@ -9,11 +9,16 @@ from time import perf_counter
 import numpy as np
 from simple_pid import PID
 
-class Variables():
+class Variables:
+    """
+    Class for initialising, setting and getting Variables.
+    When instanced in global space, then every other scope can access the Variables.
+    """
+
     def __init__(self):
-        self.t_vel = 0 # Target velocity
-        self.t_pos = 0
-        self.current_pos = 0
+        self.t_vel = 0  # Target exoskeleton elbow joint velocity
+        self.t_pos = 0  # Target exoskeleton elbow joint angle
+        self.current_pos = 0  # Current exoskeleton elbow joint angle
 
         # Variables that need to subscribe to the right stuff
         self.j_vel = 0 # Joint velocity
@@ -46,20 +51,20 @@ class Variables():
 class Controller(Node):
     """
     This is the Controller node of the EXONET ROS2 network.
-    Takes argument(s):
-     - log_debug (Bool for toggling logging of severity level 'debug', 'info' and 'warn'. Severity level 'error' and 'fatal' is always logged.)
+    The purpose of the Controller is handling all computations for the closed loop control systen.
     """
 
     def __init__(self, timer_period, stepwise, log_debug):
 
-        # Initialising variables
+        # Initialising parsed Variables
         self.TIMER_PERIOD = timer_period
         self.STEPWISE = stepwise
         self.LOG_DEBUG = log_debug
 
-        # D should always be 0, Don't change setpoint!!! 
-        self.pi = PID(50, 20, 0, setpoint=variables.t_pos) # setpoint=1
+        self.pi = PID(50, 20, 0, setpoint=variables.t_pos)
         self.pi.output_limits = (-100, 100)
+        
+        # Initialising class Variables
         self.prev_duty_cycle = 0
         self.prev_vel = 0
 
@@ -77,7 +82,12 @@ class Controller(Node):
 
         self.pid_state = True
 
-        self.msg = Int16()
+        # Initialising variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
+        # The message is loaded with data and published to a topic
+        self.duty_cycle_msg = Int16()
+
+        # Initialising variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
+        # The message is loaded with data and published to a topic
         self.target_velocity_msg = Int16()
 
         # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
@@ -103,8 +113,8 @@ class Controller(Node):
         self.eeg_data_subscription = self.create_subscription(String, 'EEG_data', self.eeg_data_topic_callback, 10)
         self.eeg_data_subscription  # prevent unused variable warning
 
-        # Initialising a subscriber to the topic 'Manual_control_data'.
-        # On this topic is expected data of type std_msgs.msg.Int8 which is imported as Int8.
+        # Initialising a subscriber to the topic 'Manual_velocity_control_data'.
+        # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.manual_velocity_control_data_subscription = self.create_subscription(Int16, 'Manual_velocity_control_data', self.manual_velocity_control_data_topic_callback, 10)
@@ -252,9 +262,9 @@ class Controller(Node):
             self.prev_duty_cycle = 0
             self.get_logger().debug(f"Reset previous dutycycle: {self.prev_duty_cycle}")
 
-            self.msg.data = 0
-            self.velocity_motor_signals_publisher.publish(self.msg)
-            self.get_logger().debug(f"Published dutycycle: {self.msg.data}")
+            self.duty_cycle_msg.data = 0
+            self.velocity_motor_signals_publisher.publish(self.duty_cycle_msg)
+            self.get_logger().debug(f"Published dutycycle: {self.duty_cycle_msg.data}")
 
         variables.elbow_joint_angle = msg.data
 
@@ -381,13 +391,6 @@ class Controller(Node):
                 f"\n- Compensation Duty Cycle: {gravity_vel}"
             )
 
-            #gravity_acc_compensation = fc * (av_arm_weight+av_payload_weight+exo_weight)
-
-            #time = time.time() - self.start_time
-            #v = self.v0 + gravity_acc_compensation * time
-            #self.time = time.time()
-            #self.v0 = v 
-
             # The controller
             angle_comp = 0
             if variables.t_vel < 0:
@@ -404,19 +407,6 @@ class Controller(Node):
             duty_cycle = self.pi(variables.elbow_joint_angle)
             
             self.prev_vel = variables.t_vel
-            
-            #regulator = self.pi(variables.j_vel)
-
-            #compensation = (gravity_compensation_torque + spring_compensation_torque)*100
-
-            #if compensation > abs(regulator):
-                #compensation = abs(regulator)
-
-            #duty_cycle = regulator + compensation
-
-            # if 0 > regulator and duty_cycle > 0:
-            #     duty_cycle = 0
-
             
             if duty_cycle > 100:
                 duty_cycle = 100
@@ -435,12 +425,6 @@ class Controller(Node):
 
             self.prev_duty_cycle = duty_cycle
             variables.prev_time = current_time
-
-            # The alternative controller
-            # error = j_vel-t_vel
-            # control = self.pi(error)
-            # rpm = control/(2*np.pi/60)
-            # volt = 4.7714*1.02**rpm
             
             # Load msg with duty cycle data
             self.get_logger().info(f"Duty Cycle: {duty_cycle}")
@@ -449,21 +433,21 @@ class Controller(Node):
 
             self.get_logger().debug(f"Duty cycle rounded: {duty_cycle}")
 
-            self.msg.data = duty_cycle
+            self.duty_cycle_msg.data = duty_cycle
 
             if self.pi.setpoint == 0:
-                self.msg.data = 0
+                self.duty_cycle_msg.data = 0
 
-            self.get_logger().debug(f"Duty cycle message data: {self.msg.data}")
+            self.get_logger().debug(f"Duty cycle message data: {self.duty_cycle_msg.data}")
 
             self.target_velocity_msg.data = variables.t_vel
             self.target_velocity_publisher.publish(self.target_velocity_msg)
 
             # Publish msg using velocity_motor_signals_publisher on topic 'Velocity_motor_signals'
-            self.velocity_motor_signals_publisher.publish(self.msg)
+            self.velocity_motor_signals_publisher.publish(self.duty_cycle_msg)
 
             # Log info
-            self.get_logger().info(f"Published data: '{self.msg.data}'")
+            self.get_logger().info(f"Published data: '{self.duty_cycle_msg.data}'")
 
             # Iterate timer
             self.timer_counter += 1
