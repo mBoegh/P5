@@ -76,15 +76,22 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
         # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_input_velocity_control_data_subscriber = self.create_subscription(Int16, 'Manual_velocity_control_data', self.motor_signals_topic_callback, 10)
-        self.manual_input_velocity_control_data_subscriber  # prevent unused variable warning
+        self.manual_input_velocity_control_data_subscription = self.create_subscription(Int16, 'Manual_velocity_control_data', self.motor_signals_topic_callback, 10)
+        self.manual_input_velocity_control_data_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Manual_position_control_data'.
         # On this topic is expected data of type std_msgs.msg.UInt16 which is imported as UInt16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_position_control_data_subscriber = self.create_subscription(UInt16, 'Manual_position_control_data', self.manual_position_control_data_callback, 10)
-        self.manual_position_control_data_subscriber  # prevent unused variable warning
+        self.manual_position_control_data_subscription = self.create_subscription(UInt16, 'Manual_position_control_data', self.manual_position_control_data_callback, 10)
+        self.manual_position_control_data_subscription  # prevent unused variable warning
+
+        # Initialising a subscriber to the topic 'Target_velocity'.
+        # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.target_velocity_topic_subscription = self.create_subscription(Int16, 'Target_velocity', self.target_velocity_topic_callback, 10)
+        self.target_velocity_topic_subscription  # prevent unused variable warning
 
         # Initialising a publisher to the topic 'Feedback_joint_velocity'.
         # On this topic is expected data of type std_msgs.msg.FLoat32 which is imported as FLoat32.
@@ -98,20 +105,13 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
         self.feedback_joint_angle_publisher = self.create_publisher(Float32, 'Feedback_joint_angle', 10)
         self.feedback_joint_angle_publisher  # prevent unused variable warning
 
-        # Initialising a subscriber to the topic 'Target_velocity'.
-        # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
-        # The subscriber calls a defined callback function upon message recieval from the topic.
-        # The '10' argument is some Quality of Service parameter (QoS).
-        self.target_velocity_topic_subscription = self.create_subscription(Int16, 'Target_velocity', self.target_velocity_topic_callback, 10)
-        self.target_velocity_topic_subscription  # prevent unused variable warning
-
         # Establish a connection with the microcontroller
         self.microcontroller = self.establish_connection()
 
 
     def target_velocity_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
+        Callback function called whenever a message is recieved on the topic 'Target_velocity' using the subscription 'target_velocity_topic_subscription'.
         """
         
        # Log received message data as debug level of importance.
@@ -124,7 +124,8 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
 
     def motor_signals_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
+        Callback function called whenever a message is recieved on either the topic 'Velocity_motor_signals' using the subscription 'velocity_motor_signals_subscription'
+        or the topic 'Manual_velocity_control_data' using the subscription 'manual_input_velocity_control_data_subscription'.
         """
         
         # Log received message data as debug level of importance.
@@ -274,7 +275,7 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
 
     def manual_position_control_data_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'manual_position_control_data_subscriber'
+        Callback function called whenever a message is recieved on the topic 'Manual_position_control_data' using the subscription 'manual_position_control_data_subscription'.
         """
 
         # Log received message data as debug level of importance.

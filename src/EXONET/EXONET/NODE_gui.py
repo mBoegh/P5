@@ -155,11 +155,11 @@ class Gui(Node):
 
     def eeg_data_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'.
+        Callback function called whenever a message is recieved on the topic 'EEG_data' using the subscription 'eeg_data_subscription'.
         """
 
         # Log received message data as debug level of importance.
-        self.get_logger().debug(f"Received data: '{msg.data}'")
+        self.get_logger().debug(f"Received topic data: '{msg.data}'")
 
         # Unpack the recieved message data.
         # The expected data is formatted as a string f"{mental_command},{command_power}/" where comma is seperating the two values and forward slashs depicts the end of a value set.
@@ -216,11 +216,11 @@ class Gui(Node):
 
     def motor_signals_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
+        Callback function called whenever a message is recieved on the topic 'Velocity_motor_signals' using the subscription 'motor_signals_subscription'.
         """
 
         # Log received message data as debug level of importance.
-        self.get_logger().debug(f"Recieved data: '{msg.data}'")
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
         # Unpack the recieved message data.
         # The expected data is formatted as an integer from -100 to 100.
@@ -259,11 +259,11 @@ class Gui(Node):
 
     def feedback_joint_velocity_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'feedback_joint_velocity_subscription'
+        Callback function called whenever a message is recieved on the topic 'Feedback_joint_velocity' using the subscription 'feedback_joint_velocity_subscription'.
         """
 
         # Log received message data as debug level of importance.
-        self.get_logger().debug(f"Recieved data '{msg.data}'")
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
         # Unpack the recieved message data.
         # The expected data is formatted as a signed float value.
@@ -274,7 +274,7 @@ class Gui(Node):
         # if self.app.velocity_control_window is not None:
         #     self.app.velocity_control_window.current_velocity_label.configure(text= data.current_velocity) ################################################################## Potentially deprecated, needs test without
         
-        # The current_velocity_label of the exoskeleton info frame in the main window is set to display the current velocity measured on the exoskeleton
+        # The current_velocity_label of the exoskeleton info frame in the main window is set to display the current velocity measured on the exoskeleton.
         self.app.exo_frame.current_velocity_data_label.configure(text= data.current_velocity)
 
         # The below functions are what actually does the updating of the window.
@@ -288,11 +288,11 @@ class Gui(Node):
 
     def feedback_joint_angle_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'feedback_joint_angle_subscription'
+        Callback function called whenever a message is recieved on the topic 'Feedback_joint_angle' using the subscription 'feedback_joint_angle_subscription'.
         """
         
         # Log received message data as debug level of importance.
-        self.get_logger().debug(f"Recieved data '{msg.data}'")
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
         # Unpack the recieved message data.
         # The expected data is formatted as a signed float value.

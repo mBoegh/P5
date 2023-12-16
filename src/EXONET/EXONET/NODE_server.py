@@ -50,13 +50,13 @@ class Server(Node, TCP_Server):
         # Initialising a publisher to the topic 'EEG_toggle'.
         # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.eeg_toggle_subscribtion = self.create_subscription(Bool, 'EEG_toggle', self.eeg_toggle_topic_callback, 10)
-        self.eeg_toggle_subscribtion  # prevent unused variable warning
+        self.eeg_toggle_subscription = self.create_subscription(Bool, 'EEG_toggle', self.eeg_toggle_topic_callback, 10)
+        self.eeg_toggle_subscription  # prevent unused variable warning
     
 
     def eeg_toggle_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'eeg_toggle_subscribtion'.
+        Callback function called whenever a message is recieved on the topic 'EEG_toggle' using the subscription 'eeg_toggle_subscription'.
         """
         
         # Log received message data, as debug level of importance.
@@ -64,12 +64,12 @@ class Server(Node, TCP_Server):
 
         # Unpack the recieved message data.
         # The expected data is as a boolean value.
-        value = msg.data
+        toggle = msg.data
 
         # This statement is true if the received boolean value is True 
         # and if it is the first time a message is received, which is handled by the init_callback flag.
         # Handles the init establishing of connection using TCP/IP to any connecting client.
-        if value and self.init_callback:
+        if toggle and self.init_callback:
 
             # try / except statement used for catching errors, logging them and continuing with program execution.
             try:
@@ -105,7 +105,7 @@ class Server(Node, TCP_Server):
 
         # This statement is true if the received boolean value is True.
         # Toggles the toggle_EEG_parameter true thereby letting the system know that it shall react to the EEG data stream.
-        elif value:
+        elif toggle:
 
             # Set the toggle_EEG_parameter true, thereby letting the system know that it shall react to the EEG data stream.
             self.toggle_EEG_parameter = True
@@ -115,7 +115,7 @@ class Server(Node, TCP_Server):
         
         # This statement is true if the received boolean value is False.
         # Toggles the toggle_EEG_parameter false thereby letting the system know that it shall not react to the EEG data stream.
-        elif not value:
+        elif not toggle:
 
             # Set the toggle_EEG_parameter false, thereby letting the system know that it shall not react to the EEG data stream.
             self.toggle_EEG_parameter = False
