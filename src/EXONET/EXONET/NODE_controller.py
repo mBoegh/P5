@@ -2,7 +2,7 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Int16, Bool, Int64, Float32
+from std_msgs.msg import String, Int16, Bool, Float32
 import time
 from time import perf_counter
 
@@ -15,14 +15,18 @@ class Variables:
     When instanced in global space, then every other scope can access the Variables.
     """
 
-    def __init__(self):
+    def __init__(self, lower_bound, upper_bound):
+
+        self.lower_bound = lower_bound  # deg
+        self.upper_bound = upper_bound  # deg
+
         self.t_vel = 0  # Target exoskeleton elbow joint velocity
         self.t_pos = 0  # Target exoskeleton elbow joint angle
         self.current_pos = 0  # Current exoskeleton elbow joint angle
 
         # Variables that need to subscribe to the right stuff
         self.j_vel = 0 # Joint velocity
-        self.elbow_joint_angle = 90 # Joint angle 
+        self.elbow_joint_angle = 0 # Joint angle 
         self.prev_time = time.time()
         
         # Constants for the gravity compensation (need updates)
@@ -36,9 +40,6 @@ class Variables:
         self.l2_lenght = 0.225 # meters
         self.lm2_length = 0.10 # meters 
         self.spool_radius  = 0.025 # meters 
-
-        self.upper_bound = 110-2 # deg
-        self.lower_bound = 70+2 # deg
 
         # Constants for the spring compensation
         self.relaxed_spring_length = 0.11 # m
@@ -77,7 +78,7 @@ class Controller(Node):
         self.called_eeg_data_topic_callback = False
         self.called_feedback_topic_callback = False
 
-        self.pid_state = True
+        self.controller = False
 
         # Initialising variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
         # The message is loaded with data and published to a topic
@@ -86,6 +87,10 @@ class Controller(Node):
         # Initialising variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
         # The message is loaded with data and published to a topic
         self.target_velocity_msg = Int16()
+
+        # Initialising variable msg as being of data type 'std_msgs.msg.UInt16' imported as UInt16
+        # The message is loaded with data and published to a topic
+        self.target_angle_msg = Int16()
 
         # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
         super().__init__('controller')
@@ -110,42 +115,55 @@ class Controller(Node):
         # On this topic is expected data of type std_msgs.msg.Bool which is imported as Bool.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.eeg_toggle_subscription = self.create_subscription(Bool, 'EEG_toggle', self.eeg_toggle_topic_callback, 10)
+        self.eeg_toggle_subscription = self.create_subscription(Bool, '/EEG/EEG_toggle', self.eeg_toggle_topic_callback, 10)
         self.eeg_toggle_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'EEG_data'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.eeg_data_subscription = self.create_subscription(String, 'EEG_data', self.eeg_data_topic_callback, 10)
+        self.eeg_data_subscription = self.create_subscription(String, '/EEG/EEG_data', self.eeg_data_topic_callback, 10)
         self.eeg_data_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Manual_velocity_control_data'.
         # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_velocity_control_data_subscription = self.create_subscription(Int16, 'Manual_velocity_control_data', self.manual_velocity_control_data_topic_callback, 10)
+        self.manual_velocity_control_data_subscription = self.create_subscription(Int16, '/Manual_control/Manual_velocity_control_data', self.manual_velocity_control_data_topic_callback, 10)
         self.manual_velocity_control_data_subscription  # prevent unused variable warning
+
+        # Initialising a subscriber to the topic 'Manual_position_control_data'.
+        # On this topic is expected data of type std_msgs.msg.UInt16 which is imported as UInt16.
+        # The subscriber calls a defined callback function upon message recieval from the topic.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.manual_position_control_data_subscription = self.create_subscription(Int16, '/Manual_control/Manual_position_control_data', self.manual_position_control_data_callback, 10)
+        self.manual_position_control_data_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Feedback_joint_velocity'.
         # On this topic is expected data of type std_msgs.msg.Float32 which is imported as Float32.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_joint_velocity_subscription = self.create_subscription(Float32, 'Feedback_joint_velocity', self.feedback_joint_velocity_topic_callback, 10)
+        self.feedback_joint_velocity_subscription = self.create_subscription(Float32, '/Feedback/Feedback_joint_velocity', self.feedback_joint_velocity_topic_callback, 10)
         self.feedback_joint_velocity_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Feedback_joint_angle'.
         # On this topic is expected data of type std_msgs.msg.Float32 which is imported as Float32.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_joint_angle_subscription = self.create_subscription(Float32, 'Feedback_joint_angle', self.feedback_joint_angle_topic_callback, 10)
+        self.feedback_joint_angle_subscription = self.create_subscription(Float32, '/Feedback/Feedback_joint_angle', self.feedback_joint_angle_topic_callback, 10)
         self.feedback_joint_angle_subscription
 
         # Initialising a publisher to the topic 'Velocity_motor_signals'.
         # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.velocity_motor_signals_publisher = self.create_publisher(Int16, 'Velocity_motor_signals', 10)
+        self.velocity_motor_signals_publisher = self.create_publisher(Int16, '/Motor_signals/Velocity_motor_signals', 10)
         self.velocity_motor_signals_publisher  # prevent unused variable warning
+
+        # Initialising a publisher to the topic 'Target_angle'.
+        # On this topic is expected data of type std_msgs.msg.UInt16 which is imported as UInt16.
+        # The '10' argument is some Quality of Service parameter (QoS).
+        self.target_angle_publisher = self.create_publisher(Int16, '/Motor_signals/Position_motor_signals', 10)
+        self.target_angle_publisher  # prevent unused variable warning
 
         # Initialising a publisher to the topic 'Target_velocity'.
         # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
@@ -235,6 +253,14 @@ class Controller(Node):
                 # The expected data is formatted as an integer from -100 to 100.
                 data_string = msg.data
 
+                if self.controller == False:
+                    self.controller = True
+
+                    # Sets the PID to compute new values when it is called.
+                    # Also sets the last_output to zero.
+                    # Essentially turns on the PID and makes sure that there is no carried over error from the last output.
+                    self.pi.set_auto_mode(True, last_output= 0)
+
                 # This statement is true if the data_string string includes at least one comma and at least one forward slash.
                 # If true then string is shortened to be until and without the first forward slash in the string.
                 # This is done to prevent multiple messages being present in the string at the same time, which would break the decoding procedure.
@@ -267,7 +293,7 @@ class Controller(Node):
                     variables.t_vel = self.map_range(command_power, 0, 100, 0, 40)
 
                     # Set the PID controller setpoint to be the t_vel target velocity.
-                    controller.pi.setpoint = variables.t_vel
+                    self.pi.setpoint = variables.t_vel
 
                     # Log the updated target joint velocity, as debug level of importance.
                     self.get_logger().debug(f"Updated target joint velocity: {variables.t_vel}")
@@ -282,7 +308,7 @@ class Controller(Node):
                     variables.t_vel = self.map_range(-command_power, -100, 0, -40, 0)
 
                     # Set the PID controller setpoint to be the t_vel target velocity.
-                    controller.pi.setpoint = variables.t_vel
+                    self.pi.setpoint = variables.t_vel
 
                     # Log the updated target joint velocity, as debug level of importance.
                     self.get_logger().debug(f"Updated target joint velocity: {variables.t_vel}")
@@ -295,7 +321,7 @@ class Controller(Node):
                     variables.t_vel = 0
 
                     # Set the PID controller setpoint to be the t_vel target velocity.
-                    controller.pi.setpoint = variables.t_vel
+                    self.pi.setpoint = variables.t_vel
 
                     # Log the updated target joint velocity, as debug level of importance.
                     self.get_logger().debug(f"Updated target joint velocity: {variables.t_vel}")
@@ -329,15 +355,47 @@ class Controller(Node):
         # Then the PID controller setpoint is set to be the t_vel.
         if self.toggle_EEG_parameter == False:
 
+            if self.controller == False:
+
+                # Sets the PID to not compute new values when it is called (essentially turning it off).
+                self.pi.auto_mode = False
+
+                # Sets the PID to compute new values when it is called.
+                # Also sets the last_output to zero.
+                # Essentially turns on the PID and makes sure that there is no carried over error from the last output.
+                self.pi.set_auto_mode(True, last_output= 0)
+
+                self.duty_cycle_msg.data = 0
+
+                self.velocity_motor_signals_publisher.publish(self.duty_cycle_msg)
+
             # Unpack the recieved message data.
             # The expected data is as a integer value.
             variables.t_vel = msg.data
 
             # Set the PID controller setpoint to be the t_vel target velocity.
-            controller.pi.setpoint = variables.t_vel
+            self.pi.setpoint = variables.t_vel
+
+            self.controller = True
 
             # Log the updated target joint velocity, as debug level of importance.
             self.get_logger().debug(f"Updated target joint velocity: {variables.t_vel}")
+
+
+    def manual_position_control_data_callback(self, msg):
+
+        # Log received message data, as debug level of importance.
+        self.get_logger().debug(f"Received data: '{msg.data}'")
+
+        if self.controller == True:
+            self.controller = False
+
+            # Sets the PID to not compute new values when it is called (essentially turning it off).
+            self.pi.auto_mode = False
+        
+        self.target_angle_msg.data = msg.data
+
+        self.target_angle_publisher.publish(self.target_angle_msg)
 
 
     def feedback_joint_velocity_topic_callback(self, msg):
@@ -363,8 +421,7 @@ class Controller(Node):
 
         # Log received message data, as debug level of importance.
         self.get_logger().debug(f"Recieved data '{msg.data}'")
-
-
+        
         # Reinitialize the elbow_joint_angle joint angle with the received message data.
         # The expected data is as a float32 value.
         variables.elbow_joint_angle = msg.data
@@ -375,13 +432,13 @@ class Controller(Node):
         # This statement is true if the current exoskeleton elbow joint angle is equal to or greater than the greatest acceptable angle whilst the target velocity is greater than zero.
         # If true, that means that the exoskeleton is leaving its elbow joint angle limits.
         # Therefore the edge_guard function is called.
-        if variables.elbow_joint_angle >= variables.upper_bound and variables.t_vel > 0:
+        if variables.elbow_joint_angle > variables.upper_bound and variables.t_vel > 0:
             self.edge_guard()
 
         # This statement is true if the current exoskeleton elbow joint angle is equal to or less than the lowest acceptable angle whilst the target velocity is less than zero.
         # If true, that means that the exoskeleton is leaving its elbow joint angle limits.
         # Therefore the edge_guard function is called.    
-        elif variables.elbow_joint_angle <= variables.lower_bound and variables.t_vel < 0: 
+        elif variables.elbow_joint_angle < variables.lower_bound and variables.t_vel < 0: 
             self.edge_guard()
 
 
@@ -418,6 +475,196 @@ class Controller(Node):
         self.get_logger().debug(f"Published duty cycle: {self.duty_cycle_msg.data}")
 
 
+    def control_system(self):
+
+        # Log the variables used in the controller, as debug level of importance.
+        self.get_logger().debug(f"""VARIABLES USED IN CONTROLLER:
+        - Target velocity: {variables.t_vel}
+        - Joint velocity: {variables.j_vel}
+        - Elbow joint angle: {variables.elbow_joint_angle}""")
+
+        # This statement is true if the current t_vel target velocity is zero.
+        # If true then the PID controllers error build up is reset to zero.
+        if variables.t_vel == 0:
+
+            # Sets the PID to not compute new values when it is called (essentially turning it off).
+            self.pi.auto_mode = False
+
+            # Sets the PID to compute new values when it is called.
+            # Also sets the last_output to zero.
+            # Essentially turns on the PID and makes sure that there is no carried over error from the last output.
+            self.pi.set_auto_mode(True, last_output= 0)
+
+        # Dynamic calculations for spring compensation
+        spring_arm_angle =  variables.elbow_joint_angle + variables.spring_arm_bend_angle # deg
+
+        tense_spring_length = np.sqrt(variables.spring_arm_length**2 + variables.upper_arm_construction_length**2 
+                                    - 2 * variables.spring_arm_length*variables.upper_arm_construction_length * np.cos(np.deg2rad(spring_arm_angle))) # m
+
+        value = (tense_spring_length**2 + variables.upper_arm_construction_length**2 + variables.spring_arm_length**2) / (2 * tense_spring_length * variables.spring_arm_length)
+
+        if value > 1 or value < 0:
+            self.get_logger().debug(f"Excepted arccos value out of range.")
+
+            return
+            
+
+        spring_angle = np.rad2deg(np.arccos(value)) # deg
+        
+        spring_force_vector = (tense_spring_length - variables.relaxed_spring_length) * variables.spring_constant # N
+        
+        spring_tangential_force_component = np.sin(np.deg2rad(spring_force_vector)) * spring_force_vector # N
+        
+        spring_compensation_torque = spring_tangential_force_component * variables.spring_arm_length # Nm
+        
+        current_time = time.time()
+        
+        spring_acc = spring_compensation_torque / (self.lower_inertia + self.payload_inertia) 
+        spring_vel = (spring_acc + self.prev_spring_acc) * 0.5  * (current_time - variables.prev_time)
+
+        self.prev_spring_acc = spring_acc
+
+        # Log the results from the dynamic calculations for spring compensation, as debug level of importance.
+        self.get_logger().debug(
+            f"Spring Compensation Calculations:"
+            f"\n- spring_arm_angle: {spring_arm_angle}"
+            f"\n- tense_spring_length: {tense_spring_length}"
+            f"\n- spring_angle: {spring_angle}"
+            f"\n- spring_force_vector: {spring_force_vector}"
+            f"\n- spring_tangential_force_component: {spring_tangential_force_component}"
+            f"\n- spring_compensation_torque: {spring_compensation_torque}"
+        )
+
+        # Dynamic calculations for gravity compensation.
+        fg2 = (variables.av_arm_weight + variables.exo_weight) * variables.g_acceleration
+        fgp = variables.av_payload_weight * variables.g_acceleration
+
+        f2 = np.cos(np.deg2rad((variables.elbow_joint_angle+90) - variables.shoulder_joint_angle)) * (variables.l2_lenght / 2) * fg2
+        fp = np.cos(np.deg2rad((variables.elbow_joint_angle+90) - variables.shoulder_joint_angle)) * variables.l2_lenght * fgp
+
+        torque_joint = f2 * (variables.l2_lenght / 2) + fp * variables.l2_lenght
+
+        # Log the results from the dynamic calculations for gravity compensation, as debug level of importance.
+        self.get_logger().debug(
+            f"Gravity Compensation Calculations:"
+            f"\n- fg2: {fg2}"
+            f"\n- fgp: {fgp}"
+            f"\n- f2: {f2}"
+            f"\n- fp: {fp}"
+            f"\n- Torque Joint: {torque_joint}"
+        )
+
+        # Dynamic calculations for cable dynamics.
+        cable_length = np.sqrt(np.square(variables.lm1_length)+np.square(variables.lm2_length)-2*variables.lm1_length*variables.lm2_length*np.cos(np.deg2rad(variables.elbow_joint_angle)))
+        variables.cable_angle = np.rad2deg(np.arccos(np.divide((np.square(cable_length) + np.square(variables.lm2_length) - np.square(variables.lm1_length)), (2*cable_length*variables.lm2_length))))
+
+        # Force cable components 1 and 2.
+        fc1 = torque_joint / variables.lm2_length
+        fc2 = np.tan(np.deg2rad((np.pi / 2) - variables.cable_angle)) * fc1
+
+        # Find the cable force and calculate the motor torque.
+        fc = np.sqrt(fc1**2 + fc2**2)
+
+        # Log the results from the dynamic calculations for cable dynamics, as debug level of importance.
+        self.get_logger().debug(
+            f"Force Cable Calculations:"
+            f"\n- cable_length: {cable_length}"
+            f"\n- cable_angle: {variables.cable_angle}"
+            f"\n- fc1: {fc1}"
+            f"\n- fc2: {fc2}"
+            f"\n- fc: {fc}"
+        )
+
+        # Compute the torque necessary to compensate for gravity.
+        gravity_compensation_torque = fc * variables.spool_radius
+
+        # Log the result from the dynamic calculation for the gravity compensation torque, as debug level of importance.
+        self.get_logger().debug(
+            f"Torque Motor Calculation:"
+            f"\n- Gravity compensation torque: {gravity_compensation_torque}"
+        )
+
+        gravity_acc = gravity_compensation_torque / (self.lower_inertia + self.payload_inertia) 
+        gravity_vel = (gravity_acc + self.prev_gravity_acc) * 0.5  * (current_time - variables.prev_time)
+
+        self.prev_gravity_acc = gravity_acc
+
+        angle_comp = 0
+        if variables.t_vel < 0:
+            angle_comp = (variables.elbow_joint_angle-45)/2
+        elif variables.t_vel > 0:
+            angle_comp = (180-variables.elbow_joint_angle-110)/4
+        
+        # Angle compensation
+        variables.t_pos = variables.elbow_joint_angle + (variables.t_vel + (spring_vel + gravity_vel) + self.prev_vel - angle_comp) * 0.5  * (current_time - variables.prev_time)
+
+        self.get_logger().debug(f"Target Position: {variables.t_pos}")
+        self.get_logger().debug(f"Current Position: {variables.elbow_joint_angle}")
+        
+        # Set the PID controller setpoint to be the t_vel target velocity.
+        self.pi.setpoint = variables.t_pos
+
+        # Compute the duty cycle from PID regulating the current exoskeleton elbow joint angle.
+        duty_cycle = self.pi(variables.elbow_joint_angle)
+        
+        self.prev_vel = variables.t_vel
+
+        # Log controller calculations
+        self.get_logger().debug(
+            f"Controller Calculations:"
+            f"\n- Duty Cycle: {duty_cycle}"
+        )
+
+        self.prev_duty_cycle = duty_cycle
+        variables.prev_time = current_time
+
+        # Reinitializing duty_cycle to be itself cast as integer, esentially rounding to nearest whole number.
+        duty_cycle = int(duty_cycle)
+
+        # Log the rounded duty cycle, as debug level of importance.
+        self.get_logger().debug(f"Duty cycle rounded: {duty_cycle}")
+
+        # Loads the duty_cycle_msg message with the computed duty_cycle data.
+        self.duty_cycle_msg.data = duty_cycle
+
+        # This statement is true if the current PID controller setpoint, eg. target, is zero.
+        # If true then the duty_cycle_msg message is loaded with zero instead of the computed duty cycle.
+        if self.pi.setpoint == 0:
+
+            # Loads the duty_cycle_msg message with zero.
+            self.duty_cycle_msg.data = 0
+
+        # Log the data content of the duty_cycle_msg message, as debug level of importance.
+        self.get_logger().debug(f"Duty cycle message data: {self.duty_cycle_msg.data}")
+
+        # Loads the target_velocity_msg message with the current t_vel target velocity.
+        self.target_velocity_msg.data = variables.t_vel
+
+        # Publishes the target_velocity_msg message using target_velocity_publisher ont topic 'Target_velocity'.
+        self.target_velocity_publisher.publish(self.target_velocity_msg)
+
+        # Publish duty_cycle_msg using velocity_motor_signals_publisher on topic 'Velocity_motor_signals'
+        self.velocity_motor_signals_publisher.publish(self.duty_cycle_msg)
+
+        # Logs the published t_vel target velocity data, as debug level of importance.
+        self.get_logger().debug(f"Published 'target_velocity_publisher' data: '{self.target_velocity_msg.data}'")
+
+        # Logs the published duty cycle data, as debug level of importance.
+        self.get_logger().debug(f"Published 'velocity_motor_signals_publisher' data: '{self.duty_cycle_msg.data}'")
+
+        # This statement is true if the STEPWISE variable is true, which is set in settings.json.
+        # If true then the called_manual_velocity_control_data_topic_callback flag and the called_eeg_data_topic_callback flag are both lowered.
+        # This halts the system until a new message is recieved again, meaning that when manually submitting target velocities 
+        # the controller will only when fed a new target, ie. stepwise.
+        if self.STEPWISE:
+            
+            # Lowers the called_manual_velocity_control_data_topic_callback flag.
+            self.called_manual_velocity_control_data_topic_callback = False
+
+            # Lowers the called_eeg_data_topic_callback flag.
+            self.called_eeg_data_topic_callback = False
+
+
     def timer_callback(self):
         """
         Function called at specific time interval, specified in 'settings.json'.
@@ -429,192 +676,15 @@ class Controller(Node):
         # If true then the closed loop cotnrol system is computed.
         if (self.called_manual_velocity_control_data_topic_callback and not self.toggle_EEG_parameter) or (self.called_eeg_data_topic_callback and self.toggle_EEG_parameter):
 
-            # Log the variables used in the controller, as debug level of importance.
-            self.get_logger().debug(f"""VARIABLES USED IN CONTROLLER:
-            - Target velocity: {variables.t_vel}
-            - Joint velocity: {variables.j_vel}
-            - Elbow joint angle: {variables.elbow_joint_angle}""")
-
-            # This statement is true if the current t_vel target velocity is zero.
-            # If true then the PID controllers error build up is reset to zero.
-            if variables.t_vel == 0:
-
-                # Sets the PID to not compute new values when it is called (essentially turning it off).
-                self.pi.auto_mode = False
-
-                # Sets the PID to compute new values when it is called.
-                # Also sets the last_output to zero.
-                # Essentially turns on the PID and makes sure that there is no carried over error from the last output.
-                self.pi.set_auto_mode(True, last_output= 0)
-
-            # Dynamic calculations for spring compensation
-            spring_arm_angle =  variables.elbow_joint_angle + variables.spring_arm_bend_angle # deg
-
-            tense_spring_length = np.sqrt(variables.spring_arm_length**2 + variables.upper_arm_construction_length**2 
-                                         - 2 * variables.spring_arm_length*variables.upper_arm_construction_length * np.cos(np.deg2rad(spring_arm_angle))) # m
-
-            spring_angle = np.rad2deg(np.arccos((tense_spring_length**2 + variables.upper_arm_construction_length**2 
-                                                + variables.spring_arm_length**2) / (2 * tense_spring_length * variables.spring_arm_length))) # deg
-            
-            spring_force_vector = (tense_spring_length - variables.relaxed_spring_length) * variables.spring_constant # N
-            
-            spring_tangential_force_component = np.sin(np.deg2rad(spring_force_vector)) * spring_force_vector # N
-            
-            spring_compensation_torque = spring_tangential_force_component * variables.spring_arm_length # Nm
-            
-            current_time = time.time()
-            
-            spring_acc = spring_compensation_torque / (self.lower_inertia + self.payload_inertia) #((1.65 *gravity_compensation_torque + 10.24)/12)*100
-            spring_vel = (spring_acc + self.prev_spring_acc) * 0.5  * (current_time - variables.prev_time)
-
-            self.prev_spring_acc = spring_acc
-
-            # Log the results from the dynamic calculations for spring compensation, as debug level of importance.
-            self.get_logger().debug(
-                f"Spring Compensation Calculations:"
-                f"\n- spring_arm_angle: {spring_arm_angle}"
-                f"\n- tense_spring_length: {tense_spring_length}"
-                f"\n- spring_angle: {spring_angle}"
-                f"\n- spring_force_vector: {spring_force_vector}"
-                f"\n- spring_tangential_force_component: {spring_tangential_force_component}"
-                f"\n- spring_compensation_torque: {spring_compensation_torque}"
-            )
-
-            # Dynamic calculations for gravity compensation.
-            fg2 = (variables.av_arm_weight + variables.exo_weight) * variables.g_acceleration
-            fgp = variables.av_payload_weight * variables.g_acceleration
-
-            f2 = np.cos(np.deg2rad((variables.elbow_joint_angle+90) - variables.shoulder_joint_angle)) * (variables.l2_lenght / 2) * fg2
-            fp = np.cos(np.deg2rad((variables.elbow_joint_angle+90) - variables.shoulder_joint_angle)) * variables.l2_lenght * fgp
-
-            torque_joint = f2 * (variables.l2_lenght / 2) + fp * variables.l2_lenght
-
-            # Log the results from the dynamic calculations for gravity compensation, as debug level of importance.
-            self.get_logger().debug(
-                f"Gravity Compensation Calculations:"
-                f"\n- fg2: {fg2}"
-                f"\n- fgp: {fgp}"
-                f"\n- f2: {f2}"
-                f"\n- fp: {fp}"
-                f"\n- Torque Joint: {torque_joint}"
-            )
-
-            # Dynamic calculations for cable dynamics.
-            cable_length = np.sqrt(np.square(variables.lm1_length)+np.square(variables.lm2_length)-2*variables.lm1_length*variables.lm2_length*np.cos(np.deg2rad(variables.elbow_joint_angle)))
-            variables.cable_angle = np.rad2deg(np.arccos(np.divide((np.square(cable_length) + np.square(variables.lm2_length) - np.square(variables.lm1_length)), (2*cable_length*variables.lm2_length))))
-
-            # Force cable components 1 and 2.
-            fc1 = torque_joint / variables.lm2_length
-            fc2 = np.tan(np.deg2rad((np.pi / 2) - variables.cable_angle)) * fc1
-
-            # Find the cable force and calculate the motor torque.
-            fc = np.sqrt(fc1**2 + fc2**2)
-
-            # Log the results from the dynamic calculations for cable dynamics, as debug level of importance.
-            self.get_logger().debug(
-                f"Force Cable Calculations:"
-                f"\n- cable_length: {cable_length}"
-                f"\n- cable_angle: {variables.cable_angle}"
-                f"\n- fc1: {fc1}"
-                f"\n- fc2: {fc2}"
-                f"\n- fc: {fc}"
-            )
-
-            # Compute the torque necessary to compensate for gravity.
-            gravity_compensation_torque = fc * variables.spool_radius
-
-            # Log the result from the dynamic calculation for the gravity compensation torque, as debug level of importance.
-            self.get_logger().debug(
-                f"Torque Motor Calculation:"
-                f"\n- Gravity compensation torque: {gravity_compensation_torque}"
-            )
-
-            gravity_acc = gravity_compensation_torque / (self.lower_inertia + self.payload_inertia) 
-            gravity_vel = (gravity_acc + self.prev_gravity_acc) * 0.5  * (current_time - variables.prev_time)
-
-            self.prev_gravity_acc = gravity_acc
-
-            angle_comp = 0
-            if variables.t_vel < 0:
-                angle_comp = (variables.elbow_joint_angle-45)/2
-            elif variables.t_vel > 0:
-                angle_comp = (180-variables.elbow_joint_angle-110)/4
-            
-            # Angle compensation
-            variables.t_pos = variables.elbow_joint_angle+(variables.t_vel + (spring_vel + gravity_vel) + self.prev_vel - angle_comp) * 0.5  * (current_time - variables.prev_time)
-
-            self.get_logger().debug(f"Target Position: {variables.t_pos}")
-            self.get_logger().debug(f"Current Position: {variables.elbow_joint_angle}")
-            
-            # Set the PID controller setpoint to be the t_vel target velocity.
-            controller.pi.setpoint = variables.t_pos
-
-            # Compute the duty cycle from PID regulating the current exoskeleton elbow joint angle.
-            duty_cycle = self.pi(variables.elbow_joint_angle)
-            
-            self.prev_vel = variables.t_vel
-            
-            # if duty_cycle > 100:
-            #     duty_cycle = 100  ############################################# Potentially redundant since the PID controller is limited in its output
-            # if duty_cycle < -100:
-            #     duty_cycle = -100
-
-            # Log controller calculations
-            self.get_logger().debug(
-                f"Controller Calculations:"
-                f"\n- Duty Cycle: {duty_cycle}"
-            )
-
-            self.prev_duty_cycle = duty_cycle
-            variables.prev_time = current_time
-
-            # Reinitializing duty_cycle to be itself cast as integer, esentially rounding to nearest whole number.
-            duty_cycle = int(duty_cycle)
-
-            # Log the rounded duty cycle, as debug level of importance.
-            self.get_logger().debug(f"Duty cycle rounded: {duty_cycle}")
-
-            # Loads the duty_cycle_msg message with the computed duty_cycle data.
-            self.duty_cycle_msg.data = duty_cycle
-
-            # This statement is true if the current PID controller setpoint, eg. target, is zero.
-            # If true then the duty_cycle_msg message is loaded with zero instead of the computed duty cycle.
-            if self.pi.setpoint == 0:
-
-                # Loads the duty_cycle_msg message with zero.
-                self.duty_cycle_msg.data = 0
-
-            # Log the data content of the duty_cycle_msg message, as debug level of importance.
-            self.get_logger().debug(f"Duty cycle message data: {self.duty_cycle_msg.data}")
-
-            # Loads the target_velocity_msg message with the current t_vel target velocity.
-            self.target_velocity_msg.data = variables.t_vel
-
-            # Publishes the target_velocity_msg message using target_velocity_publisher ont topic 'Target_velocity'.
-            self.target_velocity_publisher.publish(self.target_velocity_msg)
-
-            # Publish duty_cycle_msg using velocity_motor_signals_publisher on topic 'Velocity_motor_signals'
-            self.velocity_motor_signals_publisher.publish(self.duty_cycle_msg)
-
-
-            # Logs the published t_vel target velocity data, as debug level of importance.
-            self.get_logger().debug(f"Published 'target_velocity_publisher' data: '{self.target_velocity_msg.data}'")
-
-            # Logs the published duty cycle data, as debug level of importance.
-            self.get_logger().debug(f"Published 'velocity_motor_signals_publisher' data: '{self.duty_cycle_msg.data}'")
-
-            # This statement is true if the STEPWISE variable is true, which is set in settings.json.
-            # If true then the called_manual_velocity_control_data_topic_callback flag and the called_eeg_data_topic_callback flag are both lowered.
-            # This halts the system until a new message is recieved again, meaning that when manually submitting target velocities 
-            # the controller will only when fed a new target, ie. stepwise.
-            if self.STEPWISE:
-                
-                # Lowers the called_manual_velocity_control_data_topic_callback flag.
-                self.called_manual_velocity_control_data_topic_callback = False
-
-                # Lowers the called_eeg_data_topic_callback flag.
-                self.called_eeg_data_topic_callback = False
+            if self.controller:
+                self.control_system()
         
+            if not self.controller:
+                
+                # Publish duty_cycle_msg using velocity_motor_signals_publisher on topic 'Velocity_motor_signals'
+                self.velocity_motor_signals_publisher.publish(self.duty_cycle_msg)
+        
+
 
 ####################
 ######  MAIN  ######
@@ -631,11 +701,13 @@ handler = JSON_Handler(json_file_path)
 # Get settings from 'settings.json' file
 TIMER_PERIOD = handler.get_subkey_value("controller", "TIMER_PERIOD")
 STEPWISE = handler.get_subkey_value("controller", "STEPWISE")
+LOWER_BOUND = handler.get_subkey_value("controller", "LOWER_BOUND")
+UPPER_BOUND = handler.get_subkey_value("controller", "UPPER_BOUND")
 LOG_DEBUG = handler.get_subkey_value("controller", "LOG_DEBUG")
 LOG_LEVEL = handler.get_subkey_value("controller", "LOG_LEVEL")
 
 
-variables = Variables()
+variables = Variables(UPPER_BOUND, LOWER_BOUND)
 
 # Initialize the rclpy library
 rclpy.init()

@@ -44,13 +44,13 @@ class Server(Node, TCP_Server):
         # Initialising a publisher to the topic 'EEG_data'.
         # On this topic is published data of type std_msgs.msg.String which is imported as String.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.eeg_data_publisher = self.create_publisher(String, 'EEG_data', 10)
+        self.eeg_data_publisher = self.create_publisher(String, '/EEG/EEG_data', 10)
         self.eeg_data_publisher  # prevent unused variable warning
 
         # Initialising a publisher to the topic 'EEG_toggle'.
         # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.eeg_toggle_subscription = self.create_subscription(Bool, 'EEG_toggle', self.eeg_toggle_topic_callback, 10)
+        self.eeg_toggle_subscription = self.create_subscription(Bool, '/EEG/EEG_toggle', self.eeg_toggle_topic_callback, 10)
         self.eeg_toggle_subscription  # prevent unused variable warning
     
 

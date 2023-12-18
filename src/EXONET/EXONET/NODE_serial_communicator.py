@@ -17,9 +17,10 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
     with a micro controller and sending & receiving data.
     """
 
-    def __init__(self, serial_port, baud_rate, bytesize, parity, stopbits, delay_between_sending_and_receiving, running_average_buffer_size, log_debug):
+    def __init__(self, timer_period, serial_port, baud_rate, bytesize, parity, stopbits, delay_between_sending_and_receiving, running_average_buffer_size, log_debug):
 
         # Initialising parsed Variables
+        self.TIMER_PERIOD = timer_period
         self.SERIAL_PORT = serial_port
         self.BAUD_RATE = baud_rate
         self.BYTESIZE = bytesize
@@ -38,6 +39,7 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
         self.elbow_joint_angle_zero = None  # Acts as a previous data point. Used in computing velocity, by measuring angle difference over time difference.
         self.previous_velocity = 0  # Acts as a previous data point. Used in computing velocity, by measuring angle difference over time difference.
         self.t_vel = 0  # Contains the current target velocity. Only used in plotting.
+        self.previous_recieved_data_motor_signals_topic = 0
 
         # Initialising the data lists for plotting using MatPlotLib
         self.plot_time = []  # Contains the time axis.
@@ -69,21 +71,21 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
         # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.velocity_motor_signals_subscription = self.create_subscription(Int16, 'Velocity_motor_signals', self.motor_signals_topic_callback, 10)
+        self.velocity_motor_signals_subscription = self.create_subscription(Int16, '/Motor_signals/Velocity_motor_signals', self.motor_signals_topic_callback, 10)
         self.velocity_motor_signals_subscription  # prevent unused variable warning
 
-        # Initialising a subscriber to the topic 'Manual_velocity_control_data'.
-        # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
-        # The subscriber calls a defined callback function upon message recieval from the topic.
-        # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_input_velocity_control_data_subscription = self.create_subscription(Int16, 'Manual_velocity_control_data', self.motor_signals_topic_callback, 10)
-        self.manual_input_velocity_control_data_subscription  # prevent unused variable warning
+        # # Initialising a subscriber to the topic 'Manual_velocity_control_data'.
+        # # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
+        # # The subscriber calls a defined callback function upon message recieval from the topic.
+        # # The '10' argument is some Quality of Service parameter (QoS).
+        # self.manual_input_velocity_control_data_subscription = self.create_subscription(Int16, 'Manual_velocity_control_data', self.motor_signals_topic_callback, 10)
+        # self.manual_input_velocity_control_data_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Manual_position_control_data'.
         # On this topic is expected data of type std_msgs.msg.UInt16 which is imported as UInt16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_position_control_data_subscription = self.create_subscription(UInt16, 'Manual_position_control_data', self.manual_position_control_data_callback, 10)
+        self.manual_position_control_data_subscription = self.create_subscription(Int16, '/Motor_signals/Position_motor_signals', self.manual_position_control_data_callback, 10)
         self.manual_position_control_data_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Target_velocity'.
@@ -96,14 +98,17 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
         # Initialising a publisher to the topic 'Feedback_joint_velocity'.
         # On this topic is expected data of type std_msgs.msg.FLoat32 which is imported as FLoat32.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_joint_velocity_publisher = self.create_publisher(Float32, 'Feedback_joint_velocity', 10)
+        self.feedback_joint_velocity_publisher = self.create_publisher(Float32, '/Feedback/Feedback_joint_velocity', 10)
         self.feedback_joint_velocity_publisher  # prevent unused variable warning
 
         # Initialising a publisher to the topic 'Feedback_joint_angle'.
         # On this topic is expected data of type std_msgs.msg.FLoat32 which is imported as FLoat32.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_joint_angle_publisher = self.create_publisher(Float32, 'Feedback_joint_angle', 10)
+        self.feedback_joint_angle_publisher = self.create_publisher(Float32, '/Feedback/Feedback_joint_angle', 10)
         self.feedback_joint_angle_publisher  # prevent unused variable warning
+
+        # Create a timer which periodically calls the specified callback function at a defined interval.
+        self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
 
         # Establish a connection with the microcontroller
         self.microcontroller = self.establish_connection()
@@ -135,17 +140,43 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
         # The expected data is formatted as an integer from -100 to 100.
         duty_cycle = msg.data
 
-        # Format the data as a message to be sent over serial to the microcontroller,
-        # such that it follows the established encoding convention of the system.
-        # The duty cycle is increased by 1000, which will be retracted again on the microcontroller.
-        # This is to handle the value as uint in transit to the microcontroller, and int in use on the microcontroller.
-        # Furthermore the message is formatted as a string with a zero padded at the front.
-        # This is due to the current microcontroller, an Arduino Leonardo, removing the first scipher of every message,
-        # when it recieves messages at a high frequency.
-        serial_message = f"0{duty_cycle + 1000}"
+        if not self.previous_recieved_data_motor_signals_topic == msg.data:
+            # Format the data as a message to be sent over serial to the microcontroller,
+            # such that it follows the established encoding convention of the system.
+            # The duty cycle is increased by 1000, which will be retracted again on the microcontroller.
+            # This is to handle the value as uint in transit to the microcontroller, and int in use on the microcontroller.
+            # Furthermore the message is formatted as a string with a zero padded at the front.
+            # This is due to the current microcontroller, an Arduino Leonardo, removing the first scipher of every message,
+            # when it recieves messages at a high frequency.
+            serial_message = f"0{duty_cycle + 1000}"
 
-        # Sending data to microcontroller.
-        self.send_data(self.microcontroller, serial_message, seperator="\n")
+            # Sending data to microcontroller.
+            self.send_data(self.microcontroller, serial_message, seperator="\n")
+
+        self.previous_recieved_data_motor_signals_topic = msg.data
+
+
+    def manual_position_control_data_callback(self, msg):
+        """
+        Callback function called whenever a message is recieved on the topic 'Manual_position_control_data' using the subscription 'manual_position_control_data_subscription'.
+        """
+
+        # Log received message data as debug level of importance.
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
+
+        # Sending data to microcontroller, with state set to be '/'.
+        # This is part of the established encoding convention of the system.
+        # When state is '/' the data is enterpreted as being a
+        # target exoskeleton elbow joint angle by the microcontroller.
+        # Currently the entirety of the position control system is running on the microcontroller.
+        self.send_data(self.microcontroller, msg.data, seperator= "\n", state= "/")
+
+
+    def timer_callback(self):
+        """
+        Function called at specific time interval, specified in 'settings.json'.
+        This is where the closed loop control system is computed.
+        """
 
         # This is an optional wait time between the system sends a message over serial
         # and recieves a message over serial.
@@ -255,13 +286,13 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
             self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
 
             # Logs the published feedback_joint_angle_msg data with Debug level of importance.
-            self.logger.debug(f"Published 'feedback_joint_angle_msg' data: '{self.feedback_joint_angle_msg.data}'")
+            self.get_logger().debug(f"Published 'feedback_joint_angle_msg' data: '{self.feedback_joint_angle_msg.data}'")
 
             # Publishes the computed feedback joint velocity to the topic /Feedback_joint_velocity.
             self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
 
             # Logs the published feedback_joint_velocity_msg data with Debug level of importance.
-            self.logger.debug(f"Published 'feedback_joint_velocity_msg' data: '{self.feedback_joint_velocity_msg.data}'")
+            self.get_logger().debug(f"Published 'feedback_joint_velocity_msg' data: '{self.feedback_joint_velocity_msg.data}'")
 
             # Reinitializes previous_velocity to have the value of the current mean exoskeleton elbow joint velocity.
             self.previous_velocity = mean_elbow_joint_vel
@@ -271,33 +302,6 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
             self.plot_mean_elbow_joint_angle.append(mean_elbow_joint_angle)
             self.plot_j_vel.append(mean_elbow_joint_vel)
             self.plot_t_vel.append(self.t_vel)
-
-
-    def manual_position_control_data_callback(self, msg):
-        """
-        Callback function called whenever a message is recieved on the topic 'Manual_position_control_data' using the subscription 'manual_position_control_data_subscription'.
-        """
-
-        # Log received message data as debug level of importance.
-        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
-
-        # Sending data to microcontroller, with state set to be '/'.
-        # This is part of the established encoding convention of the system.
-        # When state is '/' the data is enterpreted as being a
-        # target exoskeleton elbow joint angle by the microcontroller.
-        # Currently the entirety of the position control system is running on the microcontroller.
-        self.send_data(self.microcontroller, msg.data, seperator= "\n", state= "/")
-
-        # This is an optional wait time between the system sends a message over serial
-        # and recieves a message over serial.
-        # The value DELAY_BETWEEN_SENDING_AND_RECEIVING is set in settings.json.
-        time.sleep(self.DELAY_BETWEEN_SENDING_AND_RECEIVING)
-
-        # Recieve serial data and cast it as integer.
-        data = int(self.receive_data(self.microcontroller))
-
-        # Log received serial data as debug level of importance.
-        self.get_logger().debug(f"Received serial data: '{data}'")
 
 
     def map_range(self, x, in_min, in_max, out_min, out_max):
@@ -324,6 +328,7 @@ json_file_path = ".//src//EXONET//EXONET//settings.json"
 handler = JSON_Handler(json_file_path)
 
 # Get settings from 'settings.json' file
+TIMER_PERIOD = handler.get_subkey_value("serial_communicator", "TIMER_PERIOD")
 SERIAL_PORT = handler.get_subkey_value("serial_communicator", "SERIAL_PORT")
 BAUD_RATE = handler.get_subkey_value("serial_communicator", "BAUD_RATE")
 BYTESIZE = handler.get_subkey_value("serial_communicator", "BYTESIZE")
@@ -353,7 +358,7 @@ rclpy.init()
 rclpy.logging.set_logger_level("serial_communicator", eval(LOG_LEVEL))
 
 # Instance the Serial_Communicator node class.
-serial_communicator = Serial_Communicator(SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, LOG_DEBUG)
+serial_communicator = Serial_Communicator(TIMER_PERIOD, SERIAL_PORT, BAUD_RATE, BYTESIZE, PARITY, STOPBITS, DELAY_BETWEEN_SENDING_AND_RECEIVING, RUNNING_AVERAGE_BUFFER_SIZE, LOG_DEBUG)
 
 # This statement is true if the value GRAPH is true. This can be set in settings.json
 # If true then a plot is made of the mean exoskeleton elbow joint velocity and angle, as well as the target velocity, over time.

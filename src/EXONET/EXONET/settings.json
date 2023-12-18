@@ -30,14 +30,17 @@
     {
         "TIMER_PERIOD": 0.01,
         "STEPWISE": false,
+        "LOWER_BOUND": 72,
+        "UPPER_BOUND": 108,
         "LOG_DEBUG": true,
-        "LOG_LEVEL": "rclpy.logging.LoggingSeverity.INFO"
+        "LOG_LEVEL": "rclpy.logging.LoggingSeverity.DEBUG"
 
     },
 
     
     "serial_communicator":
     {
+        "TIMER_PERIOD": 0.01,
         "SERIAL_PORT": "/dev/ttyACM0",
         "BAUD_RATE": 9600,
         "BYTESIZE": "serial.SIXBITS",
@@ -45,7 +48,7 @@
         "STOPBITS": "serial.STOPBITS_ONE",
         "DELAY_BETWEEN_SENDING_AND_RECEIVING": 0,
         "RUNNING_AVERAGE_BUFFER_SIZE": 50,
-        "GRAPH": true,
+        "GRAPH": false,
         "AMOUNT_DATAPOINTS": 10000,
         "LOG_DEBUG": true,
         "LOG_LEVEL": "rclpy.logging.LoggingSeverity.INFO"

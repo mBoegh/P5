@@ -2,7 +2,7 @@ from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Bool, Int8, Int16, UInt16, Float32
+from std_msgs.msg import String, Bool, Int8, Int16, Float32
 
 from customtkinter import *
 from customtkinter import StringVar, CTkSwitch 
@@ -80,40 +80,40 @@ class Gui(Node):
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.eeg_data_subscription = self.create_subscription(String, 'EEG_data', self.eeg_data_topic_callback, 10)
+        self.eeg_data_subscription = self.create_subscription(String, '/EEG/EEG_data', self.eeg_data_topic_callback, 10)
         self.eeg_data_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Velocity_motor_signals'.
         # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.velocity_motor_signals_subscription = self.create_subscription(Int16, 'Velocity_motor_signals', self.motor_signals_topic_callback, 10)
+        self.velocity_motor_signals_subscription = self.create_subscription(Int16, '/Motor_signals/Velocity_motor_signals', self.motor_signals_topic_callback, 10)
         self.velocity_motor_signals_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Feedback_joint_velocity'.
         # On this topic is expected data of type std_msgs.msg.Float32 which is imported as Float32.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_joint_velocity_subscription = self.create_subscription(Float32, 'Feedback_joint_velocity', self.feedback_joint_velocity_topic_callback, 10)
+        self.feedback_joint_velocity_subscription = self.create_subscription(Float32, '/Feedback/Feedback_joint_velocity', self.feedback_joint_velocity_topic_callback, 10)
         self.feedback_joint_velocity_subscription  # prevent unused variable warning
 
         # Initialising a subscriber to the topic 'Feedback_joint_angle'.
         # On this topic is expected data of type std_msgs.msg.Float32 which is imported as Float32.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.feedback_joint_angle_subscription = self.create_subscription(Float32, 'Feedback_joint_angle', self.feedback_joint_angle_topic_callback, 10)
+        self.feedback_joint_angle_subscription = self.create_subscription(Float32, '/Feedback/Feedback_joint_angle', self.feedback_joint_angle_topic_callback, 10)
         self.feedback_joint_angle_subscription
 
         # Initialising a publisher to the topic 'EEG_toggle'.
         # On this topic is published data of type std_msgs.msg.Bool which is imported as Bool.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.eeg_toggle_publisher = self.create_publisher(Bool, 'EEG_toggle', 10)
+        self.eeg_toggle_publisher = self.create_publisher(Bool, '/EEG/EEG_toggle', 10)
         self.eeg_toggle_publisher  # prevent unused variable warning
 
         # Initialising a publisher to the topic 'Manual_position_control_data'.
-        # On this topic is published data of type std_msgs.msg.UInt16 which is imported as UInt16.
+        # On this topic is published data of type std_msgs.msg.Int16 which is imported as Int16.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_position_control_data_publisher = self.create_publisher(UInt16, 'Manual_position_control_data', 10)
+        self.manual_position_control_data_publisher = self.create_publisher(Int16, '/Manual_control/Manual_position_control_data', 10)
         self.manual_position_control_data_publisher  # prevent unused variable warning
 
         # # Initialising a publisher to the topic 'Manual_input_velocity_control_data'.
@@ -125,7 +125,7 @@ class Gui(Node):
         # Initialising a publisher to the topic 'Manual_velocity_control_data'.
         # On this topic is published data of type std_msgs.msg.Int16 which is imported as Int16.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_velocity_control_data_publisher = self.create_publisher(Int16, 'Manual_velocity_control_data', 10)
+        self.manual_velocity_control_data_publisher = self.create_publisher(Int16, '/Manual_control/Manual_velocity_control_data', 10)
         self.manual_velocity_control_data_publisher  # prevent unused variable warning
 
         # Create a timer which periodically calls the specified callback function at a defined interval. ########################################### Potentially deprecated. Needs test without
@@ -247,7 +247,7 @@ class Gui(Node):
         self.app.exo_frame.duty_cycle_bar.set(abs(data.duty_cycle) / 100)
 
         # Set the duty_cycle_data_label to display the current value duty cycle.
-        self.app.exo_frame.duty_cycle_data_label.configure(text=data.duty_cycle) # Update the content of the CurrentAngle Label.
+        self.app.exo_frame.duty_cycle_data_label.configure(text= str(data.duty_cycle)) # Update the content of the CurrentAngle Label.
 
         # The below functions are what actually does the updating of the window.
         # We do also have a function called "mainloop()", but the program will halt
@@ -256,6 +256,7 @@ class Gui(Node):
         self.app.update_idletasks()
         self.app.update()
         self.app.duty_cycle_frame.animate()
+
 
     def feedback_joint_velocity_topic_callback(self, msg):
         """
@@ -314,25 +315,6 @@ class Gui(Node):
         self.app.update()
         self.app.feedback_frame.animate()
         
-
-
-    # def timer_callback(self):
-    #     """
-    #     Function called at specific time interval, specified in 'settings.json'.
-    #     """
-        
-    #     # This is true if the toggle button labled 'EEG' in the main window is toggled True
-    #     if self.toggle_EEG_parameter:
-
-    #         # Load msg with current angle set in GUI 
-    #         self.msg.data = data.current_angle
-
-    #         # Publish msg using manual_control_data_publisher on topic 'Manual_control_data' ############################################### Potentially deprecated, needs test without
-    #         self.manual_control_data_publisher.publish(self.msg)
-
-    #         # Log info
-    #         self.get_logger().debug(f"Published data: '{self.msg.data}'")
-
 
 class ParentWindow_MainMenu(CTk):
     """
@@ -468,8 +450,6 @@ class ChildWindow_VelocityControl(CTkToplevel):
         # Instance message Variables as Int16 datatype from ROS2 Humble.
         self.velocity_control_msg = Int16()
        
-       # self.input_velocity_control_msg = Int16() ######################################################### potentially deprecated, need test without
-
         # Create the 'Exit' button for this window, and place it in the window.
         # This button closes the window.
         self.exit_button = CTkButton(self, text= "Exit", command= self.exit_button_event)
@@ -621,8 +601,8 @@ class ChildWindow_PositionControl(CTkToplevel):
         # Initialize the ROS2 Humble logger from the parsed argument
         self.logger = logger
 
-        # Initialize message variable as UInt16 datatype from ROS2 Humble
-        self.position_control_msg = UInt16()
+        # Initialize message variable as Int16 datatype from ROS2 Humble
+        self.position_control_msg = Int16()
 
         # Initialize the target_angle variable as the value current_angle is initialized as in the Variables class
         self.target_angle = data.current_angle
@@ -688,7 +668,7 @@ class ChildWindow_PositionControl(CTkToplevel):
             self.target_angle = gui.UPPER_JOINT_ANGLE_LIMIT
 
         # Loads the position_control_msg with the target_angle.
-        self.position_control_msg.data = self.target_angle
+        self.position_control_msg.data = int(self.target_angle)
 
         # Publishes the target angle position to the topic /Manual_position_control_data
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
@@ -716,7 +696,7 @@ class ChildWindow_PositionControl(CTkToplevel):
             self.target_angle = gui.LOWER_JOINT_ANGLE_LIMIT
 
         # Loads the position_control_msg with the target_angle.
-        self.position_control_msg.data = self.target_angle
+        self.position_control_msg.data = int(self.target_angle)
 
         # Publishes the target angle position to the topic /Manual_position_control_data
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
@@ -752,11 +732,11 @@ class ChildWindow_PositionControl(CTkToplevel):
         Can be triggered with 'RETURN' button.
         """
 
-        # Try/except statement for catching any errors. Used as a precaution to except entry field values not suited for UInt16 data type.
+        # Try/except statement for catching any errors. Used as a precaution to except entry field values not suited for Int16 data type.
         try:
 
-            # Gets the current value in the entry field and makes sure that the value is suitable for data type UInt16.
-            value = abs(int(self.entry.get()))
+            # Gets the current value in the entry field and makes sure that the value is suitable for data type Int16.
+            value = int(self.entry.get())
 
             # This statement is true if the value inputted in the entry field is less than or equal to the LOWER_JOINT_ANGLE_LIMIT set in settings.json.
             # If true, then the target_angle is instanced as the LOWER_JOINT_ANGLE_LIMIT value.
