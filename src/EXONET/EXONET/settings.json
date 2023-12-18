@@ -19,8 +19,8 @@
         "INCREMENT_BUTTON_VALUE": 1,
         "DECREMENT_BUTTON_VALUE": 1,
         "SLIDER_ZERO": 0,
-        "SLIDER_UPPER_LIMIT": 40,
-        "SLIDER_LOWER_LIMIT": -40,
+        "UPPER_VELOCITY_LIMIT": 40,
+        "LOWER_VELOCITY_LIMIT": -40,
         "LOG_DEBUG": true,
         "LOG_LEVEL": "rclpy.logging.LoggingSeverity.INFO"
     },
@@ -30,6 +30,8 @@
     {
         "TIMER_PERIOD": 0.01,
         "STEPWISE": false,
+        "UPPER_BOUND": 108,
+        "LOWER_BOUND": 72,
         "LOG_DEBUG": true,
         "LOG_LEVEL": "rclpy.logging.LoggingSeverity.INFO"
 
@@ -45,7 +47,7 @@
         "STOPBITS": "serial.STOPBITS_ONE",
         "DELAY_BETWEEN_SENDING_AND_RECEIVING": 0,
         "RUNNING_AVERAGE_BUFFER_SIZE": 50,
-        "GRAPH": true,
+        "GRAPH": false,
         "AMOUNT_DATAPOINTS": 10000,
         "LOG_DEBUG": true,
         "LOG_LEVEL": "rclpy.logging.LoggingSeverity.INFO"

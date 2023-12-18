@@ -15,7 +15,14 @@ class Variables:
     When instanced in global space, then every other scope can access the Variables.
     """
 
-    def __init__(self):
+    def __init__(self, upper_bound, lower_bound):
+
+        # Initialising parsed Variables.
+        self.upper_bound = upper_bound  # deg
+        self.lower_bound = lower_bound  # deg
+
+        # Initialising class Variables.
+        
         self.t_vel = 0  # Target exoskeleton elbow joint velocity
         self.t_pos = 0  # Target exoskeleton elbow joint angle
         self.current_pos = 0  # Current exoskeleton elbow joint angle
@@ -36,9 +43,6 @@ class Variables:
         self.l2_lenght = 0.225 # meters
         self.lm2_length = 0.10 # meters 
         self.spool_radius  = 0.025 # meters 
-
-        self.upper_bound = 110-2 # deg
-        self.lower_bound = 70+2 # deg
 
         # Constants for the spring compensation
         self.relaxed_spring_length = 0.11 # m
@@ -553,11 +557,6 @@ class Controller(Node):
             duty_cycle = self.pi(variables.elbow_joint_angle)
             
             self.prev_vel = variables.t_vel
-            
-            # if duty_cycle > 100:
-            #     duty_cycle = 100  ############################################# Potentially redundant since the PID controller is limited in its output
-            # if duty_cycle < -100:
-            #     duty_cycle = -100
 
             # Log controller calculations
             self.get_logger().debug(
@@ -631,11 +630,13 @@ handler = JSON_Handler(json_file_path)
 # Get settings from 'settings.json' file
 TIMER_PERIOD = handler.get_subkey_value("controller", "TIMER_PERIOD")
 STEPWISE = handler.get_subkey_value("controller", "STEPWISE")
+UPPER_BOUND = handler.get_subkey_value("controller", "UPPER_BOUND")
+LOWER_BOUND = handler.get_subkey_value("controller", "LOWER_BOUND")
 LOG_DEBUG = handler.get_subkey_value("controller", "LOG_DEBUG")
 LOG_LEVEL = handler.get_subkey_value("controller", "LOG_LEVEL")
 
 
-variables = Variables()
+variables = Variables(UPPER_BOUND, LOWER_BOUND)
 
 # Initialize the rclpy library
 rclpy.init()

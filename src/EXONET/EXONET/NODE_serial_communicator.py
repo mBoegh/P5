@@ -255,13 +255,13 @@ class Serial_Communicator(Node, Serial_to_microcontroller):
             self.feedback_joint_angle_publisher.publish(self.feedback_joint_angle_msg)
 
             # Logs the published feedback_joint_angle_msg data with Debug level of importance.
-            self.logger.debug(f"Published 'feedback_joint_angle_msg' data: '{self.feedback_joint_angle_msg.data}'")
+            self.get_logger().debug(f"Published 'feedback_joint_angle_msg' data: '{self.feedback_joint_angle_msg.data}'")
 
             # Publishes the computed feedback joint velocity to the topic /Feedback_joint_velocity.
             self.feedback_joint_velocity_publisher.publish(self.feedback_joint_velocity_msg)
 
             # Logs the published feedback_joint_velocity_msg data with Debug level of importance.
-            self.logger.debug(f"Published 'feedback_joint_velocity_msg' data: '{self.feedback_joint_velocity_msg.data}'")
+            self.get_logger().debug(f"Published 'feedback_joint_velocity_msg' data: '{self.feedback_joint_velocity_msg.data}'")
 
             # Reinitializes previous_velocity to have the value of the current mean exoskeleton elbow joint velocity.
             self.previous_velocity = mean_elbow_joint_vel

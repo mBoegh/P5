@@ -44,7 +44,7 @@ class Gui(Node):
     and to aid in debugging and testing.
     """
 
-    def __init__(self, timer_period, upper_joint_angle_limit, lower_joint_angle_limit, increment_button_value, decrement_button_value, slider_zero, slider_lower_limit, slider_upper_limit, log_debug):
+    def __init__(self, timer_period, upper_joint_angle_limit, lower_joint_angle_limit, increment_button_value, decrement_button_value, slider_zero, upper_velocity_limit, lower_velocity_limit, log_debug):
 
         # Initialising parsed Variables
         self.TIMER_PERIOD = timer_period
@@ -53,8 +53,8 @@ class Gui(Node):
         self.INCREMENT_BUTTON_VALUE = increment_button_value
         self.DECREMENT_BUTTON_VALUE = decrement_button_value 
         self.SLIDER_ZERO = slider_zero
-        self.SLIDER_LOWER_LIMIT = slider_lower_limit
-        self.SLIDER_UPPER_LIMIT = slider_upper_limit
+        self.UPPER_VELOCITY_LIMIT = upper_velocity_limit
+        self.LOWER_VELOCITY_LIMIT = lower_velocity_limit
         self.LOG_DEBUG = log_debug
 
         # Initialising class Variables
@@ -116,20 +116,11 @@ class Gui(Node):
         self.manual_position_control_data_publisher = self.create_publisher(UInt16, 'Manual_position_control_data', 10)
         self.manual_position_control_data_publisher  # prevent unused variable warning
 
-        # # Initialising a publisher to the topic 'Manual_input_velocity_control_data'.
-        # # On this topic is published data of type std_msgs.msg.Int16 which is imported as Int16.  ############################################## Potentially deprecated. Needs test without
-        # # The '10' argument is some Quality of Service parameter (QoS).
-        # self.manual_input_velocity_control_data_publisher = self.create_publisher(Int16, 'Manual_input_velocity_control_data', 10)
-        # self.manual_input_velocity_control_data_publisher  # prevent unused variable warning
-
         # Initialising a publisher to the topic 'Manual_velocity_control_data'.
         # On this topic is published data of type std_msgs.msg.Int16 which is imported as Int16.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.manual_velocity_control_data_publisher = self.create_publisher(Int16, 'Manual_velocity_control_data', 10)
         self.manual_velocity_control_data_publisher  # prevent unused variable warning
-
-        # Create a timer which periodically calls the specified callback function at a defined interval. ########################################### Potentially deprecated. Needs test without
-        #self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
 
         # Instancing the main gui window. It has None parent and meaning that it does not belong to any other CTK object.
         # The ROS2 Humble logger is parsed so that it may be used in the instance, even tho the instance itself is not inheriting from the Node class.
@@ -138,12 +129,6 @@ class Gui(Node):
         # Set the PWM / Duty Cycle indicator bar of the class Frame_InfoExo to 0.
         # This bar shows the current PWM / Duty Cycle visually in a *progress bar* esque manner.
         self.app.exo_frame.duty_cycle_bar.set(0)
-
-        # Possibly redundant
-        self.app.visual_frame.animate()     # Redraws the frame which contains the Exoskeleton visualization
-        self.app.eeg_frame.animate()        # Redraws the frame which contains the EEG data visualization
-        self.app.duty_cycle_frame.animate() # Redraws the frame which contains the PWM / duty cycle visualization
-        self.app.feedback_frame.animate()   # Redraws the frame which contains the feedback (joint velocity and joint angle) visualization
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
@@ -268,11 +253,6 @@ class Gui(Node):
         # Unpack the recieved message data.
         # The expected data is formatted as a signed float value.
         data.current_velocity = msg.data
-
-        # # This statement is true if the velocity_control_window is open.
-        # # If that is the case then the current_velocity_label of the velocity_control_window is set to display the current velocity measured on the exoskeleton elbow joint.
-        # if self.app.velocity_control_window is not None:
-        #     self.app.velocity_control_window.current_velocity_label.configure(text= data.current_velocity) ################################################################## Potentially deprecated, needs test without
         
         # The current_velocity_label of the exoskeleton info frame in the main window is set to display the current velocity measured on the exoskeleton.
         self.app.exo_frame.current_velocity_data_label.configure(text= data.current_velocity)
@@ -298,11 +278,6 @@ class Gui(Node):
         # The expected data is formatted as a signed float value.
         data.current_angle = msg.data
 
-        # # This statement is true if the position_control_window is open.
-        # # If that is the case then the current_angle_label of the position_control_window is set to display the current angle measured on the exoskeleton elbow joint.
-        # if self.app.position_control_window is not None:
-        #     self.app.position_control_window.current_angle_label.configure(text= data.current_angle) ##############################################################################3 Potentially deprecated, needs test without
-
         # The current_angle_label of the exoskeleton info frame in the main window is set to display the current angle measured on the exoskeleton
         self.app.exo_frame.current_angle_data_label.configure(text= data.current_angle)
 
@@ -314,24 +289,6 @@ class Gui(Node):
         self.app.update()
         self.app.feedback_frame.animate()
         
-
-
-    # def timer_callback(self):
-    #     """
-    #     Function called at specific time interval, specified in 'settings.json'.
-    #     """
-        
-    #     # This is true if the toggle button labled 'EEG' in the main window is toggled True
-    #     if self.toggle_EEG_parameter:
-
-    #         # Load msg with current angle set in GUI 
-    #         self.msg.data = data.current_angle
-
-    #         # Publish msg using manual_control_data_publisher on topic 'Manual_control_data' ############################################### Potentially deprecated, needs test without
-    #         self.manual_control_data_publisher.publish(self.msg)
-
-    #         # Log info
-    #         self.get_logger().debug(f"Published data: '{self.msg.data}'")
 
 
 class ParentWindow_MainMenu(CTk):
@@ -348,8 +305,6 @@ class ParentWindow_MainMenu(CTk):
         # Set window size in pixels.
         self.geometry("1200x800")
         
-        # self.parent = parent ############################################################# Potentially deprecated. Needs test without
-
         # Set window title.
         self.title("P5 GUI - Main Menu")
 
@@ -468,8 +423,6 @@ class ChildWindow_VelocityControl(CTkToplevel):
         # Instance message Variables as Int16 datatype from ROS2 Humble.
         self.velocity_control_msg = Int16()
        
-       # self.input_velocity_control_msg = Int16() ######################################################### potentially deprecated, need test without
-
         # Create the 'Exit' button for this window, and place it in the window.
         # This button closes the window.
         self.exit_button = CTkButton(self, text= "Exit", command= self.exit_button_event)
@@ -483,7 +436,7 @@ class ChildWindow_VelocityControl(CTkToplevel):
         # Create the slider for velocity control, and place it in the window.
         # The slider calls the slider_event function every time it is pressed / changed, with the sliders current value as argument.
         # The slider outputs a value in deg/s, such that the lower limit is -40 deg/s and upper is 40 deg/s.
-        self.slider = CTkSlider(self, from_= gui.SLIDER_LOWER_LIMIT, to= gui.SLIDER_UPPER_LIMIT, command= self.slider_event, width= 240, number_of_steps=80)
+        self.slider = CTkSlider(self, from_= gui.LOWER_VELOCITY_LIMIT, to= gui.UPPER_VELOCITY_LIMIT, command= self.slider_event, width= 240, number_of_steps=80)
         self.slider.grid(row=2, column=1, padx=10, pady=5, columnspan=2)
 
         # Create the target_velocity_data_label, and place it in the window.
@@ -578,8 +531,26 @@ class ChildWindow_VelocityControl(CTkToplevel):
         # Try/except statement for catching any errors. Used as a precaution to except entry field values not suited for Int16 data type.
         try:
 
-            # Loads the velocity_control_msg with the current value target velocity in the entry field.
-            self.velocity_control_msg.data = int(self.entry.get())
+            # Gets the current value input in the entry field and casts it as an integer.
+            entry_value = int(self.entry.get())
+
+            # This statement is true if the value input in the entry field is greater than the UPPER_VELOCITY_LIMIT value defined in settings.json.
+            # If true then loads the velocity_control_msg with the UPPER_VELOCITY_LIMIT value.
+            if entry_value > gui.UPPER_VELOCITY_LIMIT:
+                
+                # If true then loads the velocity_control_msg with the UPPER_VELOCITY_LIMIT value.
+                self.velocity_control_msg.data = gui.UPPER_VELOCITY_LIMIT
+
+            # This statement is true if the value input in the entry field is lower than the LOWER_VELOCITY_LIMIT value defined in settings.json.
+            elif entry_value < gui.LOWER_VELOCITY_LIMIT:
+                
+                # If true then loads the velocity_control_msg with the LOWER_VELOCITY_LIMIT value.
+                self.velocity_control_msg.data = gui.LOWER_VELOCITY_LIMIT
+
+            else:
+
+                # Loads the velocity_control_msg with the current value target velocity in the entry field.
+                self.velocity_control_msg.data = entry_value
 
             # Publishes the target velocity to the topic /Manual_velocity_control_data.
             gui.manual_velocity_control_data_publisher.publish(self.velocity_control_msg)
@@ -808,8 +779,6 @@ class Frame_MainMenu(CTkFrame):
 
         # Instance message variable as Bool datatype from ROS2 Humble
         self.eeg_toggle_msg = Bool()
-
-        # self.parent = parent ############################################################# Potentially deprecated. Needs test without
         
         # Create the 'EEG' switch, and place it in the window.
         # The switch toggles the switch_var variable between True and False, instanced as False.
@@ -886,8 +855,6 @@ class Frame_InfoExo(CTkFrame):
 
         # Instance the ROS2 Humble logger from the parsed argument
         self.logger = logger
-
-        # self.parent = parent ############################################################# Potentially deprecated. Needs test without
         
         # Create the duty_cycle_label label, and place it in the window.
         # This label shows a static text giving context for the duty_cycle_data_label label.
@@ -947,8 +914,6 @@ class Frame_VisualEegData(CTkFrame):
 
         # Instance the ROS2 Humble logger from the parsed argument
         self.logger = logger
-
-        # self.parent = parent ############################################################# Potentially deprecated. Needs test without
 
         # Define the graph, and configure the axes
         self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
@@ -1015,8 +980,6 @@ class Frame_VisualDutyCycle(CTkFrame):
         # Instance the ROS2 Humble logger from the parsed argument
         self.logger = logger
 
-        # self.parent = parent ############################################################# Potentially deprecated. Needs test without
-
         # Define the graph, and configure the axes
         self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
         
@@ -1081,8 +1044,6 @@ class Frame_VisualJointFeedback(CTkFrame):
 
         # Instance the ROS2 Humble logger from the parsed argument
         self.logger = logger
-
-        # self.parent = parent ############################################################# Potentially deprecated. Needs test without
 
         # Define the graph, and configure the axes
         self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
@@ -1159,8 +1120,6 @@ class Frame_VisualCurrentExoAngle(CTkFrame):
 
         # Length of the lines displayed in Frame_VisualCurrentExoAngle class
         self.length = 4
-
-        # self.parent = parent ############################################################# Potentially deprecated. Needs test without
         
         # Calculate the end point for the movable arm
         endx = 2 + self.length * math.cos(math.radians((data.current_angle-90)))
@@ -1223,8 +1182,8 @@ LOWER_JOINT_ANGLE_LIMIT = handler.get_subkey_value("gui", "LOWER_JOINT_ANGLE_LIM
 INCREMENT_BUTTON_VALUE = handler.get_subkey_value("gui", "INCREMENT_BUTTON_VALUE")
 DECREMENT_BUTTON_VALUE = handler.get_subkey_value("gui", "DECREMENT_BUTTON_VALUE")
 SLIDER_ZERO = handler.get_subkey_value("gui", "SLIDER_ZERO")
-SLIDER_UPPER_LIMIT = handler.get_subkey_value("gui", "SLIDER_UPPER_LIMIT")
-SLIDER_LOWER_LIMIT = handler.get_subkey_value("gui", "SLIDER_LOWER_LIMIT")
+UPPER_VELOCITY_LIMIT = handler.get_subkey_value("gui", "UPPER_VELOCITY_LIMIT")
+LOWER_VELOCITY_LIMIT = handler.get_subkey_value("gui", "LOWER_VELOCITY_LIMIT")
 LOG_DEBUG = handler.get_subkey_value("gui", "LOG_DEBUG")
 LOG_LEVEL = handler.get_subkey_value("gui", "LOG_LEVEL")
 
@@ -1251,7 +1210,7 @@ rclpy.init()
 rclpy.logging.set_logger_level("gui", eval(LOG_LEVEL))
 
 # Instance the node class.
-gui = Gui(TIMER_PERIOD, UPPER_JOINT_ANGLE_LIMIT, LOWER_JOINT_ANGLE_LIMIT, INCREMENT_BUTTON_VALUE, DECREMENT_BUTTON_VALUE, SLIDER_ZERO, SLIDER_LOWER_LIMIT, SLIDER_UPPER_LIMIT, LOG_DEBUG)
+gui = Gui(TIMER_PERIOD, UPPER_JOINT_ANGLE_LIMIT, LOWER_JOINT_ANGLE_LIMIT, INCREMENT_BUTTON_VALUE, DECREMENT_BUTTON_VALUE, SLIDER_ZERO, UPPER_VELOCITY_LIMIT, LOWER_VELOCITY_LIMIT, LOG_DEBUG)
 
 # Counter for updating the graphs one at a time. 
 # Increments by one. When the counter reaches four, it is reset to zero.
