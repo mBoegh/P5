@@ -146,9 +146,9 @@ class TCP_Server:
         return self.data_string
     
 
-class serial2arduino:
+class Serial_to_microcontroller:
     """
-    Class for establishing serial communication between Python script and an Arduino. 
+    Class for establishing serial communication between Python script and a microcontroller. 
     Takes parameters:
        serial_port - the COM port connection with USB)
        baud_rate - defaults 9600
@@ -314,42 +314,3 @@ class RunningAverage:
         if not self.buffer:
             return 0  # Return 0 if no data points are available to avoid division by zero
         return self.sum / len(self.buffer)
-
-
-class LiveLFilter:
-    def __init__(self, b, a):
-        """
-        Initialize live filter based on difference equation.
-
-        Args:
-            b (array-like): numerator coefficients obtained from scipy.
-            a (array-like): denominator coefficients obtained from scipy.
-        """
-        # Implementation of a low pass filter, deserves further documentation - TO_DO!
-        self.b = b
-        self.a = a
-        self._xs = deque([0] * len(b), maxlen=len(b))
-        self._ys = deque([0] * (len(a) - 1), maxlen=len(a)-1)
-
-    def __call__(self, x):
-        return self.process(x)
-
-    def process(self, x):
-        # do not process NaNs
-        if np.isnan(x):
-            return x
-
-        return self._process(x)
-
-    # This deserves further documentation as well - TO_DO!
-    def _process(self, x):
-        """
-        Filter incoming data with standard difference equations.
-        """
-        self._xs.appendleft(x)
-        y = np.dot(self.b, self._xs) - np.dot(self.a[1:], self._ys)
-        y = y / self.a[0]
-        self._ys.appendleft(y)
-
-        return y
-

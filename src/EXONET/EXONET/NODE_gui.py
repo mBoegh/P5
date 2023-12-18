@@ -1,8 +1,3 @@
-"""
-TO DO:
-- Make UI with visualisation of detected mental command and its power (Eg. 'Lift' or 'Drop' and power 0-100)
-"""
-
 from EXONET.EXOLIB import JSON_Handler
         
 import rclpy
@@ -13,61 +8,73 @@ from customtkinter import *
 from customtkinter import StringVar, CTkSwitch 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import numpy as np
 import math
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 
 
-class variables:
+class Variables:
     """
-    Class for initialising, setting and getting variables.
-    When instanced in global space, then every other scope can access the variables.
+    Class for initialising, setting and getting Variables.
+    When instanced in global space, then every other scope can access the Variables.
     """
 
     def __init__(self):
-        self.PWM_data = 75
+
+        # Contains the mental command yielded from segmenting the recieved message on the topic 'EEG_data'
         self.mental_command = "EEG off"
-        self.torque_data = 0
-        self.RPM_data = 0
-        self.duty_cycle = 0
-        self.current_angle = 90
-        self.current_velocity = 0
+
+        # Contains the eeg data yielded from segmenting the recieved message on the topic 'EEG_data'
         self.eeg_data = 0
-        self.length = 4
+
+        # Contains the current motor duty cycle
+        self.duty_cycle = 0
+
+        # Contains the exoskeletons current elbow joint angle
+        self.current_angle = 90
+
+        # Contains the exoskeletons current elbow joint velocity
+        self.current_velocity = 0
 
 
 class Gui(Node):
     """
     This is the GUI node of the EXONET ROS2 network.
-    The purpose of the GUI is to make the prototype exoskeleton more usable, 
+    The purpose of the GUI is to make the prototype exoskeleton more developer friendly, 
     and to aid in debugging and testing.
     """
 
-    def __init__(self, timer_period, slider_zero, deadzone_low, deadzone_high, log_debug):
+    def __init__(self, timer_period, upper_joint_angle_limit, lower_joint_angle_limit, increment_button_value, decrement_button_value, slider_zero, upper_velocity_limit, lower_velocity_limit, log_debug):
 
-        # Initialising variables
+        # Initialising parsed Variables
         self.TIMER_PERIOD = timer_period
+        self.UPPER_JOINT_ANGLE_LIMIT = upper_joint_angle_limit
+        self.LOWER_JOINT_ANGLE_LIMIT = lower_joint_angle_limit
+        self.INCREMENT_BUTTON_VALUE = increment_button_value
+        self.DECREMENT_BUTTON_VALUE = decrement_button_value 
         self.SLIDER_ZERO = slider_zero
-        self.DEADZONE_LOW = deadzone_low
-        self.DEADZONE_HIGH = deadzone_high
+        self.UPPER_VELOCITY_LIMIT = upper_velocity_limit
+        self.LOWER_VELOCITY_LIMIT = lower_velocity_limit
         self.LOG_DEBUG = log_debug
 
-        self.toggle_EEG_parameter = False
+        # Initialising class Variables
+        self.toggle_EEG_parameter = False  # Bool determining if the system reacts to the EEG datastream.
+
+        # Initialising variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
+        # The message is loaded with data and published to a topic
+        self.msg = Int8()
 
         # Initialising the 'Node' class, from which this class is inheriting, with argument 'node_name'
         super().__init__('gui')
 
+        # This is the ROS2 Humble logging system, which is build on the Logging module for Python.
+        # It displays messages with developer specified importance.
+        # Here all the levels of importance are used to indicate that the script is running.
         self.get_logger().debug("Hello world!")
         self.get_logger().info("Hello world!")
         self.get_logger().warning("Hello world!")
         self.get_logger().error("Hello world!")
         self.get_logger().fatal("Hello world!")
-
-        self.app = ParentWindow_MainMenu(None, self.get_logger())
-
-        # Initialise variable msg as being of data type 'std_msgs.msg.Int8' imported as Int8
-        self.msg = Int8()
 
         # Initialising a subscriber to the topic 'EEG_data'.
         # On this topic is expected data of type std_msgs.msg.String which is imported as String.
@@ -76,8 +83,8 @@ class Gui(Node):
         self.eeg_data_subscription = self.create_subscription(String, 'EEG_data', self.eeg_data_topic_callback, 10)
         self.eeg_data_subscription  # prevent unused variable warning
 
-        # Initialising a subscriber to the topic 'Motor_signals'.
-        # On this topic is expected data of type std_msgs.msg.String which is imported as String.
+        # Initialising a subscriber to the topic 'Velocity_motor_signals'.
+        # On this topic is expected data of type std_msgs.msg.Int16 which is imported as Int16.
         # The subscriber calls a defined callback function upon message recieval from the topic.
         # The '10' argument is some Quality of Service parameter (QoS).
         self.velocity_motor_signals_subscription = self.create_subscription(Int16, 'Velocity_motor_signals', self.motor_signals_topic_callback, 10)
@@ -109,169 +116,179 @@ class Gui(Node):
         self.manual_position_control_data_publisher = self.create_publisher(UInt16, 'Manual_position_control_data', 10)
         self.manual_position_control_data_publisher  # prevent unused variable warning
 
-        # Initialising a publisher to the topic 'Manual_input_position_control_data'.
-        # On this topic is published data of type std_msgs.msg.Int16 which is imported as Int16.
-        # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_input_velocity_control_data_publisher = self.create_publisher(Int16, 'Manual_input_velocity_control_data', 10)
-        self.manual_input_velocity_control_data_publisher  # prevent unused variable warning
-
         # Initialising a publisher to the topic 'Manual_velocity_control_data'.
         # On this topic is published data of type std_msgs.msg.Int16 which is imported as Int16.
         # The '10' argument is some Quality of Service parameter (QoS).
-        self.manual_veloity_control_data_publisher = self.create_publisher(Int16, 'Manual_velocity_control_data', 10)
-        self.manual_veloity_control_data_publisher  # prevent unused variable warning
+        self.manual_velocity_control_data_publisher = self.create_publisher(Int16, 'Manual_velocity_control_data', 10)
+        self.manual_velocity_control_data_publisher  # prevent unused variable warning
 
-        # Create a timer which periodically calls the specified callback function at a defined interval.
-        # Initialise timer_counter as zero. This is iterated on each node spin
-        self.timer = self.create_timer(self.TIMER_PERIOD, self.timer_callback)
-        self.timer_counter = 0
+        # Instancing the main gui window. It has None parent and meaning that it does not belong to any other CTK object.
+        # The ROS2 Humble logger is parsed so that it may be used in the instance, even tho the instance itself is not inheriting from the Node class.
+        self.app = ParentWindow_MainMenu(None, self.get_logger())
 
-        self.app.exo_frame.PWMBar.set(0)
-
-        self.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
-        self.app.EEG_frame.animate()
-        self.app.duty_cycle_frame.animate()
-        self.app.feedback_frame.animate()
+        # Set the PWM / Duty Cycle indicator bar of the class Frame_InfoExo to 0.
+        # This bar shows the current PWM / Duty Cycle visually in a *progress bar* esque manner.
+        self.app.exo_frame.duty_cycle_bar.set(0)
 
         # The below functions are what actually does the updating of the window
         # We do also have a function called "mainloop()", but the program will halt
         # when it gets to "mainloop()", so only use it if you plan on destroying the window
-        # when updating it, by making a new window
+        # when updating it, by making a new window.
         self.app.update_idletasks()
         self.app.update()
 
 
     def eeg_data_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'eeg_data_subscription'
+        Callback function called whenever a message is recieved on the topic 'EEG_data' using the subscription 'eeg_data_subscription'.
         """
 
-        # Log info
-        self.get_logger().debug(f"Received data: '{msg.data}'")
+        # Log received message data as debug level of importance.
+        self.get_logger().debug(f"Received topic data: '{msg.data}'")
 
+        # Unpack the recieved message data.
+        # The expected data is formatted as a string f"{mental_command},{command_power}/" where comma is seperating the two values and forward slashs depicts the end of a value set.
         data_string = msg.data
 
-        if "," in data_string:
-            seperator_index = data_string.index(",")
-            
-            data.mental_command = data_string[:seperator_index]
-                
-        if data.mental_command == "Lift":
-            self.app.exo_frame.PWMDirectionLabel.configure(text= data.mental_command) # Update the content of the CurrentAngle Label
+        # try / except statement used for catching errors, logging them and continuing with program execution.
+        try:
 
-        elif data.mental_command == "Drop":
-            self.app.exo_frame.PWMDirectionLabel.configure(text= data.mental_command) # Update the content of the CurrentAngle Label
-            
-        elif data.mental_command == "Neutral":
-            self.app.exo_frame.PWMDirectionLabel.configure(text= data.mental_command) # Update the content of the CurrentAngle Label
+            # This is true if the toggle button labled 'EEG' in the main window is toggled True.
+            if self.toggle_EEG_parameter == True:
 
-        else:
-            data.mental_command = "EEG off"
-            self.app.exo_frame.PWMDirectionLabel.configure(text= data.mental_command) # Update the content of the CurrentAngle Label
-            self.get_logger().warning(f"Unexpected mental command in recieved EEG data: {data.mental_command}")
+                # This is true if both ',' and '/' are present in the string.
+                # This is checked to make sure that the recieved data follows the formatting standard the developer chose in Node-Red.
+                if "," in data_string and "/" in data_string:
 
-        # The below functions are what actually does the updating of the window
+                    # Find the index of the first forward slash in the string.
+                    breaker_index = data_string.index("/")
+
+                    # Reinitialize data_string with the string until and without the forward slash to seperate the first message from any other messages there might be in recieved.
+                    data_string = data_string[:breaker_index]
+
+                    # Find the index of the first comma in the string.
+                    seperator_index = data_string.index(",")
+
+                    # Reinitialize variable mental_command in the Variables class with the string data of index up until the comma disregarding the comma.
+                    data.mental_command = data_string[:seperator_index]
+                    
+                    # Reinitialize variable command_power in the Variables class with the string data of index from from but without comma until the end of the string.
+                    data.command_power = int(data_string[seperator_index+1:])
+
+                    # Update the direction_label which shows the current mental command recieved, meaning the direction of movement.
+                    self.app.exo_frame.direction_label.configure(text= data.mental_command)
+
+                else:
+                    # Log warning of unexpected message format.
+                    self.get_logger().warning(f"Unexpected EEG data: {msg.data} \nIsolated message as: {data_string}")
+
+        except Exception as e:
+            # Log error message as error level of importance.
+            self.get_logger().error(f"Unexpected EEG data with error: {e}")
+        
+            # Update the direction_label which shows the current mental command recieved, meaning the direction of movement, to display "Error".
+            data.mental_command = "Error"
+            self.app.exo_frame.direction_label.configure(text= data.mental_command)
+
+
+        # The below functions are what actually does the updating of the window.
         # We do also have a function called "mainloop()", but the program will halt
         # when it gets to "mainloop()", so only use it if you plan on destroying the window
-        # when updating it, by making a new window
+        # when updating it, by making a new window.
         self.app.update_idletasks()
         self.app.update()
-
-        self.app.EEG_frame.animate()
+        self.app.eeg_frame.animate()
 
     def motor_signals_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'motor_signals_subscription'
+        Callback function called whenever a message is recieved on the topic 'Velocity_motor_signals' using the subscription 'motor_signals_subscription'.
         """
 
-        # Log info
-        self.get_logger().debug(f"Recieved data: '{msg.data}'")
+        # Log received message data as debug level of importance.
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
+        # Unpack the recieved message data.
+        # The expected data is formatted as an integer from -100 to 100.
         data.duty_cycle = msg.data
         
-        self.app.exo_frame.PWMBar.set(abs(data.duty_cycle) / 100)
+        # This statement is true when the current duty cycle is greater than zero.
+        # If true then the direction_label label in the Frame_InfoExo is updated with the direction of movement being "Lift".
+        if data.duty_cycle > 0:
+            # Update the direction_label which shows the current direction of movement to display "Lift".
+            self.app.exo_frame.direction_label.configure(text= "Lift")
+        
+        # This statement is true when the current duty cycle is less than zero.
+        # If true then the direction_label label in the Frame_InfoExo is updated with the direction of movement being "Drop".
+        elif data.duty_cycle < 0:
+            # Update the direction_label which shows the current direction of movement to display "Drop".
+            self.app.exo_frame.direction_label.configure(text= "Drop")
+        
+        # If none of the above statements are true, then the direction_label label in the Frame_InfoExo is updated with the direction of movement being "Neutral".
+        else:
+            # Update the direction_label which shows the current direction of movement to display "Neutral".
+            self.app.exo_frame.direction_label.configure(text= "Neutral")
 
-        self.app.exo_frame.PWMDataLabel.configure(text=data.duty_cycle) # Update the content of the CurrentAngle Label
+        # Set the PWM / duty cycle bar to the current duty cycle. The PWM / duty cycle bar takes a value 0-1 so the duty cycle is made absolute and divided by 100.
+        self.app.exo_frame.duty_cycle_bar.set(abs(data.duty_cycle) / 100)
 
-       # self.app.exo_frame.PWM_data = msg.data[0]
-       # self.app.exo_frame.torque_data = msg.data[1]
-       # self.app.exo_frame.RPM_data = msg.data[2]
+        # Set the duty_cycle_data_label to display the current value duty cycle.
+        self.app.exo_frame.duty_cycle_data_label.configure(text=data.duty_cycle) # Update the content of the CurrentAngle Label.
 
-        # The below functions are what actually does the updating of the window
+        # The below functions are what actually does the updating of the window.
         # We do also have a function called "mainloop()", but the program will halt
         # when it gets to "mainloop()", so only use it if you plan on destroying the window
-        # when updating it, by making a new window
+        # when updating it, by making a new window.
         self.app.update_idletasks()
         self.app.update()
-
         self.app.duty_cycle_frame.animate()
 
     def feedback_joint_velocity_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'feedback_joint_velocity_subscription'
+        Callback function called whenever a message is recieved on the topic 'Feedback_joint_velocity' using the subscription 'feedback_joint_velocity_subscription'.
         """
 
-        # Log info
-        self.get_logger().debug(f"Recieved data '{msg.data}'")
+        # Log received message data as debug level of importance.
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
+        # Unpack the recieved message data.
+        # The expected data is formatted as a signed float value.
         data.current_velocity = msg.data
+        
+        # The current_velocity_label of the exoskeleton info frame in the main window is set to display the current velocity measured on the exoskeleton.
+        self.app.exo_frame.current_velocity_data_label.configure(text= data.current_velocity)
 
-        if self.app.velocity_control_window is not None:
-            self.app.velocity_control_window.current_velocity_label.configure(text= data.current_velocity) # Update the content of the Current Velocity Label
-        self.app.exo_frame.current_velocity_data_label.configure(text= data.current_velocity) # Update the content of the CurrentAngle Label
-
-        # The below functions are what actually does the updating of the window
+        # The below functions are what actually does the updating of the window.
         # We do also have a function called "mainloop()", but the program will halt
         # when it gets to "mainloop()", so only use it if you plan on destroying the window
-        # when updating it, by making a new window
+        # when updating it, by making a new window.
         self.app.update_idletasks()
         self.app.update()
-
         self.app.feedback_frame.animate()
 
 
     def feedback_joint_angle_topic_callback(self, msg):
         """
-        Callback function called whenever a message is recieved on the subscription 'feedback_joint_angle_subscription'
+        Callback function called whenever a message is recieved on the topic 'Feedback_joint_angle' using the subscription 'feedback_joint_angle_subscription'.
         """
         
-        # Log info
-        self.get_logger().debug(f"Recieved data '{msg.data}'")
+        # Log received message data as debug level of importance.
+        self.get_logger().debug(f"Recieved topic data: '{msg.data}'")
 
+        # Unpack the recieved message data.
+        # The expected data is formatted as a signed float value.
         data.current_angle = msg.data
 
-        if self.app.position_control_window is not None:
-            self.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
-        self.app.exo_frame.current_angle_data_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
+        # The current_angle_label of the exoskeleton info frame in the main window is set to display the current angle measured on the exoskeleton
+        self.app.exo_frame.current_angle_data_label.configure(text= data.current_angle)
 
-        # The below functions are what actually does the updating of the window
+        # The below functions are what actually does the updating of the window.
         # We do also have a function called "mainloop()", but the program will halt
         # when it gets to "mainloop()", so only use it if you plan on destroying the window
-        # when updating it, by making a new window
+        # when updating it, by making a new window.
         self.app.update_idletasks()
         self.app.update()
-
         self.app.feedback_frame.animate()
         
-
-
-    def timer_callback(self):
-        """
-        Function called at specific time interval, specified in 'settings.json'.
-        """
-        
-        if self.toggle_EEG_parameter:
-            # Load msg with current angle set in GUI 
-            self.msg.data = data.current_angle
-
-            # Publish msg using manual_control_data_publisher on topic 'Manual_control_data'
-            self.manual_control_data_publisher.publish(self.msg)
-
-            # Log info
-            self.get_logger().debug(f"Published data: '{self.msg.data}'")
-
-            # Iterate timer
-            self.timer_counter += 1
 
 
 class ParentWindow_MainMenu(CTk):
@@ -282,19 +299,22 @@ class ParentWindow_MainMenu(CTk):
     def __init__(self, parent, logger):
         super().__init__(parent)
 
+        # Instance the ROS2 Humble logger from the parsed argument.
         self.logger = logger
 
-        # Settings for the created window
+        # Set window size in pixels.
         self.geometry("1200x800")
-        self.parent = parent
-        self.title("P5 GUI")
+        
+        # Set window title.
+        self.title("P5 GUI - Main Menu")
 
-        # Call the main function containing the widgets, and set any sub window to None
-        # Such that they are ready to be checked if open later on, the variable content changes
-        # if a window is open
+        # Main function call.
         self.mainWidgets()
+
+        # Initializing Variables used in keeping track of any open child windows.
         self.velocity_control_window = None
         self.position_control_window = None
+
 
     def mainWidgets(self):
         """
@@ -302,52 +322,54 @@ class ParentWindow_MainMenu(CTk):
         Also makes and positiones the buttons which create child windows.
         """
 
-        # Initialize the frames which contain data in the main window
+        # Initialize the information frame of the main window.
         self.exo_frame = Frame_InfoExo(self, self.logger)
+
+        # Initialize the frame with all the buttons of the main window.
         self.manual_frame = Frame_MainMenu(self, self.logger)
 
-        # Initialize exo skeleton representation
+        # Initialize exoskeleton visual representation plot.
         self.visual_frame = Frame_VisualCurrentExoAngle(self, self.logger)
 
-        # Initialize plots
-        self.EEG_frame = Frame_VisualEegData(self, nb_points= 100, logger= self.logger)
+        # Initialize the system data plots.
+        self.eeg_frame = Frame_VisualEegData(self, nb_points= 100, logger= self.logger)
         self.duty_cycle_frame = Frame_VisualDutyCycle(self, nb_points= 100, logger= self.logger)
         self.feedback_frame = Frame_VisualJointFeedback(self, nb_points= 100, logger= self.logger)
 
-        # Place the frames in the main window
+        # Poistion all the frames in the main windows grid.
         self.exo_frame.grid(row= 0, column= 0, pady= 20, padx= 60)
         self.manual_frame.grid(row= 1, column= 0, pady= 20, padx= 60)
-
         self.visual_frame.grid(row= 2, column= 0, pady= 10, padx= 5)
-
-        self.EEG_frame.grid(row= 2, column= 1, pady=10, padx= 5)
+        self.eeg_frame.grid(row= 2, column= 1, pady=10, padx= 5)
         self.duty_cycle_frame.grid(row= 3, column= 0, pady=10, padx= 5)
         self.feedback_frame.grid(row= 3, column= 1, pady=10, padx= 5)
 
-
-        # Regarding the lines below, if these are placed anywhere else, then they will ask
-        # for more arguments than they should take, which is 0, so leave them here
-        
+        # Create the buttons of the Frame_MainMenu and positions them in the frame. 
+        # These do not work when created in that class, but developers know that that would make more sense to do.
         self.position_control_button = CTkButton(master=self.manual_frame, text="Position Control", command=self.open_position_control_menu)
         self.position_control_button.grid(row= 1, column= 1, padx= 10, pady= 5)
-
         self.velocity_control_button = CTkButton(master=self.manual_frame, text="Velocity Control", command=self.open_velocity_control_menu)
         self.velocity_control_button.grid(row= 1, column= 2, padx= 10, pady= 5)
 
 
     def open_velocity_control_menu(self):
         """
-        First check if any other sub window exists and destroys them if they do,
-        then check if the desired window exists, if not create it
-        else it gets put into focus and lifts, such that it hopefully is on top
-        all other windows
+        This function first checks if the position_control_window is open and destroys it if it is.
+        Then it check if the velocity_control_window is already open.
+        If the window is open, then it is focused and lifted to the front. Otherwise the window is opened.
         """
 
+        # This statement is true if the position_control_window is open.
+        # If true, then the position_control_window is closed.
         if gui.app.position_control_window:
             gui.app.position_control_window.destroy()
 
+        # This statement is true if the velocity_control_window is not open.
+        # If true then the velocity_control_window is opened and the ROS2 Humble logging system is parsed to the class, so it may be used in that scope.
         if self.velocity_control_window is None or not self.velocity_control_window.winfo_exists():
             self.velocity_control_window = ChildWindow_VelocityControl(self.logger)
+        
+        # If false then the velocity_control_window is focused and lifted to the front.
         else:
             self.velocity_control_window.focus()
             self.velocity_control_window.lift()
@@ -355,22 +377,26 @@ class ParentWindow_MainMenu(CTk):
 
     def open_position_control_menu(self):
         """
-        First check if any other sub window exists and destroys them if they do,
-        then check if the desired window exists, if not create it
-        else it gets put into focus and lifts, such that it hopefully is on top
-        all other windows
+        This function first checks if the velocity_control_window is open and destroys it if it is.
+        Then it check if the position_control_window is already open.
+        If the window is open, then it is focused and lifted to the front. Otherwise the window is opened.
         """
         
+        # This statement is true if the velocity_control_window is open.
+        # If true, then the velocity_control_window is closed.
         if gui.app.velocity_control_window: 
             gui.app.velocity_control_window.destroy()
     
+        # This statement is true if the position_control_window is not open.
+        # If true then the position_control_window is opened and the ROS2 Humble logging system is parsed to the class, so it may be used in that scope.
         if self.position_control_window is None or not self.position_control_window.winfo_exists():
             self.position_control_window = ChildWindow_PositionControl(self.logger)
 
+        # If false then the position_control_window is focused and lifted to the front.
         else:
             self.position_control_window.focus()
             self.position_control_window.lift()
-        
+
 
 class ChildWindow_VelocityControl(CTkToplevel):
     """
@@ -379,37 +405,53 @@ class ChildWindow_VelocityControl(CTkToplevel):
 
     def __init__(self, logger):
 
+        # Initialize the parent class which this class is inheriting from.
         CTkToplevel.__init__(self)
-        self.geometry("400x300")  # Set the dimensions of the debug window
 
+        # Set window size in pixels.
+        self.geometry("400x300")
+
+        # Set window title.
+        self.title("P5 GUI - Velocity Control")
+
+        # Instance the ROS2 Humble logger from the parsed argument.
         self.logger = logger
 
-        self.velocity_control_msg = Int16()
-        self.input_velocity_control_msg = Int16()
+        # Instance the target velocity.
+        self.target_velocity = 0
 
-        # Create the exit button for this window, and place it in the frame/window
-        self.exit_button = CTkButton(self, text="Exit Button", command=self.exit_button_event)
+        # Instance message Variables as Int16 datatype from ROS2 Humble.
+        self.velocity_control_msg = Int16()
+       
+        # Create the 'Exit' button for this window, and place it in the window.
+        # This button closes the window.
+        self.exit_button = CTkButton(self, text= "Exit", command= self.exit_button_event)
         self.exit_button.grid(row=1, column=0, padx=10, pady=5)
 
-        # Create the Stop button, and place it in the frame/window
-        self.manual_stop_button = CTkButton(self, text="Stop", command=self.manual_stop_event)
+        # Create the 'Stop' button, and place it in the window.
+        # This button sets target velocity to zero and resets the slider to zero.
+        self.manual_stop_button = CTkButton(self, text= "Stop", command= self.manual_stop_event)
         self.manual_stop_button.grid(row=2, column=0, padx=10, pady=5)
 
-        # Create the slider for velocity controls, and place it in the frame/window.
-        # Further the slider is in deg/s, such that the lower limit is -40 deg/s
-        # and upper is 40 deg/s
-        self.slider = CTkSlider(self, from_=-40, to=40, command=self.slider_event, width=240, number_of_steps=80)
+        # Create the slider for velocity control, and place it in the window.
+        # The slider calls the slider_event function every time it is pressed / changed, with the sliders current value as argument.
+        # The slider outputs a value in deg/s, such that the lower limit is -40 deg/s and upper is 40 deg/s.
+        self.slider = CTkSlider(self, from_= gui.LOWER_VELOCITY_LIMIT, to= gui.UPPER_VELOCITY_LIMIT, command= self.slider_event, width= 240, number_of_steps=80)
         self.slider.grid(row=2, column=1, padx=10, pady=5, columnspan=2)
 
-        self.current_velocity_label = CTkLabel(self, text= str(data.current_velocity))
-        self.current_velocity_label.grid(row= 3, column= 1, padx= 10, pady= 5)
+        # Create the target_velocity_data_label, and place it in the window.
+        # This label shows the computed current velocity in the exoskeleton elbow joint.
+        self.target_velocity_label = CTkLabel(self, text= f"Target velocity:    {str(self.target_velocity)}")
+        self.target_velocity_label.grid(row= 3, column= 1, padx= 10, pady= 5)
 
+        # Create the entry field, and place it in the window.
+        # The entry field is a user input field where the user can input a value target velcoity in deg/s.
         self.entry = CTkEntry(self,
             placeholder_text="Deg/sec",
             height=50,
             width=200,
             font=("Helvetica", 18),
-            corner_radius=50,
+            corner_radius=10,
             text_color="black",
             placeholder_text_color="grey",
             fg_color=("system", "white"),  # outer, inner
@@ -417,19 +459,21 @@ class ChildWindow_VelocityControl(CTkToplevel):
         )
         self.entry.grid(row=4, column=1, padx=10, pady=5)
 
-        # Create the button and place it in the frame/window
+        # Create the 'Submit' button, and place it in the window.
+        # This button submits the current value in the entry field as the systems new target velocity.
         submit_button = CTkButton(self, text="Submit", command= self.submit)
         submit_button.grid(row=5, column=1, padx=10, pady=5)
 
-        # Bind the Enter key to the submit method
+        # Bind the 'Return' / 'Enter' key to the submit method, so that one can press 'Return' on the keyboard instead of clicking the button manually.
         self.entry.bind("<Return>", lambda event: self.submit())
-        # self.manual_stop_button.bind("<Space>", lambda event: self.manual_stop_event())
 
 
     def exit_button_event(self):
         """
-        Destroy the window, ie close the window.
+        Destroy the window, ie. close the window.
         """
+
+        # Closes the window.
         self.destroy()
 
 
@@ -440,9 +484,16 @@ class ChildWindow_VelocityControl(CTkToplevel):
         'Manual_velocity_control_data'.
         """
 
+        # Loads the velocity_control_msg with the current value in the entry field.
         self.velocity_control_msg.data = int(value)
-        gui.manual_veloity_control_data_publisher.publish(self.velocity_control_msg)
 
+        # Set the target_velocity_label to display the slider value.
+        self.target_velocity_label.configure(text= f"Target velocity:    {str(self.velocity_control_msg.data)}")
+
+        # Publishes the velocity_control_msg using the manual_velocity_control_data_publisher to the topic /Manual_velocity_control_data.
+        gui.manual_velocity_control_data_publisher.publish(self.velocity_control_msg)
+
+        # Logs the published target velocity as Debug level of importance.
         self.logger.debug(f"Target velocity: {value}")
 
 
@@ -452,10 +503,14 @@ class ChildWindow_VelocityControl(CTkToplevel):
         Sets the slider to 0, thereby stopping the motor.
         """
 
+        # Resets the slider to the value of gui.SLIDER_ZERO, which is set in settings.json.
         self.slider.set(gui.SLIDER_ZERO)
 
+        # Publishes the value of gui.SLIDER_ZERO as new target velocity, which is set in settings.json.
         self.slider_event(gui.SLIDER_ZERO)
-        self.logger.info("Stopped")
+
+        # Logging that the event is triggered with Info level of importance.
+        self.logger.debug("User triggered stop")
 
 
     def clear(self):
@@ -463,7 +518,9 @@ class ChildWindow_VelocityControl(CTkToplevel):
         Clears the entry field of any characters.
         """
 
+        # Removes all characters currently in the entry field.
         self.entry.delete(0, END)
+
 
     def submit(self):
         """
@@ -471,18 +528,48 @@ class ChildWindow_VelocityControl(CTkToplevel):
         Can be triggered with 'RETURN' button.
         """
 
-        value = int(self.entry.get()) # Saves value from entry field
+        # Try/except statement for catching any errors. Used as a precaution to except entry field values not suited for Int16 data type.
+        try:
 
-        self.input_velocity_control_msg.data = value # Saves the data in its respective position
+            # Gets the current value input in the entry field and casts it as an integer.
+            entry_value = int(self.entry.get())
+
+            # This statement is true if the value input in the entry field is greater than the UPPER_VELOCITY_LIMIT value defined in settings.json.
+            # If true then loads the velocity_control_msg with the UPPER_VELOCITY_LIMIT value.
+            if entry_value > gui.UPPER_VELOCITY_LIMIT:
+                
+                # If true then loads the velocity_control_msg with the UPPER_VELOCITY_LIMIT value.
+                self.velocity_control_msg.data = gui.UPPER_VELOCITY_LIMIT
+
+            # This statement is true if the value input in the entry field is lower than the LOWER_VELOCITY_LIMIT value defined in settings.json.
+            elif entry_value < gui.LOWER_VELOCITY_LIMIT:
+                
+                # If true then loads the velocity_control_msg with the LOWER_VELOCITY_LIMIT value.
+                self.velocity_control_msg.data = gui.LOWER_VELOCITY_LIMIT
+
+            else:
+
+                # Loads the velocity_control_msg with the current value target velocity in the entry field.
+                self.velocity_control_msg.data = entry_value
+
+            # Publishes the target velocity to the topic /Manual_velocity_control_data.
+            gui.manual_velocity_control_data_publisher.publish(self.velocity_control_msg)
+
+            # Logs the published data with Debug level of importance.
+            self.logger.debug(f"Published data: '{self.velocity_control_msg.data}'")
+
+            # Sets the slider to match the value input in the entry field.
+            self.slider.set(self.velocity_control_msg.data)
+
+            # Set the target_velocity_label to display the submitted value.
+            self.target_velocity_label.configure(text= f"Target velocity:    {str(self.velocity_control_msg.data)}")
         
-        try: # Attempts to publish the data to the topic
-            self.velocity_control_msg.data = int(value)
+        except Exception as e:
 
-            gui.manual_veloity_control_data_publisher.publish(self.velocity_control_msg)
+            # Log that the publish attempt failed, the data attempted to publish and the error message the system excepted.
+            self.logger.warning(f"Failed to publish data: '{self.velocity_control_msg.data}' With error: {e}")
 
-        except Exception as e: # If failure, then print the error to the terminal
-            self.logger.warning(f"Failed to publish data: '{self.input_velocity_control_msg.data}' With error: {e}")
-
+        # Clear the entry field so it is ready for a new entry from the user.
         self.clear()
 
 
@@ -493,34 +580,52 @@ class ChildWindow_PositionControl(CTkToplevel):
 
     def __init__(self, logger):
 
+        # Initialize the parent class which this class is inheriting from.
         CTkToplevel.__init__(self)
-        self.geometry("400x300") # Set the dimensions of the debug window
 
+        # Set window size in pixels
+        self.geometry("400x300")
+
+        # Set window title
+        self.title("P5 GUI - Position Control")
+
+        # Initialize the ROS2 Humble logger from the parsed argument
         self.logger = logger
 
+        # Initialize message variable as UInt16 datatype from ROS2 Humble
         self.position_control_msg = UInt16()
 
-        # Initializes the label which shows the current angle of the exo skeleton
-        self.current_angle_label = CTkLabel(self, text= str(data.current_angle))
-        self.manual_down_button = CTkButton(self, text="v", command= self.manual_down_event)
-        self.manual_up_button = CTkButton(self, text="^", command= self.manual_up_event)
+        # Initialize the target_angle variable as the value current_angle is initialized as in the Variables class
+        self.target_angle = data.current_angle
         
-        self.manual_up_button.grid(row= 2, column= 0, padx= 10, pady= 5)
+        # Create the target_angle_label, and place it in the window.
+        # This label shows the computed current velocity in the exoskeleton elbow joint.
+        self.target_angle_label = CTkLabel(self, text= f"Target angle:    {str(self.target_angle)}")
+        self.target_angle_label.grid(row= 3, column= 1, padx= 10, pady= 5)
+
+        # Create the 'v' button, and place it in the window.
+        # This button decrements the current target joint angle position with one degree.
+        self.manual_down_button = CTkButton(self, text="v", command= self.manual_down_event)
         self.manual_down_button.grid(row= 2, column= 2, padx= 10, pady= 5)
+        
+        # Create the '^' button, and place it in the window.
+        # This button increments the current target joint angle position with one degree.
+        self.manual_up_button = CTkButton(self, text="^", command= self.manual_up_event)
+        self.manual_up_button.grid(row= 2, column= 0, padx= 10, pady= 5)
 
-        # Places the label which shows the current angle, and makes it the width of the above 2 buttons
-        self.current_angle_label.grid(row= 3, column= 1, padx= 10, pady= 5)
-
-        self.exit_button = CTkButton(self, text="Exit Button", command= self.exit_button_event)
+        # Create the 'Exit' button for this window, and place it in the window
+        # This button closes the window.
+        self.exit_button = CTkButton(self, text="Exit", command= self.exit_button_event)
         self.exit_button.grid(row= 0, column= 0, padx= 10, pady= 5)
 
-        # Create the input field, for position control, and place it in the frame/window
+        # Create the entry field, and place it in the window.
+        # The entry field is a user input field where the user can input a value target position in deg.
         self.entry = CTkEntry(self,
-            placeholder_text="Angle (degrees)",
+            placeholder_text="deg",
             height=50,
             width=200,
             font=("Helvetica", 18), # Font, font size
-            corner_radius=50,
+            corner_radius=10,
             text_color="black",
             placeholder_text_color="grey",
             fg_color=("system", "white"),  # outer, inner
@@ -528,10 +633,12 @@ class ChildWindow_PositionControl(CTkToplevel):
         )
         self.entry.grid(row=2, column=1, padx=10, pady=5)
 
+        # Create the 'Submit' button, and place it in the window.
+        # This button submits the current value in the entry field as the systems new target position.
         submit_button = CTkButton(self, text="Submit", command= self.submit)
         submit_button.grid(row=1, column=1, padx=10, pady=5)
 
-        # Bind the Enter key to the submit method
+        # Bind the 'Return' / 'Enter' key to the submit method, so that one can press 'Return' on the keyboard instead of clicking the button manually.
         self.entry.bind("<Return>", lambda event: self.submit())
 
 
@@ -539,45 +646,65 @@ class ChildWindow_PositionControl(CTkToplevel):
     def manual_up_event(self):
         """
         Function called when the '^' button is pressed.
-        Increases the target joint angle with one degree.
-        This is where the upper joint angle limit is set.
+        Increases the target joint angle with the amount of degrees specified in INCREMENT_BUTTON_VALUE in settings.json.
         """
         
-        # If the upper limit is reached, exit function
-        if (data.current_angle == 170): return
-        data.current_angle += 1
+        # Reinstance the target_angle variable as the current exoskeleton elbow joint angle summed with the INCREMENT_BUTTON_VALUE value specified in settings.json.
+        self.target_angle = self.target_angle + gui.INCREMENT_BUTTON_VALUE
 
-        # Update the message data, and publish to topic
-        self.position_control_msg.data = data.current_angle
+        # This statement is true if the UPPER_JOINT_ANGLE_LIMIT is exceeded. This value is set in settings.json.
+        # If true then reinstance target_angle as the value of UPPER_JOINT_ANGLE_LIMIT,
+        # so that the system attempts to position itself on the limit.
+        if data.current_angle > gui.UPPER_JOINT_ANGLE_LIMIT or self.target_angle > gui.UPPER_JOINT_ANGLE_LIMIT: 
+            self.target_angle = gui.UPPER_JOINT_ANGLE_LIMIT
+
+        # Loads the position_control_msg with the target_angle.
+        self.position_control_msg.data = self.target_angle
+
+        # Publishes the target angle position to the topic /Manual_position_control_data
         gui.manual_position_control_data_publisher.publish(self.position_control_msg)
-        
+
+        # Logs the published data with Debug level of importance
         self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
+
+        # Set the target_angle_label to display the submitted value.
+        self.target_angle_label.configure(text= f"Target angle:    {str(self.position_control_msg.data)}")
 
 
     def manual_down_event(self):
         """
         Function called when the 'v' button is pressed.
-        Decreases the target joint angle with one degree.
-        This is where the lower joint angle limit is set.
+        Decreases the target joint angle with the amount of degrees specified in INCREMENT_BUTTON_VALUE in settings.json.
         """
         
-        # If the lower limit is reached, exit function
-        if (data.current_angle == 40): return 
-        data.current_angle -= 1
-        
-        # Update the message data, and publish to topic
-        self.position_control_msg.data = data.current_angle
-        gui.manual_position_control_data_publisher.publish(self.position_control_msg)
+        # Reinstance the target_angle variable as the current exoskeleton elbow joint angle summed with the DECREMENT_BUTTON_VALUE value specified in settings.json.
+        self.target_angle = self.target_angle - gui.DECREMENT_BUTTON_VALUE
 
+        # This statement is true if the LOWER_JOINT_ANGLE_LIMIT is exceeded. This value is set in settings.json.
+        # If true then reinstance target_angle as the value of LOWER_JOINT_ANGLE_LIMIT,
+        # so that the system attempts to position itself on the limit.
+        if data.current_angle < gui.LOWER_JOINT_ANGLE_LIMIT or self.target_angle < gui.LOWER_JOINT_ANGLE_LIMIT: 
+            self.target_angle = gui.LOWER_JOINT_ANGLE_LIMIT
+
+        # Loads the position_control_msg with the target_angle.
+        self.position_control_msg.data = self.target_angle
+
+        # Publishes the target angle position to the topic /Manual_position_control_data
+        gui.manual_position_control_data_publisher.publish(self.position_control_msg)
+        
+        # Logs the published data with Debug level of importance
         self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
 
+        # Set the target_angle_label to display the submitted value.
+        self.target_angle_label.configure(text= f"Target angle:    {str(self.position_control_msg.data)}")
 
-    # Destroy the pop up menu window, ie close the window
+
     def exit_button_event(self): 
         """
-        Destroy the window, ie close the window.
+        Destroy the window, ie. close the window.
         """
 
+        # Closes the window.
         self.destroy()
 
 
@@ -586,7 +713,9 @@ class ChildWindow_PositionControl(CTkToplevel):
         Clears the entry field of any characters.
         """
 
+        # Removes all characters currently in the entry field.
         self.entry.delete(0, END)
+
 
     def submit(self):
         """
@@ -594,53 +723,69 @@ class ChildWindow_PositionControl(CTkToplevel):
         Can be triggered with 'RETURN' button.
         """
 
-        value = int(self.entry.get())
+        # Try/except statement for catching any errors. Used as a precaution to except entry field values not suited for UInt16 data type.
+        try:
 
-        if (value <= 40): 
-            data.current_angle = 40 
+            # Gets the current value in the entry field and makes sure that the value is suitable for data type UInt16.
+            value = abs(int(self.entry.get()))
 
-        elif (value >= 170):
-            data.current_angle = 170
-        
-        else:
-            data.current_angle = value
+            # This statement is true if the value inputted in the entry field is less than or equal to the LOWER_JOINT_ANGLE_LIMIT set in settings.json.
+            # If true, then the target_angle is instanced as the LOWER_JOINT_ANGLE_LIMIT value.
+            if (value <= gui.LOWER_JOINT_ANGLE_LIMIT): 
+                self.target_angle = gui.LOWER_JOINT_ANGLE_LIMIT
 
-        gui.app.position_control_window.current_angle_label.configure(text= data.current_angle) # Update the content of the CurrentAngle Label
+            # This statement is true if the value inputted in the entry field is greater than or equal to the UPPER_JOINT_ANGLE_LIMIT set in settings.json.
+            # If true, then the target_angle is instanced as the UPPER_JOINT_ANGLE_LIMIT value.
+            elif (value >= gui.UPPER_JOINT_ANGLE_LIMIT):
+                self.target_angle = gui.UPPER_JOINT_ANGLE_LIMIT
         
-        self.position_control_msg.data = data.current_angle
+            # If none of the above statements are true, then the target_angle is instanced as the value inputted in the entry field.
+            else:
+                self.target_angle = value
+
+            # Loads the position_control_msg with the current value target angle position in the entry field.
+            self.position_control_msg.data = self.target_angle
         
-        try: # Try to publish the data to the topic
+            # Publishes the target angle position to the topic /Manual_position_control_data.
             gui.manual_position_control_data_publisher.publish(self.position_control_msg)
+
+            # Set the target_angle_label to display the submitted value.
+            self.target_angle_label.configure(text= f"Target angle:    {str(self.position_control_msg.data)}")
+
+            # Logs the published data with Debug level of importance.
             self.logger.debug(f"Published data: '{self.position_control_msg.data}'")
 
-        except Exception as e: # If failure, print the error to the terminal
+        except Exception as e:
+
+            # Log that the publish attempt failed, the data attempted to publish and the error message the system excepted.
             self.logger.warning(f"Failed to publish data: '{self.position_control_msg.data}' With error: {e}")
 
+        # Clear the entry field so it is ready for a new entry from the user.
         self.clear()
 
 
 class Frame_MainMenu(CTkFrame):
     """
-    Frame wherin the main menu controls are placed.
+    Frame wherein the main menu controls are placed.
     """
 
     def __init__(self, parent, logger):
+
+        # Initialize the parent class which this class is inheriting from.
         super().__init__(parent)
 
+        # Instance the ROS2 Humble logger from the parsed argument
         self.logger = logger
 
-        self.parent = parent
-        self.widgets()
-
-
-    def widgets(self):
-        """
-        Function which initializes and places all the used widgets in the frame.
-        """
+        # Instance message variable as Bool datatype from ROS2 Humble
+        self.eeg_toggle_msg = Bool()
         
+        # Create the 'EEG' switch, and place it in the window.
+        # The switch toggles the switch_var variable between True and False, instanced as False.
+        # When the switch is toggled True for the first time, then the system attempts to connect with the EEG Node-Red system on TCP.
+        # After this, then the switch toggles whether or not the system reacts to the EEG data stream.
         self.switch_var = StringVar(value="False")
-        self.switch = CTkSwitch(self, text="EEG", command= self.eeg_toggle,
-                                variable=self.switch_var, onvalue="True", offvalue="False")
+        self.switch = CTkSwitch(self, text="EEG", command= self.eeg_toggle, variable= self.switch_var, onvalue= "True", offvalue= "False")
         self.switch.grid(row=1, column= 0, padx= 10, pady= 5)
 
     def eeg_toggle(self):
@@ -652,78 +797,109 @@ class Frame_MainMenu(CTkFrame):
         the system reacts to the EEG data stream.
         """
 
-        msg = Bool()
-
+        # Instance value variable with the current value of the switch_var variable using the get() method.
         value = gui.app.manual_frame.switch_var.get()
 
+        # This statement is true when the switch is toggled True.
+        # If true then disable the child window buttons and close any child windows, so that no other control method can be used when the system is reacting to the EEG data stream.
         if value == "True":
+
+            # Disable the child window buttons, so that no other control method can interfere when the system is reacting to the EEG data stream.
             gui.app.position_control_button.configure(state= DISABLED)
             gui.app.velocity_control_button.configure(state= DISABLED)
             
+            # This statement is true when the position_control_window is open.
+            # If true then the position_control_window is closed.
             if gui.app.position_control_window:
                 gui.app.position_control_window.destroy()
 
-
+            # This statement is true when the velocity_control_window is open.
+            # If true then the velocity_control_window is closed.
             if gui.app.velocity_control_window: 
                 gui.app.velocity_control_window.destroy()
    
-
-            msg.data = True
+            # Loads the eeg_toggle_msg with bool value True
+            self.eeg_toggle_msg.data = True
             
+            # Sets the toggle_EEG_parameter to True, so that any other dependent method knows that the system is reacting to the EEG data stream.
             gui.toggle_EEG_parameter == True
 
         else:
+
+            # Enable the child window buttons, so that manual control methods can be used, since the system is not reacting to the EEG data stream.
             gui.app.position_control_button.configure(state= NORMAL)
             gui.app.velocity_control_button.configure(state= NORMAL)
             
-            msg.data = False
+            # Loads the eeg_toggle_msg with bool value False
+            self.eeg_toggle_msg.data = False
             
+            # Sets the toggle_EEG_parameter to False, so that any other dependent method knows that the system is not reacting to the EEG data stream.
             gui.toggle_EEG_parameter == False
 
-        gui.eeg_toggle_publisher.publish(msg)
+        # Publishes the eeg toggle value to the topic /EEG_toggle.
+        gui.eeg_toggle_publisher.publish(self.eeg_toggle_msg)
+
+        # Logs the value of the switch with Info level of importance
+        self.logger.debug(f"EEG switched {value}")
 
 
 class Frame_InfoExo(CTkFrame):
     """
-    Frame wherein information about the current state of the exo skeleton is shown.
+    Frame wherein information about the current state of the exoskeleton is shown.
     """
 
     def __init__(self, parent, logger):
+
+        # Initialize the parent class which this class is inheriting from.
         CTkFrame.__init__(self, parent)
 
+        # Instance the ROS2 Humble logger from the parsed argument
         self.logger = logger
-
-        self.parent = parent
-        self.widgets()
-
-    def widgets(self):
-        """
-        All the used widgets are initialized and placed in the frame here.
-        """
         
-        # Text Labels
-        self.PWMLabel = CTkLabel(self, text="PWM: ")
-        self.PWMBar = CTkProgressBar(self, orientation="horizontal")
+        # Create the duty_cycle_label label, and place it in the window.
+        # This label shows a static text giving context for the duty_cycle_data_label label.
+        self.duty_cycle_label = CTkLabel(self, text="PWM: ")
+        self.duty_cycle_label.grid(row= 0, column= 0, padx= 10, pady= 5)
+
+        # Create the duty_cycle_bar bar, and place it in the window.
+        # This bar visually shows the power of the current duty cycle. Takes a value 0-1. 
+        # Therefore the duty cycle is absolute without any context of direction being written and the direction context is given in the direction_label label.
+        self.duty_cycle_bar = CTkProgressBar(self, orientation= "horizontal")
+        self.duty_cycle_bar.grid(row= 0, column= 1, padx= 10, pady= 5)
+
+        # Create the duty_cycle_data_label label, and place it in the window.
+        # This label shows the current duty cycle sent to the motor.
+        self.duty_cycle_data_label = CTkLabel(self, text= str(data.duty_cycle))
+        self.duty_cycle_data_label.grid(row= 0, column=2, padx= 10, pady= 5)
+
+        # Create the direction_label label, and place it in the window.
+        # This label shows the current direction of movement for the exoskeleton:
+        #  - "Neutral" being no movement
+        #  - "Lift" being moving upwards
+        #  - "Drop" being moving downwards
+        self.direction_label = CTkLabel(self, text= "Neutral")
+        self.direction_label.grid(row= 0, column= 3, padx= 10, pady= 5)
+
+        # Create the current_velocity_label label, and place it in the window.
+        # This label shows a static text giving context for the current_velocity_data_label label.
         self.current_velocity_label = CTkLabel(self, text= "Velocity: ")
-        self.current_angle_label = CTkLabel(self, text= "Angle: ")
-
-
-        # Data Labels
-        self.PWMDataLabel = CTkLabel(self, text= str(data.duty_cycle))
-        self.current_velocity_data_label = CTkLabel(self, text= str(data.current_velocity))
-        self.current_angle_data_label = CTkLabel(self, text= str(data.current_angle))
-
-
-
-        # Placing the widgets on the grid in the ExoFrame frame
-        self.PWMBar.grid(row= 0, column= 1, padx= 10, pady= 5)
-        self.PWMLabel.grid(row= 0, column= 0, padx= 10, pady= 5)
-        self.PWMDataLabel.grid(row= 0, column=2, padx= 10, pady= 5)
         self.current_velocity_label.grid(row= 1, column= 0, padx= 10, pady= 5)
-        self.current_velocity_data_label.grid(row= 1, column= 1, padx= 10, pady= 5)
-        self.current_angle_label.grid(row= 2, column= 0, padx= 10, pady= 5)
-        self.current_angle_data_label.grid(row= 2, column= 1, padx= 10, pady= 5)
 
+        # Create the current_velocity_data_label label, and place it in the window.
+        # This label shows the computed current velocity of the exoskeleton elbow joint.
+        self.current_velocity_data_label = CTkLabel(self, text= str(data.current_velocity))
+        self.current_velocity_data_label.grid(row= 1, column= 1, padx= 10, pady= 5)
+
+        # Create the current_angle_label label, and place it in the window.
+        # This label shows a static text giving context for the current_angle_data_label label.
+        self.current_angle_label = CTkLabel(self, text= "Angle: ")
+        self.current_angle_label.grid(row= 2, column= 0, padx= 10, pady= 5)
+
+        # Create the current_angle_data_label label, and place it in the window.
+        # This label shows the computed current angle of the exoskeleton elbow joint.
+        self.current_angle_data_label = CTkLabel(self, text= str(data.current_angle))
+        self.current_angle_data_label.grid(row= 2, column= 1, padx= 10, pady= 5)
+        
 
 class Frame_VisualEegData(CTkFrame):
     """
@@ -732,29 +908,33 @@ class Frame_VisualEegData(CTkFrame):
     """
 
     def __init__(self, parent, nb_points, logger):
+        
+        # Initialize the parent class which this class is inheriting from.
         super().__init__(parent)
 
+        # Instance the ROS2 Humble logger from the parsed argument
         self.logger = logger
 
-        self.parent = parent
-        self.widgets(nb_points)
-
-    def widgets(self, nb_points):
         # Define the graph, and configure the axes
         self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
 
-        # format the x-axis to show the time
+        # Format the x-axis to show the current time of the computer, formatted as 'HOUR:MINUTE:SECOND'.
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
 
-        # initial x and y data
+        # Initial x and y data
         date_time_obj = datetime.now() + timedelta(seconds=-nb_points)
         self.x_data = [date_time_obj + timedelta(seconds=i) for i in range(nb_points)]
         self.y_data = [0 for i in range(nb_points)]
 
-        #create the first plot
+        # Create the first plot
         self.plot = self.ax.plot(self.x_data, self.y_data, label='EEG data')[0]
+
+        # Set axis limits
         self.ax.set_ylim(-100,100)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+        
+        # Draw a red, dashed line at zero
+        self.ax.axhline(0, color='r', linestyle='--', linewidth=0.1)
 
         FrameTopLabel = CTkLabel(self, text="EEG data")
         FrameTopLabel.pack(pady=10, padx=10, side='top')
@@ -762,18 +942,28 @@ class Frame_VisualEegData(CTkFrame):
         self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
 
     def animate(self):
-        #append new data point to x and y data
+        """
+        Updates the Frame_VisualEegData matplotlib plot with new data.
+        """
+
+        # Append new data point to x and y data
         self.x_data.append(datetime.now())
         self.y_data.append(int(data.eeg_data))
-        #remove oldest datapoint
+        
+        # Remove oldest datapoints
         self.x_data = self.x_data[1:]
         self.y_data = self.y_data[1:]
-        #update plot data
+        
+        # Update plot with new data
         self.plot.set_xdata(self.x_data)
         self.plot.set_ydata(self.y_data)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
-        self.ax.axhline(0) ####################################################
-        self.canvas.draw_idle() #redraw plot
+
+        # Draw a red, dashed line at zero
+        self.ax.axhline(0, color='r', linestyle='--', linewidth=0.1)
+        
+        # Redraw plot
+        self.canvas.draw_idle() 
 
 
 class Frame_VisualDutyCycle(CTkFrame):
@@ -783,27 +973,33 @@ class Frame_VisualDutyCycle(CTkFrame):
     """
 
     def __init__(self, parent, nb_points, logger):
+        
+        # Initialize the parent class which this class is inheriting from.
         super().__init__(parent)
 
+        # Instance the ROS2 Humble logger from the parsed argument
         self.logger = logger
 
-        self.parent = parent
-        self.widgets(nb_points)
-
-    def widgets(self, nb_points):
         # Define the graph, and configure the axes
         self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
-        # format the x-axis to show the time
+        
+        # Format the x-axis to show the current time of the computer, formatted as 'HOUR:MINUTE:SECOND'.
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
 
-        # initial x and y data
+        # Initial x and y data
         date_time_obj = datetime.now() + timedelta(seconds=-nb_points)
         self.x_data = [date_time_obj + timedelta(seconds=i) for i in range(nb_points)]
         self.y_data = [0 for i in range(nb_points)]
-        #create the first plot
+        
+        # Create the first plot
         self.plot = self.ax.plot(self.x_data, self.y_data, label='Duty cycle')[0]
+
+        # Set axis limits
         self.ax.set_ylim(-100,100)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+        
+        # Draw a red, dashed line at zero
+        self.ax.axhline(0, color='r', linestyle='--', linewidth=0.1)
 
         FrameTopLabel = CTkLabel(self, text="Duty cycle")
         FrameTopLabel.pack(pady=10, padx=10, side='top')
@@ -811,18 +1007,28 @@ class Frame_VisualDutyCycle(CTkFrame):
         self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
 
     def animate(self):
-        #append new data point to x and y data
+        """
+        Updates the Frame_VisualDutyCycle matplotlib plot with new data.
+        """
+
+        # Append new data point to x and y data
         self.x_data.append(datetime.now())
         self.y_data.append(int(data.duty_cycle))
-        #remove oldest datapoint
+        
+        # Remove oldest datapoint
         self.x_data = self.x_data[1:]
         self.y_data = self.y_data[1:]
-        #update plot data
+        
+        # Update plot data with new data
         self.plot.set_xdata(self.x_data)
         self.plot.set_ydata(self.y_data)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
-        self.ax.axhline(0) ####################################################
-        self.canvas.draw_idle() #redraw plot
+
+        # Draw a red, dashed line at zero
+        self.ax.axhline(0, color='r', linestyle='--', linewidth=0.1)
+        
+        # Redraw plot
+        self.canvas.draw_idle()
 
 
 class Frame_VisualJointFeedback(CTkFrame):
@@ -832,33 +1038,37 @@ class Frame_VisualJointFeedback(CTkFrame):
     """
 
     def __init__(self, parent, nb_points, logger):
+        
+        # Initialize the parent class which this class is inheriting from.
         super().__init__(parent)
 
+        # Instance the ROS2 Humble logger from the parsed argument
         self.logger = logger
 
-        self.parent = parent
-        self.widgets(nb_points)
-
-    def widgets(self, nb_points):
         # Define the graph, and configure the axes
         self.figure, self.ax = plt.subplots(figsize=(5,3), dpi=50)
-        # format the x-axis to show the time
+        
+        # Format the x-axis to show the current time of the computer, formatted as 'HOUR:MINUTE:SECOND'.
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
 
-        # initial x data
+        # Initial x data
         date_time_obj = datetime.now() + timedelta(seconds=-nb_points)
         self.x_data = [date_time_obj + timedelta(seconds=i) for i in range(nb_points)]
 
-        # initial y data for two datasets
+        # Initial y data for two datasets
         self.y_data1 = [0 for _ in range(nb_points)]
         self.y_data2 = [0 for _ in range(nb_points)]
 
-        # create the first plot
+        # Create the first plot
         self.plot1, = self.ax.plot(self.x_data, self.y_data1, label='Velocity [deg/sec]')
         self.plot2, = self.ax.plot(self.x_data, self.y_data2, label='Angle [deg]')
 
+        # Set axis limits
         self.ax.set_ylim(-50, 120)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+        
+        # Draw a red, dashed line at zero
+        self.ax.axhline(0, color='r', linestyle='--', linewidth=0.1)
 
         FrameTopLabel = CTkLabel(self, text="Feedback")
         FrameTopLabel.pack(pady=10, padx=10, side='top')
@@ -866,22 +1076,32 @@ class Frame_VisualJointFeedback(CTkFrame):
         self.canvas.get_tk_widget().pack(side=BOTTOM, fill=BOTH, expand=True)
 
     def animate(self):
-        # append new data point to x and y data
+        """
+        Updates the Frame_VisualJointFeedback matplotlib plot with new data.
+        """
+
+        # Append new data point to x and y data
         self.x_data.append(datetime.now())
         self.y_data1.append(int(data.current_velocity))
         self.y_data2.append(int(data.current_angle))
-        # remove oldest datapoint
+        
+        # Remove oldest datapoints
         self.x_data = self.x_data[1:]
         self.y_data1 = self.y_data1[1:]
         self.y_data2 = self.y_data2[1:]
-        # update plot data
+        
+        # Update plot with new data
         self.plot1.set_xdata(self.x_data)
         self.plot1.set_ydata(self.y_data1)
         self.plot2.set_xdata(self.x_data)
         self.plot2.set_ydata(self.y_data2)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
-        self.ax.axhline(0) ####################################################
-        self.canvas.draw_idle()  # redraw plot
+
+        # Draw a red, dashed line at zero
+        self.ax.axhline(0, color='r', linestyle='--', linewidth=0.1)
+        
+        # Redraw plot
+        self.canvas.draw_idle()
 
 
 
@@ -891,106 +1111,147 @@ class Frame_VisualCurrentExoAngle(CTkFrame):
     """
 
     def __init__(self, parent, logger):
+        
+        # Initialize the parent class which this class is inheriting from.
         super().__init__(parent)
 
+        # Instance the ROS2 Humble logger from the parsed argument
         self.logger = logger
 
-        self.parent = parent
-        # Call the draw function
-        self.draw()
-
-    def draw(self):
-        """
-        Handles the initial drawing of the visualization of the current configuration of the exoskeleton,
-        and ends by redrawing the canvas(figure).
-        """
+        # Length of the lines displayed in Frame_VisualCurrentExoAngle class
+        self.length = 4
         
-        endx = 2 + data.length * math.cos(math.radians((data.current_angle-90))) # Calculate the end point for the movable arm
-        endy = 5 + data.length * math.sin(math.radians(data.current_angle-90))
+        # Calculate the end point for the movable arm
+        endx = 2 + self.length * math.cos(math.radians((data.current_angle-90)))
+        endy = 5 + self.length * math.sin(math.radians(data.current_angle-90))
 
-        self.figure, self.ax = plt.subplots(figsize=(3,3), dpi=50) # Create the figure without content
-        self.ax.set_ylim(0,10) # Set the limits of the axes in the plot
+        # Create the figure without content
+        self.figure, self.ax = plt.subplots(figsize=(3,3), dpi=50) 
+
+        # Set axis limits for the axis in the plot
+        self.ax.set_ylim(0,10)
         self.ax.set_xlim(0,10)
-        self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'bo-') # Draw the plot in the figure
 
-        self.canvas = FigureCanvasTkAgg(self.figure, self) # Sets the figure to be a canvas, such it can be drawn by tkinter
-        self.canvas.get_tk_widget().pack(side='top', fill=BOTH, expand=True) # Place the canvas in the frame
+        # Draw the plot in the figure
+        self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'bo-')
+
+        # Sets the figure to be a canvas, such it can be drawn by customtkinter
+        self.canvas = FigureCanvasTkAgg(self.figure, self)
+
+        # Place the canvas in the frame
+        self.canvas.get_tk_widget().pack(side='top', fill=BOTH, expand=True)
 
     
     def animate(self):
         """
-        Used to redraw the plot, needs to recalculate the end points for the movable arm.
+        Used to redraw the plot. Needs to recalculate the end points for the movable arm.
         """
-        
-        endx = 2 + data.length * math.cos(math.radians((data.current_angle-90)))
-        endy = 5 + data.length * math.sin(math.radians(data.current_angle-90))
 
-        self.ax.cla() # Clears all content on the plot, without removing the axes
-        self.ax.set_ylim(0,10) # Redefine the limits of the plot
+        # Recalculate the end point for the movable arm
+        endx = 2 + self.length * math.cos(math.radians((data.current_angle-90)))
+        endy = 5 + self.length * math.sin(math.radians(data.current_angle-90))
+
+        # Clears all content on the plot, without removing the axes
+        self.ax.cla()
+
+        # Redefine the limits of the plot
+        self.ax.set_ylim(0,10) 
         self.ax.set_xlim(0,10)
-        #self.grap.remove()
-        self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'bo-') # Redraw the exoskeleton visualization
+
+        # Redraw the exoskeleton visualization
+        self.grap = self.ax.plot([2,2,endx], [9,5,endy], 'bo-') 
         
-        self.canvas.draw_idle() # And redraw the canvas
+        # Redraw the canvas
+        self.canvas.draw_idle() 
 
 
 ####################
 ####    MAIN    ####
 ####################
 
-# Path for 'settings.json' file
+# Path for 'settings.json' file.
 json_file_path = ".//src//EXONET//EXONET//settings.json"
 
-# Instance the 'JSON_Handler' class for interacting with the 'settings.json' file
+# Instance the 'JSON_Handler' class for interacting with the 'settings.json' file.
 handler = JSON_Handler(json_file_path)
 
-# Get settings from 'settings.json' file
+# Get settings from 'settings.json' file.
 TIMER_PERIOD = handler.get_subkey_value("gui", "TIMER_PERIOD")
+UPPER_JOINT_ANGLE_LIMIT = handler.get_subkey_value("gui", "UPPER_JOINT_ANGLE_LIMIT")
+LOWER_JOINT_ANGLE_LIMIT = handler.get_subkey_value("gui", "LOWER_JOINT_ANGLE_LIMIT")
+INCREMENT_BUTTON_VALUE = handler.get_subkey_value("gui", "INCREMENT_BUTTON_VALUE")
+DECREMENT_BUTTON_VALUE = handler.get_subkey_value("gui", "DECREMENT_BUTTON_VALUE")
 SLIDER_ZERO = handler.get_subkey_value("gui", "SLIDER_ZERO")
-DEADZONE_LOW = handler.get_subkey_value("gui", "DEADZONE_LOW")
-DEADZONE_HIGH = handler.get_subkey_value("gui", "DEADZONE_HIGH")
+UPPER_VELOCITY_LIMIT = handler.get_subkey_value("gui", "UPPER_VELOCITY_LIMIT")
+LOWER_VELOCITY_LIMIT = handler.get_subkey_value("gui", "LOWER_VELOCITY_LIMIT")
 LOG_DEBUG = handler.get_subkey_value("gui", "LOG_DEBUG")
 LOG_LEVEL = handler.get_subkey_value("gui", "LOG_LEVEL")
 
-# Change appearance of the GUI
+# Change appearance of the GUI.
 set_appearance_mode('system')
 set_default_color_theme("blue")
 
-data = variables()
+# Instance the 'Variables' class in global scope, so every subscope can see, get and set variables.
+data = Variables()
 
-# Initialize the rclpy library
+# Initialize the rclpy library.
 rclpy.init()
 
+# Sets the logging level of importance. 
+# When setting, one is setting the lowest level of importance one is interested in logging.
+# Logging level is defined in settings.json.
+# Logging levels:
+# - DEBUG
+# - INFO
+# - WARNING
+# - ERROR
+# - FATAL
+# The eval method interprets a string as a command.
 rclpy.logging.set_logger_level("gui", eval(LOG_LEVEL))
 
-# Instance the node class
-gui = Gui(TIMER_PERIOD, SLIDER_ZERO, DEADZONE_LOW, DEADZONE_HIGH, LOG_DEBUG)
+# Instance the node class.
+gui = Gui(TIMER_PERIOD, UPPER_JOINT_ANGLE_LIMIT, LOWER_JOINT_ANGLE_LIMIT, INCREMENT_BUTTON_VALUE, DECREMENT_BUTTON_VALUE, SLIDER_ZERO, UPPER_VELOCITY_LIMIT, LOWER_VELOCITY_LIMIT, LOG_DEBUG)
 
+# Counter for updating the graphs one at a time. 
+# Increments by one. When the counter reaches four, it is reset to zero.
 graph_update_count = 0
 
+# Main loop.
 while True:
-    # Begin looping the node
+
+    # Run the node once.
     rclpy.spin_once(gui, timeout_sec=0.01) # We spin once as to not get stuck
 
+    # This statement is true when the graph_update_count counter variable is zero.
+    # If true then update the visual representation of the exoskeleton and increase the counter by one.
     if graph_update_count == 0:
         gui.app.visual_frame.animate() # Redraws the frame which contains the Exoskeleton visualization
         graph_update_count += 1 
 
+    # This statement is true when the graph_update_count counter variable is one.
+    # If true then update the EEG data graph and increase the counter by one.
     elif graph_update_count == 1:
-        gui.app.EEG_frame.animate()
+        gui.app.eeg_frame.animate()
         graph_update_count += 1 
 
+    # This statement is true when the graph_update_count counter variable is two.
+    # If true then update the duty cycle graph and increase the counter by one.
     elif graph_update_count == 2:    
         gui.app.duty_cycle_frame.animate()
         graph_update_count += 1 
 
+    # This statement is true when the graph_update_count counter variable is three.
+    # If true then update the feedback graph and increase the counter by one.
     elif graph_update_count == 3:
         gui.app.feedback_frame.animate()
         graph_update_count += 1 
 
+    # This statement is true when the graph_update_count counter variable is four.
+    # If true then reset the graph_update_count counter to zero.
     if graph_update_count == 4:
         graph_update_count = 0
 
+    # Update the GUI windows
     gui.app.update_idletasks()
     gui.app.update()    
 
